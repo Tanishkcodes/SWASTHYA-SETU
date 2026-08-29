@@ -1,0 +1,134 @@
+/* ============================================
+   SWASTHYA SETU — Consent Page Styles
+   Granular consent items, toggles, signature
+   ============================================ */
+
+.consent-page {
+  padding: var(--space-8) var(--space-6);
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--gray-50);
+}
+
+.consent-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+  max-width: 700px;
+}
+
+.consent-title {
+  font-size: var(--text-3xl);
+  color: var(--navy-800);
+  margin-bottom: var(--space-2);
+}
+
+.consent-subtitle {
+  color: var(--gray-600);
+  font-size: var(--text-lg);
+}
+
+.consent-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.consent-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.consent-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--teal-200);
+}
+
+.consent-card.active {
+  border-color: var(--teal-500);
+  background: var(--teal-50);
+}
+
+.consent-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: var(--teal-100);
+  color: var(--teal-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.consent-content {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.consent-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.consent-item-title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--navy-800);
+}
+
+.consent-item-desc {
+  font-size: var(--text-sm);
+  color: var(--gray-600);
+  line-height: var(--leading-relaxed);
+}
+
+.consent-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--gray-200);
+}
+
+.master-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5);
+  background: var(--navy-50);
+  border: 1px solid var(--navy-200);
+  border-radius: var(--radius-xl);
+  margin-bottom: var(--space-2);
+}
+
+.master-toggle-text {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+}
+
+.dpdp-notice {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  background: var(--gray-100);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--gray-600);
+}

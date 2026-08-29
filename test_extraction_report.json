@@ -1,0 +1,233 @@
+{
+  "passed": 19,
+  "failed": 1,
+  "total": 20,
+  "results": [
+    {
+      "test": "English (Standard Order)",
+      "lang": "en",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Sarah Jenkins",
+        "age": "29",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "English (Reverse Order & Spoken Digits)",
+      "lang": "en",
+      "status": "PASSED",
+      "extracted": {
+        "name": "David Miller",
+        "age": "35",
+        "phone": "9876543210",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "English (Self-Correction & Conversational Fillers)",
+      "lang": "en",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Robert Williams",
+        "age": "42",
+        "phone": "9123456780",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Hindi (Natural Conversational)",
+      "lang": "hi",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Ramesh Kumar",
+        "age": "45",
+        "phone": "9876543210",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Hindi (Hinglish & Self-Correction)",
+      "lang": "hi",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Suresh Patel",
+        "age": "35",
+        "phone": "9822334455",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Hindi (Phone First + Spoken Words)",
+      "lang": "hi",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Sunita Sharma",
+        "age": "50",
+        "phone": "9812345678",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Tamil (Pure Script)",
+      "lang": "ta",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Karthik Raja",
+        "age": "32",
+        "phone": "9876543210",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Tamil (Tanglish Mix & Reverse Order)",
+      "lang": "ta",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Priya Sundaram",
+        "age": "28",
+        "phone": "9840123456",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Telugu (Pure Script)",
+      "lang": "te",
+      "status": "FAILED",
+      "extracted": {
+        "name": "Venkateswara Rao",
+        "age": "48",
+        "phone": "9848012345",
+        "gender": "Male"
+      },
+      "expected": {
+        "name": "Venkateshwara Rao",
+        "age": "48",
+        "phone": "9848012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Telugu (Telugish Conversational)",
+      "lang": "te",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Lakshmi Devi",
+        "age": "36",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Bengali (Pure Script)",
+      "lang": "bn",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Amit Chatterjee",
+        "age": "42",
+        "phone": "9830012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Bengali (Banglish Mix)",
+      "lang": "bn",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Ananya Sen",
+        "age": "31",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Marathi (Natural Script)",
+      "lang": "mr",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Dnyaneshwar Kadam",
+        "age": "52",
+        "phone": "9820012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Marathi (Conversational Mix)",
+      "lang": "mr",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Pooja Deshmukh",
+        "age": "26",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Gujarati (Natural Script)",
+      "lang": "gu",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Harshad Mehta",
+        "age": "55",
+        "phone": "9898012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Gujarati (Conversational Mix)",
+      "lang": "gu",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Neha Patel",
+        "age": "30",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Kannada (Natural Script)",
+      "lang": "kn",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Manjunath Gowda",
+        "age": "40",
+        "phone": "9845012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Kannada (Conversational Mix)",
+      "lang": "kn",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Kavya Kumar",
+        "age": "27",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    },
+    {
+      "test": "Malayalam (Natural Script)",
+      "lang": "ml",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Mohanlal Kuruppu",
+        "age": "50",
+        "phone": "9847012345",
+        "gender": "Male"
+      }
+    },
+    {
+      "test": "Malayalam (Conversational Mix)",
+      "lang": "ml",
+      "status": "PASSED",
+      "extracted": {
+        "name": "Divya Menon",
+        "age": "33",
+        "phone": "9876543210",
+        "gender": "Female"
+      }
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+/* ============================================
+   SWASTHYA SETU — VoiceNav Indicator Styles
+   Floating mic orb with state-based animations
+   ============================================ */
+
+.voicenav-container {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: var(--z-voicenav);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Transcript Bubble ── */
+.voicenav-transcript {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  background: var(--gray-800);
+  color: var(--white);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  max-width: 300px;
+  min-width: 160px;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
+.voicenav-transcript::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  right: 28px;
+  width: 12px;
+  height: 12px;
+  background: var(--gray-800);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.voicenav-transcript-text {
+  margin: 0;
+  word-wrap: break-word;
+}
+
+/* ── Main Orb Button ── */
+.voicenav-orb {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.voicenav-orb:focus-visible {
+  outline: 3px solid var(--teal-300);
+  outline-offset: 4px;
+}
+
+.voicenav-orb:active {
+  transform: scale(0.92);
+}
+
+.voicenav-orb:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Orb Icon ── */
+.voicenav-orb-icon {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+/* ── IDLE State ── */
+.voicenav-orb--idle {
+  background: linear-gradient(135deg, var(--teal-500), var(--teal-600));
+  box-shadow: 0 4px 20px rgba(13, 148, 136, 0.4),
+              0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.voicenav-orb--idle:hover {
+  background: linear-gradient(135deg, var(--teal-400), var(--teal-500));
+  box-shadow: 0 6px 28px rgba(13, 148, 136, 0.5),
+              0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* ── LISTENING State ── */
+.voicenav-orb--listening {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5),
+              0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: pulse 1.5s infinite;
+}
+
+/* Pulse rings */
+.voicenav-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(239, 68, 68, 0.5);
+  animation: pulseRing 1.5s infinite;
+}
+
+.voicenav-pulse-ring--2 {
+  animation-delay: 0.5s;
+}
+
+/* Sound wave bars */
+.voicenav-waves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 32px;
+}
+
+.voicenav-wave {
+  display: block;
+  width: 4px;
+  height: 8px;
+  background: white;
+  border-radius: 2px;
+}
+
+.voicenav-wave--1 { animation: wave1 0.6s infinite ease-in-out; }
+.voicenav-wave--2 { animation: wave2 0.6s infinite ease-in-out 0.1s; }
+.voicenav-wave--3 { animation: wave1 0.6s infinite ease-in-out 0.2s; }
+.voicenav-wave--4 { animation: wave2 0.6s infinite ease-in-out 0.15s; }
+.voicenav-wave--5 { animation: wave1 0.6s infinite ease-in-out 0.25s; }
+
+/* ── SPEAKING State ── */
+.voicenav-orb--speaking {
+  background: linear-gradient(135deg, var(--green-500), var(--green-600));
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.5),
+              0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ── PROCESSING State ── */
+.voicenav-orb--processing {
+  background: linear-gradient(135deg, var(--yellow-500), var(--orange-500));
+  box-shadow: 0 4px 20px rgba(234, 179, 8, 0.5),
+              0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.voicenav-spinner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.voicenav-spinner span {
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  animation: bounce 0.6s infinite ease-in-out;
+}
+
+.voicenav-spinner span:nth-child(2) { animation-delay: 0.15s; }
+.voicenav-spinner span:nth-child(3) { animation-delay: 0.3s; }
+
+/* ── State Label ── */
+.voicenav-label {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.voicenav-label--active {
+  color: var(--gray-700);
+  font-weight: var(--weight-medium);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .voicenav-container {
+    bottom: 20px;
+    right: 20px;
+  }
+
+  .voicenav-orb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .voicenav-transcript {
+    max-width: 240px;
+  }
+}

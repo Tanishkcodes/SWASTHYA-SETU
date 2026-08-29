@@ -1,0 +1,154 @@
+/* ============================================
+   SWASTHYA SETU — Auth Page Styles
+   Login, Registration, Tabs
+   ============================================ */
+
+.auth-page {
+  padding-top: calc(var(--header-height, 72px) + 3rem);
+  padding-bottom: var(--space-8);
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: var(--gray-50);
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+  max-width: 600px;
+}
+
+.auth-title {
+  font-size: var(--text-3xl);
+  color: var(--navy-800);
+  margin-bottom: var(--space-2);
+}
+
+.auth-subtitle {
+  color: var(--gray-600);
+  font-size: var(--text-lg);
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 600px;
+}
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  background: var(--gray-200);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2);
+  margin-bottom: var(--space-6);
+  gap: var(--space-2);
+}
+
+.auth-tab {
+  flex: 1;
+  padding: var(--space-3) 0;
+  text-align: center;
+  font-weight: var(--weight-semibold);
+  color: var(--gray-600);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.auth-tab.active {
+  background: var(--white);
+  color: var(--teal-700);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Form Styles */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.qr-scanner-placeholder {
+  height: 200px;
+  background: var(--gray-100);
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+  gap: var(--space-4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.qr-scanner-placeholder:hover {
+  background: var(--teal-50);
+  border-color: var(--teal-300);
+  color: var(--teal-600);
+}
+
+/* Gender Selection */
+.gender-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.gender-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gender-card.selected {
+  border-color: var(--teal-500);
+  background: var(--teal-50);
+  color: var(--teal-700);
+}
+
+.gender-icon {
+  font-size: 32px;
+}
+
+/* Ayush Toggle Container */
+.ayush-toggle-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  border-radius: var(--radius-xl);
+  margin-top: var(--space-4);
+}
+
+.ayush-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ayush-title {
+  font-weight: var(--weight-bold);
+  color: var(--orange-800);
+}
+
+.ayush-desc {
+  font-size: var(--text-sm);
+  color: var(--orange-700);
+}

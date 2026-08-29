@@ -1,0 +1,221 @@
+/* ============================================
+   SWASTHYA SETU — Document Scan Styles
+   Camera UI, document list, analysis results
+   ============================================ */
+
+.scan-page {
+  padding: var(--space-6) var(--space-4);
+  padding-bottom: 120px;
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--gray-50);
+}
+
+.scan-header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+  max-width: 600px;
+}
+
+.scan-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+  margin-bottom: var(--space-2);
+}
+
+.scan-subtitle {
+  color: var(--gray-600);
+  font-size: var(--text-sm);
+}
+
+.scan-content {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ── Camera Area ── */
+.camera-container {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: var(--gray-900);
+  border-radius: var(--radius-2xl);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.camera-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.8;
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-radius: var(--radius-2xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scan-frame {
+  width: 70%;
+  height: 70%;
+  border: 2px dashed rgba(255,255,255,0.5);
+  border-radius: var(--radius-lg);
+  position: relative;
+}
+
+.scan-frame::before, .scan-frame::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--teal-400);
+  border-style: solid;
+}
+
+/* Corners */
+.scan-frame::before {
+  top: -2px; left: -2px;
+  border-width: 4px 0 0 4px;
+}
+.scan-frame::after {
+  bottom: -2px; right: -2px;
+  border-width: 0 4px 4px 0;
+}
+
+.camera-actions {
+  position: absolute;
+  bottom: var(--space-6);
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+}
+
+.btn-capture {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: 4px solid white;
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-capture:hover {
+  background: rgba(255,255,255,0.4);
+  transform: scale(1.05);
+}
+
+.btn-capture:active {
+  transform: scale(0.95);
+}
+
+.btn-capture-inner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: white;
+  transition: all 0.2s;
+}
+
+.btn-capture:active .btn-capture-inner {
+  width: 44px;
+  height: 44px;
+}
+
+/* ── Document List ── */
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.doc-card {
+  display: flex;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  gap: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  align-items: center;
+}
+
+.doc-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+  background: var(--gray-100);
+}
+
+.doc-info {
+  flex-grow: 1;
+}
+
+.doc-title {
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+  margin-bottom: var(--space-1);
+}
+
+.doc-status {
+  font-size: var(--text-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.status-analyzing {
+  color: var(--yellow-600);
+}
+.status-success {
+  color: var(--green-600);
+}
+
+/* ── Analysis Results Panel ── */
+.analysis-panel {
+  background: var(--teal-50);
+  border: 1px solid var(--teal-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.analysis-item {
+  display: flex;
+  margin-bottom: var(--space-2);
+}
+
+.analysis-label {
+  font-weight: var(--weight-semibold);
+  color: var(--teal-800);
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.analysis-value {
+  color: var(--teal-900);
+}

@@ -1,0 +1,128 @@
+/* ============================================
+   SWASTHYA SETU — Language Page Styles
+   Language selection grid
+   ============================================ */
+
+.language-page {
+  padding: var(--space-8) var(--space-6);
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--gray-50);
+}
+
+.language-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.language-title {
+  font-size: var(--text-3xl);
+  color: var(--navy-800);
+  margin-bottom: var(--space-2);
+}
+
+.language-subtitle {
+  color: var(--gray-600);
+  font-size: var(--text-lg);
+}
+
+.language-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1000px;
+}
+
+.language-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-6);
+  background: var(--white);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-2xl);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100px;
+}
+
+.language-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--teal-300);
+  box-shadow: var(--shadow-lg);
+}
+
+.language-card.selected {
+  border-color: var(--teal-500);
+  background: var(--teal-50);
+  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.2);
+}
+
+.language-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.language-native {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+  line-height: 1.2;
+}
+
+.language-english {
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+}
+
+.language-audio-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  color: var(--teal-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.language-card:hover .language-audio-btn {
+  background: var(--teal-100);
+  transform: scale(1.1);
+}
+
+.language-card.selected .language-audio-btn {
+  background: var(--teal-500);
+  color: var(--white);
+}
+
+/* ── Audio Button Component (Global) ── */
+.audio-btn-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--teal-50);
+  color: var(--teal-600);
+  border: 1px solid var(--teal-200);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.audio-btn-inline:hover {
+  background: var(--teal-100);
+  transform: scale(1.05);
+}
+
+.audio-btn-inline:active {
+  transform: scale(0.95);
+}

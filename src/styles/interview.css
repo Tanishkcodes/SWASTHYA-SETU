@@ -1,0 +1,230 @@
+/* ============================================
+   SWASTHYA SETU — Interview Page Styles
+   Adaptive UI, visual selection cards
+   ============================================ */
+
+.interview-page {
+  padding: var(--space-6) var(--space-4);
+  padding-bottom: 120px; /* Space for voice nav orb */
+  min-height: calc(100vh - var(--header-height));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--gray-50);
+}
+
+.interview-header {
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.interview-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.interview-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal-400), var(--teal-600));
+  transition: width 0.5s var(--ease-spring);
+}
+
+.interview-section-title {
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--teal-600);
+  font-weight: var(--weight-bold);
+}
+
+.interview-content {
+  width: 100%;
+  max-width: 800px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.question-card {
+  background: var(--white);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8) var(--space-6);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.question-text {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+  margin-bottom: var(--space-8);
+  line-height: var(--leading-tight);
+}
+
+/* ── Options Grid ── */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.options-grid.large-options {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.option-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-2);
+  background: var(--gray-50);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
+  min-height: 120px;
+}
+
+.option-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--teal-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.option-card:active {
+  transform: scale(0.95);
+}
+
+.option-icon {
+  font-size: 40px;
+}
+
+.option-label {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--navy-700);
+  text-align: center;
+}
+
+/* ── Body Map ── */
+.body-map-container {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.body-map-svg {
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+}
+
+.body-part {
+  fill: var(--teal-50);
+  stroke: var(--teal-300);
+  stroke-width: 2;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  outline: none;
+}
+
+.body-part:hover, .body-part:focus {
+  fill: var(--teal-200);
+  stroke: var(--teal-500);
+}
+
+/* ── Pain Scale ── */
+.pain-scale-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.pain-faces {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 var(--space-4);
+}
+
+.pain-face {
+  font-size: 32px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  opacity: 0.5;
+  filter: grayscale(100%);
+}
+
+.pain-face.active {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.3);
+}
+
+.pain-slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+  border-radius: var(--radius-full);
+  outline: none;
+}
+
+.pain-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  border: 3px solid var(--navy-500);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.pain-value-display {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  color: var(--navy-800);
+  text-align: center;
+}
+
+/* ── Red Flag Alert ── */
+.red-flag-banner {
+  background: var(--red-50);
+  border-left: 4px solid var(--red-500);
+  padding: var(--space-4);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.red-flag-icon {
+  color: var(--red-500);
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.red-flag-text {
+  color: var(--red-800);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-sm);
+}

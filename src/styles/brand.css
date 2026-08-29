@@ -1,0 +1,305 @@
+/* ============================================
+   SWASTHYA SETU — Brand Styling & Animations
+   Accurate recreation of Brandmark Typography & Effects
+   ============================================ */
+
+.brand-title-container {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  user-select: none;
+  font-family: 'Outfit', 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.brand-main {
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 2px;
+  position: relative;
+}
+
+/* Word 1: SWASTHYA */
+.brand-word-swasthya {
+  display: inline-flex;
+  align-items: center;
+  color: #0E3360;
+  position: relative;
+  letter-spacing: 3px;
+}
+
+/* Word 2: SETU */
+.brand-word-setu {
+  display: inline-flex;
+  align-items: center;
+  color: #EA580C;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 50%, #C2410C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Letters */
+.brand-letter {
+  display: inline-block;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Stylized 'A' with Teal Dot */
+.brand-letter-a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-letter-a .a-shape {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-letter-a .a-dot {
+  position: absolute;
+  bottom: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  background: #00A896;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 168, 150, 0.8);
+  animation: dotGlowPulse 2.5s ease-in-out infinite alternate;
+}
+
+/* Sizes */
+.brand-size-sm .brand-main {
+  font-size: 1.15rem;
+  letter-spacing: 1.5px;
+}
+.brand-size-sm .brand-letter-a .a-dot {
+  width: 3.5px;
+  height: 3.5px;
+  bottom: 20%;
+}
+
+.brand-size-md .brand-main {
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+}
+.brand-size-md .brand-letter-a .a-dot {
+  width: 4.5px;
+  height: 4.5px;
+  bottom: 22%;
+}
+
+.brand-size-lg .brand-main {
+  font-size: 2.4rem;
+  letter-spacing: 4px;
+}
+.brand-size-lg .brand-letter-a .a-dot {
+  width: 7px;
+  height: 7px;
+  bottom: 22%;
+}
+
+.brand-size-xl .brand-main {
+  font-size: 3.5rem;
+  letter-spacing: 5px;
+}
+.brand-size-xl .brand-letter-a .a-dot {
+  width: 9px;
+  height: 9px;
+  bottom: 23%;
+}
+
+/* Tagline */
+.brand-tagline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.tagline-text {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  color: #475569;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.tagline-rule {
+  height: 2px;
+  flex: 1;
+  border-radius: 2px;
+}
+
+.rule-teal {
+  background: linear-gradient(90deg, transparent, #00A896);
+}
+
+.rule-orange {
+  background: linear-gradient(90deg, #EA580C, transparent);
+}
+
+.brand-size-sm .tagline-text {
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+}
+
+.brand-size-lg .tagline-text {
+  font-size: 0.9rem;
+  letter-spacing: 3px;
+}
+.brand-size-lg .tagline-rule {
+  height: 3px;
+}
+
+/* ========================================================
+   ANIMATIONS: Fluid Color Wave & Shimmer Effect on Open
+   ======================================================== */
+.brand-animated .brand-word-swasthya {
+  background: linear-gradient(
+    90deg,
+    #0E3360 0%,
+    #0284C7 20%,
+    #00A896 40%,
+    #0E3360 60%,
+    #0284C7 80%,
+    #0E3360 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brandColorSweep 6s ease-in-out infinite;
+}
+
+.brand-animated .brand-word-setu {
+  background: linear-gradient(
+    90deg,
+    #0F766E 0%,
+    #14B8A6 25%,
+    #0D9488 50%,
+    #0F766E 75%,
+    #115E59 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: brandColorSweep 6s ease-in-out infinite 0.5s;
+}
+
+/* Hover Interaction: micro bounce on letters */
+.brand-title-container:hover .brand-letter {
+  transform: translateY(-2px);
+}
+
+.brand-title-container:hover .brand-letter-a .a-dot {
+  transform: translateX(-50%) scale(1.4);
+  box-shadow: 0 0 12px rgba(0, 168, 150, 1);
+}
+
+/* Light Theme version (for dark footers/headers) */
+.brand-light .brand-word-swasthya {
+  color: #FFFFFF;
+  background: linear-gradient(
+    90deg,
+    #FFFFFF 0%,
+    #38BDF8 25%,
+    #2DD4BF 50%,
+    #FFFFFF 75%,
+    #E2E8F0 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-light .tagline-text {
+  color: #94A3B8;
+}
+
+/* Keyframes */
+@keyframes brandColorSweep {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes dotGlowPulse {
+  0% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.3);
+    box-shadow: 0 0 10px rgba(0, 168, 150, 0.9);
+  }
+}
+
+/* Logo SVG Keyframes */
+.logo-cross-pulse {
+  animation: crossGentlePulse 3s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes crossGentlePulse {
+  0%, 100% {
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(251, 133, 0, 0.6));
+  }
+}
+
+.logo-pulse-path {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ecgBeat 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes ecgBeat {
+  0% {
+    stroke-dashoffset: 200;
+    opacity: 0.4;
+  }
+  40%, 60% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -200;
+    opacity: 0.4;
+  }
+}
+
+.heart-lobe-left {
+  animation: unifiedBreathe 4s ease-in-out infinite;
+}
+
+.heart-lobe-right {
+  animation: unifiedBreathe 4s ease-in-out infinite;
+  animation-delay: 2s; /* Alternating gentle breath */
+}
+
+@keyframes unifiedBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
