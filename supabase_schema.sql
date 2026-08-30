@@ -44,6 +44,10 @@ CREATE TABLE IF NOT EXISTS public.doctors (
   degrees       TEXT,                         -- "MBBS, MD (General Medicine)"
   speciality    TEXT,
   system        TEXT DEFAULT 'Allopathy',     -- Allopathy / Ayurveda / Homeopathy
+  gender        TEXT,                         -- 'Female' / 'Male'
+  age           INTEGER,                      -- e.g. 36
+  email         TEXT,                         -- e.g. "drananyasharma@swasthyasetu.ac.in"
+  phone         TEXT,                         -- e.g. "+91 98765 43210"
   experience    INTEGER,                      -- years
   rating        NUMERIC(3,1) DEFAULT 4.5,
   reviews_count INTEGER DEFAULT 0,

@@ -43,34 +43,115 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  const [newStaff, setNewStaff] = useState({ name: '', role: 'Physician', dept: 'General OPD', username: '', password: 'password' });
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    role: 'Physician',
+    degrees: 'MBBS, MD',
+    dept: 'General Medicine',
+    experience: 8,
+    age: 35,
+    gender: 'Female',
+    hospitalName: 'Sawai Man Singh Hospital',
+    username: '',
+    password: '',
+  });
+
+  const handleNameChange = (val) => {
+    const autoUsername = val.toLowerCase().replace(/[^a-z0-9]/g, '');
+    setNewStaff(prev => ({
+      ...prev,
+      name: val,
+      username: prev.username ? prev.username : (autoUsername ? `dr.${autoUsername}` : ''),
+      password: prev.password ? prev.password : 'Doctor@123'
+    }));
+  };
 
   const handleAddStaff = async () => {
-    if (newStaff.name) {
-      const createdStaff = {
-        id: Date.now(),
-        name: newStaff.name,
-        role: newStaff.role,
-        dept: newStaff.dept,
-        username: newStaff.username || `doc-${Math.floor(100 + Math.random() * 900)}`,
-        password: newStaff.password || 'password',
-        status: 'Active Credentials Issued'
-      };
-      
-      const normalizedRole = /admin/i.test(newStaff.role) ? 'admin' : /nurse/i.test(newStaff.role) ? 'nurse' : 'doctor';
-      const { data: id, error } = await db.staff.create({
-        username: createdStaff.username,
-        password: createdStaff.password,
-        name: createdStaff.name,
-        role: normalizedRole,
-        department: createdStaff.dept,
-      });
-      if (error) { alert(`Unable to create staff account: ${error.message}`); return; }
-      setStaffList(prev => [...prev, { ...createdStaff, id }]);
-
-      setNewStaff({ name: '', role: 'Physician', dept: 'General OPD', username: '', password: 'password' });
-      setShowAddStaffModal(false);
+    if (!newStaff.name) {
+      alert('Please enter the full name');
+      return;
     }
+
+    const assignedUsername = newStaff.username || newStaff.name.toLowerCase().replace(/[^a-z0-9]/g, '') || `doc-${Math.floor(100 + Math.random() * 900)}`;
+    const assignedPassword = newStaff.password || 'Doctor@123';
+    const isDoctorRole = /physician|doctor|ayush|specialist/i.test(newStaff.role);
+    const normalizedRole = /admin/i.test(newStaff.role) ? 'admin' : /nurse/i.test(newStaff.role) ? 'nurse' : 'doctor';
+    const system = /ayush|ayurveda/i.test(newStaff.role) || /ayur/i.test(newStaff.dept) ? 'Ayurveda' : 'Allopathy';
+
+    if (isDoctorRole) {
+      const { data, error } = await db.doctors.createDoctor({
+        name: newStaff.name,
+        degrees: newStaff.degrees || 'MBBS, MD',
+        speciality: newStaff.dept || 'General Medicine',
+        system,
+        experience: parseInt(newStaff.experience, 10) || 5,
+        age: parseInt(newStaff.age, 10) || 35,
+        gender: newStaff.gender || 'Female',
+        hospitalName: newStaff.hospitalName || 'Sawai Man Singh Hospital',
+        username: assignedUsername,
+        initialPassword: assignedPassword,
+      });
+
+      if (error) {
+        alert(`Unable to register doctor: ${error.message}`);
+        return;
+      }
+
+      setStaffList(prev => [
+        {
+          id: data.doctor.id,
+          name: data.doctor.name,
+          role: newStaff.role,
+          dept: data.doctor.speciality,
+          username: assignedUsername,
+          status: 'Active Credentials Issued',
+        },
+        ...prev,
+      ]);
+
+      alert(`✅ Doctor registered successfully!\n\nLogin ID: ${assignedUsername}\nInitial Password: ${assignedPassword}\n\nThe doctor can now log in and change their password.`);
+    } else {
+      const { data: id, error } = await db.staff.create({
+        username: assignedUsername,
+        password: assignedPassword,
+        name: newStaff.name,
+        role: normalizedRole,
+        department: newStaff.dept,
+      });
+
+      if (error) {
+        alert(`Unable to create staff account: ${error.message}`);
+        return;
+      }
+
+      setStaffList(prev => [
+        {
+          id,
+          name: newStaff.name,
+          role: newStaff.role,
+          dept: newStaff.dept,
+          username: assignedUsername,
+          status: 'Active Credentials Issued',
+        },
+        ...prev,
+      ]);
+
+      alert(`✅ Staff account created!\n\nUsername: ${assignedUsername}\nPassword: ${assignedPassword}`);
+    }
+
+    setNewStaff({
+      name: '',
+      role: 'Physician',
+      degrees: 'MBBS, MD',
+      dept: 'General Medicine',
+      experience: 8,
+      age: 35,
+      gender: 'Female',
+      hospitalName: 'Sawai Man Singh Hospital',
+      username: '',
+      password: '',
+    });
+    setShowAddStaffModal(false);
   };
 
   const handleLogout = () => {
@@ -278,18 +359,27 @@ export default function AdminDashboard() {
               {staffList.map(member => (
                 <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', background: 'var(--gray-50)', borderRadius: '12px', border: '1px solid var(--gray-200)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--teal-100)', color: 'var(--teal-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                      {member.name[0]}
+                    <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'var(--teal-100)', color: 'var(--teal-800)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '1rem' }}>
+                      {member.name ? member.name.replace(/^Dr\.\s*/i, '')[0] : 'D'}
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'var(--navy-900)' }}>{member.name}</h4>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>{member.role} • {member.dept}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'var(--navy-900)' }}>{member.name}</h4>
+                        {member.username && (
+                          <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: '6px', fontWeight: '600', fontFamily: 'monospace' }}>
+                            @{member.username}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--gray-500)' }}>{member.role} • {member.dept || member.department || 'Clinical Department'}</p>
                     </div>
                   </div>
 
-                  <span className="badge" style={{ background: '#dcfce7', color: '#15803d', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700' }}>
-                    {member.status}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className="badge" style={{ background: '#dcfce7', color: '#15803d', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: '700' }}>
+                      {member.status || 'Active'}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -364,69 +454,150 @@ export default function AdminDashboard() {
 
       </main>
 
-      {/* Add Staff Modal */}
+      {/* Add Staff / Doctor Modal */}
       {showAddStaffModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div style={{ background: 'white', borderRadius: '20px', padding: '2rem', maxWidth: '450px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--navy-900)' }}>Add New Staff Member</h3>
+          <div style={{ background: 'white', borderRadius: '20px', padding: '2rem', maxWidth: '520px', width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--navy-900)' }}>Add New Doctor / Staff Member</h3>
+            <p style={{ margin: '0 0 1.25rem 0', color: 'var(--gray-500)', fontSize: '0.85rem' }}>
+              Registering a doctor automatically syncs the database and issues encrypted initial login credentials.
+            </p>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', marginBottom: '1.5rem' }}>
               <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Staff Full Name:</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Full Name:</label>
                 <input 
                   type="text" 
                   value={newStaff.name} 
-                  onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                  placeholder="e.g. Dr. Ananya Sen"
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g. Dr. Gayatri Joshi"
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Role:</label>
-                <select 
-                  value={newStaff.role}
-                  onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
-                >
-                  <option value="Physician">Physician / Doctor</option>
-                  <option value="Nurse">Nurse</option>
-                  <option value="AYUSH Specialist">AYUSH Specialist</option>
-                  <option value="Receptionist">Receptionist</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Role:</label>
+                  <select 
+                    value={newStaff.role}
+                    onChange={(e) => setNewStaff({ ...newStaff, role: e.target.value })}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
+                  >
+                    <option value="Physician">Physician / Doctor</option>
+                    <option value="AYUSH Specialist">AYUSH Specialist</option>
+                    <option value="Nurse">Nurse</option>
+                    <option value="Receptionist">Receptionist</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Degrees / Qualifications:</label>
+                  <input 
+                    type="text" 
+                    value={newStaff.degrees} 
+                    onChange={(e) => setNewStaff({ ...newStaff, degrees: e.target.value })}
+                    placeholder="e.g. MBBS, MD"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
+                  />
+                </div>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Department:</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Department / Specialization:</label>
                 <input 
                   type="text" 
                   value={newStaff.dept} 
                   onChange={(e) => setNewStaff({ ...newStaff, dept: e.target.value })}
-                  placeholder="e.g. General OPD / Pediatrics"
+                  placeholder="e.g. General Medicine / Cardiology"
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Assign Doctor Login ID (Username):</label>
-                <input 
-                  type="text" 
-                  value={newStaff.username} 
-                  onChange={(e) => setNewStaff({ ...newStaff, username: e.target.value })}
-                  placeholder="e.g. DOC-104 or dr.ananya"
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Age:</label>
+                  <input 
+                    type="number" 
+                    value={newStaff.age} 
+                    onChange={(e) => setNewStaff({ ...newStaff, age: e.target.value })}
+                    placeholder="36"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Gender:</label>
+                  <select 
+                    value={newStaff.gender} 
+                    onChange={(e) => setNewStaff({ ...newStaff, gender: e.target.value })}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
+                  >
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Experience (Yrs):</label>
+                  <input 
+                    type="number" 
+                    value={newStaff.experience} 
+                    onChange={(e) => setNewStaff({ ...newStaff, experience: e.target.value })}
+                    placeholder="10"
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
+                  />
+                </div>
               </div>
 
               <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Assign Initial Password:</label>
-                <input 
-                  type="text" 
-                  value={newStaff.password} 
-                  onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
-                  placeholder="e.g. password"
+                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-700)' }}>Hospital / Center:</label>
+                <select 
+                  value={newStaff.hospitalName} 
+                  onChange={(e) => setNewStaff({ ...newStaff, hospitalName: e.target.value })}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--gray-300)', marginTop: '4px' }}
-                />
+                >
+                  <option value="Sawai Man Singh Hospital">Sawai Man Singh Hospital, Jaipur</option>
+                  <option value="AIIMS New Delhi">AIIMS New Delhi</option>
+                  <option value="Indraprastha Apollo Hospitals">Indraprastha Apollo Hospitals</option>
+                  <option value="Shalby Hospital Jaipur">Shalby Hospital Jaipur</option>
+                  <option value="All India Institute of Ayurveda (AIIA)">All India Institute of Ayurveda (AIIA)</option>
+                  <option value="National Institute of Ayurveda (NIA)">National Institute of Ayurveda (NIA)</option>
+                  <option value="Narayana Health City">Narayana Health City, Bangalore</option>
+                  <option value="Fortis Escorts Hospital">Fortis Escorts Hospital, Jaipur</option>
+                  <option value="Tata Memorial Hospital">Tata Memorial Hospital, Mumbai</option>
+                  <option value="Jaipur Hospital">Jaipur Hospital</option>
+                </select>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#0f172a', marginBottom: '8px' }}>
+                  🔑 Initial Login Credentials (Given to Doctor)
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-600)' }}>Login ID / Username:</label>
+                    <input 
+                      type="text" 
+                      value={newStaff.username} 
+                      onChange={(e) => setNewStaff({ ...newStaff, username: e.target.value })}
+                      placeholder="e.g. dr.ananya"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--gray-300)', marginTop: '2px', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gray-600)' }}>Initial Password:</label>
+                    <input 
+                      type="text" 
+                      value={newStaff.password} 
+                      onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+                      placeholder="Doctor@123"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--gray-300)', marginTop: '2px', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+                <small style={{ display: 'block', marginTop: '6px', color: '#64748b', fontSize: '0.72rem' }}>
+                  The password will be stored encrypted. The doctor can change it anytime in their portal.
+                </small>
               </div>
             </div>
 
@@ -435,7 +606,7 @@ export default function AdminDashboard() {
                 Cancel
               </button>
               <button onClick={handleAddStaff} className="btn btn-primary" style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 'bold' }}>
-                Save Staff Member
+                Register Doctor & Issue Login
               </button>
             </div>
           </div>
