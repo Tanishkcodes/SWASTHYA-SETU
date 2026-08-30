@@ -64,6 +64,8 @@ const patients = {
       let lookup = supabase.from('patients').select('*');
       if (phone) lookup = lookup.eq('phone', phone);
       else if (abhaId) lookup = lookup.eq('abha_id', abhaId);
+      else if (aadhaarLast4) lookup = lookup.eq('aadhaar_last4', aadhaarLast4);
+      else if (name) lookup = lookup.eq('name', name);
       else lookup = lookup.eq('id', '00000000-0000-0000-0000-000000000000');
       const { data: existing, error: lookupError } = await lookup.maybeSingle();
 
@@ -72,7 +74,18 @@ const patients = {
         // Update name/age/language in case they changed
         const { data, error } = await supabase
           .from('patients')
-          .update({ name, age, gender, language, abha_id: abhaId, aadhaar_last4: aadhaarLast4, address, auth_method: authMethod, updated_at: new Date().toISOString() })
+          .update({
+            name: name || existing.name,
+            phone: phone || existing.phone,
+            age: age || existing.age,
+            gender: gender || existing.gender,
+            language: language || existing.language,
+            abha_id: abhaId || existing.abha_id,
+            aadhaar_last4: aadhaarLast4 || existing.aadhaar_last4,
+            address: address || existing.address,
+            auth_method: authMethod || existing.auth_method,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', existing.id)
           .select()
           .single();
@@ -90,11 +103,41 @@ const patients = {
 
     // ── localStorage fallback ──
     const all = lsRead(LS.patients);
-    let patient = all.find(p => p.phone === phone);
+    let patient = all.find(p =>
+      (phone && p.phone === phone) ||
+      (abhaId && (p.abha_id === abhaId || p.abhaId === abhaId)) ||
+      (aadhaarLast4 && (p.aadhaar_last4 === aadhaarLast4 || p.aadhaarLast4 === aadhaarLast4)) ||
+      (name && p.name && p.name.toLowerCase().trim() === name.toLowerCase().trim())
+    );
     if (patient) {
-      Object.assign(patient, { name, age, gender, language, updated_at: new Date().toISOString() });
+      Object.assign(patient, {
+        name: name || patient.name,
+        phone: phone || patient.phone,
+        age: age || patient.age,
+        gender: gender || patient.gender,
+        language: language || patient.language,
+        abha_id: abhaId || patient.abha_id || patient.abhaId,
+        abhaId: abhaId || patient.abhaId || patient.abha_id,
+        aadhaar_last4: aadhaarLast4 || patient.aadhaar_last4 || patient.aadhaarLast4,
+        aadhaarLast4: aadhaarLast4 || patient.aadhaarLast4 || patient.aadhaar_last4,
+        auth_method: authMethod || patient.auth_method || patient.authMethod,
+        updated_at: new Date().toISOString()
+      });
     } else {
-      patient = { id: uuid(), name, phone, age, gender, language, created_at: new Date().toISOString() };
+      patient = {
+        id: uuid(),
+        name: name || 'Patient',
+        phone,
+        age,
+        gender,
+        language,
+        abha_id: abhaId,
+        abhaId,
+        aadhaar_last4: aadhaarLast4,
+        aadhaarLast4,
+        auth_method: authMethod,
+        created_at: new Date().toISOString()
+      };
       all.push(patient);
     }
     lsWrite(LS.patients, all);
@@ -561,7 +604,12 @@ const appointments = {
     }
     const all = lsRead(LS.appointments);
     return {
-      data: all.filter(a => a.doctor_id === doctorId && a.date === dateStr && a.status !== 'cancelled'),
+      data: all.filter(a => {
+        if (!a || a.date !== dateStr || a.status === 'cancelled') return false;
+        if (a.doctor_id === doctorId) return true;
+        if (doctorId && a.doctor_id && (a.doctor_id.endsWith(doctorId) || doctorId.endsWith(a.doctor_id))) return true;
+        return false;
+      }),
       error: null,
     };
   },

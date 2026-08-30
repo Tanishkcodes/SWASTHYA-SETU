@@ -103,7 +103,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'Uploaded diagnostic files, prescriptions, and AI OCR extracted summaries.',
     donationsDesc: 'Support underprivileged emergency patients and community rural health clinics across India.',
     communitiesDesc: 'Connect with peer groups, share wellness routines, and ask verified health educators.',
-    helpDesc: '24/7 National Health Helpline, Voice navigation assistance, and FAQ.'
+    helpDesc: '24/7 National Health Helpline, Voice navigation assistance, and FAQ.',
+    backToDashboard: 'Back to Dashboard',
+    selectDoctorTitle: 'Select a Doctor',
+    chooseDoctorFrom: 'Choose a doctor from {hospital}',
+    allopathic: 'Allopathy',
+    select: 'Select',
+    viewProfile: 'View Profile',
+    changeHospital: 'Change Hospital',
+    wizardStep1: 'Select Date',
+    wizardStep2: 'Select Time',
+    wizardStep3: 'Case & Symptoms',
+    wizardStep4: 'Upload Reports',
+    wizardStep5: 'Confirmation',
+    step1SelectDate: 'Step 1: Select Date',
+    step1Desc: 'Choose a convenient date for your doctor consultation',
+    moreDates: 'More Dates',
+    nextSelectTime: 'Next: Select Time',
+    step2SelectTime: 'Step 2: Select Time Slot',
+    liveDoctorSchedule: "Live availability from {doctor}'s schedule",
+    morningSlots: 'Morning Slots',
+    afternoonSlots: 'Afternoon Slots',
+    eveningSlots: 'Evening Slots',
+    slotsAvailable: 'slots available',
+    slotLeft: 'slot left',
+    slotsLeft: 'slots left',
+    selected: 'Selected',
+    fullyBooked: 'Fully Booked',
+    closed: 'Closed',
+    fillingFast: 'Filling Fast',
+    available: 'Available',
+    loadingLiveSchedule: 'Loading live schedule…',
+    noSlotsAvailable: 'No slots available for this date. Please select a different date.',
+    liveAvailabilityBadge: 'Live availability · Refreshes every 15s',
+    previous: 'Previous',
+    nextCase: 'Next: Case & Symptoms',
+    searchDoctorPlaceholder: "Search doctor by name or specialty...",
+    filters: "Filters",
+    years: "years",
+    yrs: "yrs",
   },
   hi: {
     trustHeader: 'आपका स्वास्थ्य, हमारी प्राथमिकता',
@@ -180,7 +218,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'अपलोड की गई डायग्नोस्टिक फाइलें, नुस्खे और AI OCR सारांश।',
     donationsDesc: 'भारत भर में आपातकालीन रोगियों और ग्रामीण स्वास्थ्य क्लीनिकों का समर्थन करें।',
     communitiesDesc: 'साथी समूहों से जुड़ें, स्वास्थ्य दिनचर्या साझा करें और स्वास्थ्य शिक्षकों से पूछें।',
-    helpDesc: '24/7 राष्ट्रीय स्वास्थ्य हेल्पलाइन, आवाज नेविगेशन सहायता और अक्सर पूछे जाने वाले प्रश्न।'
+    helpDesc: '24/7 राष्ट्रीय स्वास्थ्य हेल्पलाइन, आवाज नेविगेशन सहायता और अक्सर पूछे जाने वाले प्रश्न।',
+    backToDashboard: "डैशबोर्ड पर वापस जाएँ",
+    selectDoctorTitle: "डॉक्टर चुनें",
+    chooseDoctorFrom: "{hospital} से डॉक्टर चुनें",
+    allopathic: "एलोपैथी",
+    select: "चुनें",
+    viewProfile: "प्रोफ़ाइल देखें",
+    changeHospital: "अस्पताल बदलें",
+    wizardStep1: "तारीख चुनें",
+    wizardStep2: "समय चुनें",
+    wizardStep3: "लक्षण और केस",
+    wizardStep4: "रिपोर्ट अपलोड",
+    wizardStep5: "पुष्टि",
+    step1SelectDate: "चरण 1: तारीख चुनें",
+    step1Desc: "डॉक्टर से परामर्श के लिए सुविधाजनक तारीख चुनें",
+    moreDates: "अन्य तारीखें",
+    nextSelectTime: "आगे: समय चुनें",
+    step2SelectTime: "चरण 2: समय स्लॉट चुनें",
+    liveDoctorSchedule: "{doctor} के शेड्यूल से लाइव उपलब्धता",
+    morningSlots: "सुबह के स्लॉट",
+    afternoonSlots: "दोपहर के स्लॉट",
+    eveningSlots: "शाम के स्लॉट",
+    slotsAvailable: "स्लॉट उपलब्ध",
+    slotLeft: "स्लॉट बाकी",
+    slotsLeft: "स्लॉट बाकी",
+    selected: "चयनित",
+    fullyBooked: "पूरी तरह बुक",
+    closed: "बंद",
+    fillingFast: "तेजी से भर रहा",
+    available: "उपलब्ध",
+    loadingLiveSchedule: "लाइव शेड्यूल लोड हो रहा है…",
+    noSlotsAvailable: "इस तारीख के लिए कोई स्लॉट उपलब्ध नहीं है। कृपया दूसरी तारीख चुनें।",
+    liveAvailabilityBadge: "लाइव उपलब्धता · हर 15 सेकेंड में अपडेट",
+    previous: "पिछला",
+    nextCase: "आगे: लक्षण और केस",
+    searchDoctorPlaceholder: "डॉक्टर का नाम या विशेषज्ञता खोजें...",
+    filters: "फ़िल्टर",
+    years: "वर्ष",
+    yrs: "वर्ष",
   },
   mr: {
     trustHeader: 'तुमचे आरोग्य, आमचे प्राधान्य',
@@ -257,7 +333,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'अपलोड केलेले निदान अहवाल, प्रिस्क्रिप्शन आणि AI OCR अहवाल.',
     donationsDesc: 'गरजू रुग्णांना आणि ग्रामीण आरोग्य केंद्रांना मदत करा.',
     communitiesDesc: 'रुग्ण समूहांशी संपर्क साधा आणि आरोग्य दिनचर्या जाणून घ्या.',
-    helpDesc: '24/7 राष्ट्रीय आरोग्य हेल्पलाइन आणि व्हॉईस सहाय्यता.'
+    helpDesc: '24/7 राष्ट्रीय आरोग्य हेल्पलाइन आणि व्हॉईस सहाय्यता.',
+    backToDashboard: "डॅशबोर्डवर परत जा",
+    selectDoctorTitle: "डॉक्टर निवडा",
+    chooseDoctorFrom: "{hospital} मधून डॉक्टर निवडा",
+    allopathic: "ॲलोपॅथी",
+    select: "निवडा",
+    viewProfile: "प्रोफाइल पहा",
+    changeHospital: "रुग्णालय बदला",
+    wizardStep1: "तारीख निवडा",
+    wizardStep2: "वेळ निवडा",
+    wizardStep3: "लक्षणे आणि केस",
+    wizardStep4: "अहवाल अपलोड",
+    wizardStep5: "पुष्टीकरण",
+    step1SelectDate: "पायरी 1: तारीख निवडा",
+    step1Desc: "डॉक्टरांच्या सल्ल्यासाठी सोयीस्कर तारीख निवडा",
+    moreDates: "इतर तारखा",
+    nextSelectTime: "पुढे: वेळ निवडा",
+    step2SelectTime: "पायरी 2: वेळ निवडा",
+    liveDoctorSchedule: "{doctor} यांच्या वेळापत्रकानुसार उपलब्ध वेळ",
+    morningSlots: "सकाळचे स्लॉट",
+    afternoonSlots: "दुपारचे स्लॉट",
+    eveningSlots: "संध्याकाळचे स्लॉट",
+    slotsAvailable: "स्लॉट उपलब्ध",
+    slotLeft: "स्लॉट बाकी",
+    slotsLeft: "स्लॉट बाकी",
+    selected: "निवडलेले",
+    fullyBooked: "पूर्ण भरलेले",
+    closed: "बंद",
+    fillingFast: "लवकर भरत आहे",
+    available: "उपलब्ध",
+    loadingLiveSchedule: "वेळापत्रक लोड होत आहे…",
+    noSlotsAvailable: "या तारखेसाठी कोणतेही स्लॉट उपलब्ध नाहीत. कृपया दुसरी तारीख निवडा.",
+    liveAvailabilityBadge: "थेट उपलब्धता · दर 15 सेकंदांनी अपडेट",
+    previous: "मागील",
+    nextCase: "पुढे: लक्षणे व केस",
+    searchDoctorPlaceholder: "डॉक्टरांचे नाव किंवा विशेषज्ञता शोधा...",
+    filters: "फिल्टर्स",
+    years: "वर्षे",
+    yrs: "वर्षे",
   },
   gu: {
     trustHeader: 'તમારું સ્વાસ્થ્ય, અમારી પ્રાથમિકતા',
@@ -334,7 +448,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'અપલોડ કરેલા રિપોર્ટ્સ અને AI OCR વિગતો.',
     donationsDesc: 'જરૂરિયાતમંદ દર્દીઓને સહાય કરો.',
     communitiesDesc: 'સ્વાસ્થ્ય જૂથો સાથે જોડાઓ અને માહિતી મેળવો.',
-    helpDesc: '24/7 હેલ્પલાઇન અને સહાય.'
+    helpDesc: '24/7 હેલ્પલાઇન અને સહાય.',
+    backToDashboard: "ડેશબોર્ડ પર પાછા જાઓ",
+    selectDoctorTitle: "ડૉક્ટર પસંદ કરો",
+    chooseDoctorFrom: "{hospital} માંથી ડૉક્ટર પસંદ કરો",
+    allopathic: "એલોપેથી",
+    select: "પસંદ કરો",
+    viewProfile: "પ્રોફાઇલ જુઓ",
+    changeHospital: "હોસ્પિટલ બદલો",
+    wizardStep1: "તારીખ પસંદ કરો",
+    wizardStep2: "સમય પસંદ કરો",
+    wizardStep3: "લક્ષણો અને કેસ",
+    wizardStep4: "રિપોર્ટ અપલોડ",
+    wizardStep5: "પુષ્ટિ",
+    step1SelectDate: "પગલું 1: તારીખ પસંદ કરો",
+    step1Desc: "ડૉક્ટરની મુલાકાત માટે અનુકૂળ તારીખ પસંદ કરો",
+    moreDates: "અન્ય તારીખો",
+    nextSelectTime: "આગળ: સમય પસંદ કરો",
+    step2SelectTime: "પગલું 2: સમય સ્લોટ પસંદ કરો",
+    liveDoctorSchedule: "{doctor} ના સમયપત્રક મુજબ ઉપલબ્ધતા",
+    morningSlots: "સવારના સ્લોટ",
+    afternoonSlots: "બપોરના સ્લોટ",
+    eveningSlots: "સાંજના સ્લોટ",
+    slotsAvailable: "સ્લોટ ઉપલબ્ધ",
+    slotLeft: "સ્લોટ બાકી",
+    slotsLeft: "સ્લોટ બાકી",
+    selected: "પસંદ કરેલ",
+    fullyBooked: "સંપૂર્ણ બુક",
+    closed: "બંધ",
+    fillingFast: "ઝડપથી ભરાઈ રહ્યું છે",
+    available: "ઉપલબ્ધ",
+    loadingLiveSchedule: "શેડ્યૂલ લોડ થઈ રહ્યું છે…",
+    noSlotsAvailable: "આ તારીખ માટે કોઈ સ્લોટ ઉપલબ્ધ નથી. કૃપા કરીને બીજી તારીખ પસંદ કરો.",
+    liveAvailabilityBadge: "લાઈવ ઉપલબ્ધતા · દર 15 સેકન્ડે અપડેટ",
+    previous: "પાછળ",
+    nextCase: "આગળ: કેસ અને લક્ષણો",
+    searchDoctorPlaceholder: "ડૉક્ટરનું નામ અથવા વિશેષતા શોધો...",
+    filters: "ફિલ્ટર્સ",
+    years: "વર્ષ",
+    yrs: "વર્ષ",
   },
   ta: {
     trustHeader: 'உங்கள் நல்வாழ்வு, எங்கள் முன்னுரிமை',
@@ -411,7 +563,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'பதிவேற்றப்பட்ட மருத்துவ அறிக்கைகள் மற்றும் AI OCR விவரங்கள்.',
     donationsDesc: 'எளிய நோயாளிகளுக்கு அவசர சிகிச்சைக்கான நிதியுதவி.',
     communitiesDesc: 'ஆரோக்கிய குழுக்களுடன் இணைந்து கலந்துரையாடுங்கள்.',
-    helpDesc: '24/7 தேசிய சுகாதார உதவி எண் மற்றும் வழிகாட்டுதல்.'
+    helpDesc: '24/7 தேசிய சுகாதார உதவி எண் மற்றும் வழிகாட்டுதல்.',
+    backToDashboard: "டாஷ்போர்டிற்குத் திரும்பு",
+    selectDoctorTitle: "மருத்துவரைத் தேர்ந்தெடுக்கவும்",
+    chooseDoctorFrom: "{hospital} மருத்துவமனையிலிருந்து மருத்துவரைத் தேர்ந்தெடுக்கவும்",
+    allopathic: "அலோபதி",
+    select: "தேர்ந்தெடு",
+    viewProfile: "சுயவிவரம் பார்",
+    changeHospital: "மருத்துவமனையை மாற்று",
+    wizardStep1: "தேதி தேர்வு",
+    wizardStep2: "நேரம் தேர்வு",
+    wizardStep3: "அறிகுறிகள் & வழக்கு",
+    wizardStep4: "அறிக்கைகள் பதிவேற்று",
+    wizardStep5: "உறுதிப்படுத்தல்",
+    step1SelectDate: "படி 1: தேதியைத் தேர்ந்தெடுக்கவும்",
+    step1Desc: "மருத்துவ ஆலோசனைக்கான வசதியான தேதியைத் தேர்ந்தெடுக்கவும்",
+    moreDates: "மேலும் தேதிகள்",
+    nextSelectTime: "அடுத்து: நேரம் தேர்ந்தெடு",
+    step2SelectTime: "படி 2: நேரத்தைத் தேர்ந்தெடுக்கவும்",
+    liveDoctorSchedule: "{doctor} அட்டவணைப்படி நேரடி கிடைக்கும் நேரம்",
+    morningSlots: "காலை நேரங்கள்",
+    afternoonSlots: "மதிய நேரங்கள்",
+    eveningSlots: "மாலை நேரங்கள்",
+    slotsAvailable: "இடங்கள் உள்ளன",
+    slotLeft: "இடம் மட்டுமே உள்ளது",
+    slotsLeft: "இடங்கள் உள்ளன",
+    selected: "தேர்ந்தெடுக்கப்பட்டது",
+    fullyBooked: "முழுமையாக முன்பதிவானது",
+    closed: "மூடப்பட்டது",
+    fillingFast: "விரைவாக நிரம்புகிறது",
+    available: "கிடைக்கிறது",
+    loadingLiveSchedule: "அட்டவணை ஏற்றப்படுகிறது…",
+    noSlotsAvailable: "இந்த தேதிக்கு நேரங்கள் இல்லை. வேறு தேதியைத் தேர்ந்தெடுக்கவும்.",
+    liveAvailabilityBadge: "நேரடி நிலை · ஒவ்வொரு 15 வினாடிக்கும் புதுப்பிக்கப்படுகிறது",
+    previous: "முந்தையது",
+    nextCase: "அடுத்து: அறிகுறிகள் & வழக்கு",
+    searchDoctorPlaceholder: "மருத்துவர் பெயர் அல்லது நிபுணத்துவத்தைத் தேடவும்...",
+    filters: "வடிகட்டிகள்",
+    years: "ஆண்டுகள்",
+    yrs: "ஆண்டுகள்",
   },
   te: {
     trustHeader: 'మీ ఆరోగ్యం, మా ప్రాధాన్యత',
@@ -488,7 +678,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'అప్‌లోడ్ చేసిన ల్యాబ్ నివేదికలు మరియు AI OCR సారాంశాలు.',
     donationsDesc: 'అవసరమైన రోగులకు అత్యవసర సహాయం చేయండి.',
     communitiesDesc: 'ఆరోగ్య సంఘాలతో కలసి సమాచారం పంచుకోండి.',
-    helpDesc: '24/7 జాతీయ హెల్ప్‌లైన్ మరియు వాయిస్ సహాయం.'
+    helpDesc: '24/7 జాతీయ హెల్ప్‌లైన్ మరియు వాయిస్ సహాయం.',
+    backToDashboard: "డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి",
+    selectDoctorTitle: "వైద్యుడిని ఎంచుకోండి",
+    chooseDoctorFrom: "{hospital} నుండి వైద్యుడిని ఎంచుకోండి",
+    allopathic: "అల్లోపతి",
+    select: "ఎంచుకోండి",
+    viewProfile: "ప్రొఫైల్ చూడండి",
+    changeHospital: "ఆసుపత్రిని మార్చండి",
+    wizardStep1: "తేదీ ఎంచుకోండి",
+    wizardStep2: "సమయం ఎంచుకోండి",
+    wizardStep3: "లక్షణాలు & కేసు",
+    wizardStep4: "నివేదికలు అప్‌లోడ్",
+    wizardStep5: "ధృవీకరణ",
+    step1SelectDate: "దశ 1: తేదీని ఎంచుకోండి",
+    step1Desc: "డాక్టర్ సంప్రదింపుల కోసం అనుకూలమైన తేదీని ఎంచుకోండి",
+    moreDates: "మరిన్ని తేదీలు",
+    nextSelectTime: "తర్వాత: సమయం ఎంచుకోండి",
+    step2SelectTime: "దశ 2: సమయ స్లాట్‌ను ఎంచుకోండి",
+    liveDoctorSchedule: "{doctor} షెడ్యూల్ నుండి ప్రత్యక్ష లభ్యత",
+    morningSlots: "ఉదయం స్లాట్లు",
+    afternoonSlots: "మధ్యాహ్నం స్లాట్లు",
+    eveningSlots: "సాయంత్రం స్లాట్లు",
+    slotsAvailable: "స్లాట్లు అందుబాటులో ఉన్నాయి",
+    slotLeft: "స్లాట్ మాత్రమే ఉంది",
+    slotsLeft: "స్లాట్లు ఉన్నాయి",
+    selected: "ఎంచుకోబడింది",
+    fullyBooked: "పూర్తిగా బుక్ అయింది",
+    closed: "మూసివేయబడింది",
+    fillingFast: "వేగంగా నిండుతోంది",
+    available: "అందుబాటులో ఉంది",
+    loadingLiveSchedule: "షెడ్యూల్ లోడ్ అవుతోంది…",
+    noSlotsAvailable: "ఈ తేదీకి స్లాట్‌లు లేవు. దయచేసి వేరే తేదీని ఎంచుకోండి.",
+    liveAvailabilityBadge: "లైవ్ లభ్యత · ప్రతి 15 సెకన్లకు అప్‌డేట్",
+    previous: "మునుపటి",
+    nextCase: "తర్వాత: లక్షణాలు & వివరాలు",
+    searchDoctorPlaceholder: "డాక్టర్ పేరు లేదా స్పెషాలిటీని శోధించండి...",
+    filters: "ఫిల్టర్లు",
+    years: "సంవత్సరాలు",
+    yrs: "సంవత్సరాలు",
   },
   kn: {
     trustHeader: 'ನಿಮ್ಮ ಆರೋಗ್ಯ, ನಮ್ಮ ಆದ್ಯತೆ',
@@ -565,7 +793,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ಲ್ಯಾಬ್ ವರದಿಗಳು ಮತ್ತು AI OCR ಸಾರಾಂಶಗಳು.',
     donationsDesc: 'ಅಗತ್ಯವಿರುವ ರೋಗಿಗಳಿಗೆ ಆರೋಗ್ಯ ನೆರವು ನೀಡಿ.',
     communitiesDesc: 'ಆರೋಗ್ಯ ಸಮುದಾಯಗಳೊಂದಿಗೆ ಸಂಪರ್ಕದಲ್ಲಿರಿ.',
-    helpDesc: '24/7 ರಾಷ್ಟ್ರೀಯ ಸಹಾಯವಾಣಿ ಮತ್ತು ಧ್ವನಿ ಮಾರ್ಗದರ್ಶನ.'
+    helpDesc: '24/7 ರಾಷ್ಟ್ರೀಯ ಸಹಾಯವಾಣಿ ಮತ್ತು ಧ್ವನಿ ಮಾರ್ಗದರ್ಶನ.',
+    backToDashboard: "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಹಿಂತಿರುಗಿ",
+    selectDoctorTitle: "ವೈದ್ಯರನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    chooseDoctorFrom: "{hospital} ನಿಂದ ವೈದ್ಯರನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    allopathic: "ಅಲೋಪತಿ",
+    select: "ಆಯ್ಕೆಮಾಡಿ",
+    viewProfile: "ಪ್ರೊಫೈಲ್ ನೋಡಿ",
+    changeHospital: "ಆಸ್ಪತ್ರೆ ಬದಲಿಸಿ",
+    wizardStep1: "ದಿನಾಂಕ ಆಯ್ಕೆ",
+    wizardStep2: "ಸಮಯ ಆಯ್ಕೆ",
+    wizardStep3: "ಲಕ್ಷಣಗಳು & ವಿವರ",
+    wizardStep4: "ವರದಿ ಅಪ್‌ಲೋಡ್",
+    wizardStep5: "ದೃಢೀಕರಣ",
+    step1SelectDate: "ಹಂತ 1: ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    step1Desc: "ವೈದ್ಯರ ಸಮಾಲೋಚನೆಗಾಗಿ ಅನುಕೂಲಕರ ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+    moreDates: "ಇನ್ನಷ್ಟು ದಿನಾಂಕಗಳು",
+    nextSelectTime: "ಮುಂದೆ: ಸಮಯ ಆಯ್ಕೆ",
+    step2SelectTime: "ಹಂತ 2: ಸಮಯದ ಸ್ಲಾಟ್ ಆಯ್ಕೆಮಾಡಿ",
+    liveDoctorSchedule: "{doctor} ಅವರ ಲೈವ್ ವೇಳಾಪಟ್ಟಿ ಲಭ್ಯತೆ",
+    morningSlots: "ಬೆಳಗಿನ ಸ್ಲಾಟ್‌ಗಳು",
+    afternoonSlots: "ಮಧ್ಯಾಹ್ನದ ಸ್ಲಾಟ್‌ಗಳು",
+    eveningSlots: "ಸಂಜೆಯ ಸ್ಲಾಟ್‌ಗಳು",
+    slotsAvailable: "ಸ್ಲಾಟ್‌ಗಳು ಲಭ್ಯವಿವೆ",
+    slotLeft: "ಸ್ಲಾಟ್ ಮಾತ್ರ ಬಾಕಿ",
+    slotsLeft: "ಸ್ಲಾಟ್‌ಗಳು ಬಾಕಿ",
+    selected: "ಆಯ್ಕೆಯಾಗಿದೆ",
+    fullyBooked: "ಸಂಪೂರ್ಣ ಭರ್ತಿಯಾಗಿದೆ",
+    closed: "ಮುಚ್ಚಲಾಗಿದೆ",
+    fillingFast: "ವೇಗವಾಗಿ ಭರ್ತಿಯಾಗುತ್ತಿದೆ",
+    available: "ಲಭ್ಯವಿದೆ",
+    loadingLiveSchedule: "ವೇಳಾಪಟ್ಟಿ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+    noSlotsAvailable: "ಈ ದಿನಾಂಕಕ್ಕೆ ಯಾವುದೇ ಸ್ಲಾಟ್‌ಗಳು ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ಬೇರೆ ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ.",
+    liveAvailabilityBadge: "ಲೈವ್ ಲಭ್ಯತೆ · ಪ್ರತಿ 15 ಸೆಕೆಂಡಿಗೆ ನವೀಕರಣ",
+    previous: "ಹಿಂದೆ",
+    nextCase: "ಮುಂದೆ: ಲಕ್ಷಣಗಳು ಮತ್ತು ವಿವರ",
+    searchDoctorPlaceholder: "ವೈದ್ಯರ ಹೆಸರು ಅಥವಾ ವಿಶೇಷತೆಯನ್ನು ಹುಡುಕಿ...",
+    filters: "ಫಿಲ್ಟರ್‌ಗಳು",
+    years: "ವರ್ಷಗಳು",
+    yrs: "ವರ್ಷಗಳು",
   },
   bn: {
     trustHeader: 'আপনার স্বাস্থ্য, আমাদের অগ্রাধিকার',
@@ -642,7 +908,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'আপলোড করা ডায়াগনস্টিক রিপোর্ট এবং AI OCR সারাংশ।',
     donationsDesc: 'প্রয়োজনে দরিদ্র রোগীদের সহায়তা করুন।',
     communitiesDesc: 'স্বাস্থ্য সম্প্রদায়ের সাথে যুক্ত থাকুন।',
-    helpDesc: '২৪/৭ জাতীয় স্বাস্থ্য হেল্পলাইন।'
+    helpDesc: '২৪/৭ জাতীয় স্বাস্থ্য হেল্পলাইন।',
+    backToDashboard: "ড্যাশবোর্ডে ফিরে যান",
+    selectDoctorTitle: "ডাক্তার নির্বাচন করুন",
+    chooseDoctorFrom: "{hospital} থেকে একজন ডাক্তার বেছে নিন",
+    allopathic: "অ্যালোপ্যাথি",
+    select: "নির্বাচন করুন",
+    viewProfile: "প্রোফাইল দেখুন",
+    changeHospital: "হাসপাতাল পরিবর্তন",
+    wizardStep1: "তারিখ নির্বাচন",
+    wizardStep2: "সময় নির্বাচন",
+    wizardStep3: "লক্ষণ ও কেস",
+    wizardStep4: "রিপোর্ট আপলোড",
+    wizardStep5: "নিশ্চিতকরণ",
+    step1SelectDate: "ধাপ ১: তারিখ নির্বাচন করুন",
+    step1Desc: "ডাক্তারের পরামর্শের জন্য সুবিধাজনক তারিখ নির্বাচন করুন",
+    moreDates: "অন্যান্য তারিখ",
+    nextSelectTime: "পরবর্তী: সময় নির্বাচন",
+    step2SelectTime: "ধাপ ২: সময় স্লট নির্বাচন করুন",
+    liveDoctorSchedule: "{doctor}-এর সময়সূচী থেকে লাইভ প্রাপ্যতা",
+    morningSlots: "সকালের স্লট",
+    afternoonSlots: "দুপুরের স্লট",
+    eveningSlots: "সন্ধ্যার স্লট",
+    slotsAvailable: "স্লট উপলব্ধ",
+    slotLeft: "স্লট বাকি",
+    slotsLeft: "স্লট বাকি",
+    selected: "নির্বাচিত",
+    fullyBooked: "সম্পূর্ণ বুকড",
+    closed: "বন্ধ",
+    fillingFast: "দ্রুত পূর্ণ হচ্ছে",
+    available: "উপলব্ধ",
+    loadingLiveSchedule: "সময়সূচী লোড হচ্ছে…",
+    noSlotsAvailable: "এই তারিখে কোনো স্লট উপলব্ধ নেই। অনুগ্রহ করে অন্য তারিখ নির্বাচন করুন।",
+    liveAvailabilityBadge: "লাইভ প্রাপ্যতা · প্রতি ১৫ সেকেন্ডে আপডেট",
+    previous: "আগের",
+    nextCase: "পরবর্তী: লক্ষণ ও কেস",
+    searchDoctorPlaceholder: "ডাক্তারের নাম বা বিশেষত্ব অনুসন্ধান করুন...",
+    filters: "ফিল্টার",
+    years: "বছর",
+    yrs: "বছর",
   },
   pa: {
     portal: 'ਮਰੀਜ਼ ਪੋਰਟਲ',
@@ -781,7 +1085,45 @@ const DASHBOARD_I18N = {
     reportsDesc: 'അപ്‌ലോഡ് ചെയ്ത ലാബ് റിപ്പോർട്ടുകൾ.',
     donationsDesc: 'ആവശ്യമുള്ള രോഗികൾക്ക് സഹായം നൽകുക.',
     communitiesDesc: 'ആരോഗ്യ കൂട്ടായ്മകളുമായി പങ്കുചേരുക.',
-    helpDesc: '24/7 ദേശീയ ഹെൽപ്പ്‌ലൈൻ.'
+    helpDesc: '24/7 ദേശീയ ഹെൽപ്പ്‌ലൈൻ.',
+    backToDashboard: "ഡാഷ്‌ബോർഡിലേക്ക് മടങ്ങുക",
+    selectDoctorTitle: "ഒരു ഡോക്ടറെ തിരഞ്ഞെടുക്കുക",
+    chooseDoctorFrom: "{hospital}-ൽ നിന്ന് ഡോക്ടറെ തിരഞ്ഞെടുക്കുക",
+    allopathic: "അലോപ്പതി",
+    select: "തിരഞ്ഞെടുക്കുക",
+    viewProfile: "പ്രൊഫൈൽ കാണുക",
+    changeHospital: "ആശുപത്രി മാറ്റുക",
+    wizardStep1: "തീയതി തിരഞ്ഞെടുക്കുക",
+    wizardStep2: "സമയം തിരഞ്ഞെടുക്കുക",
+    wizardStep3: "ലക്ഷണങ്ങൾ & കേസ്",
+    wizardStep4: "റിപ്പോർട്ട് അപ്‌ലോഡ്",
+    wizardStep5: "സ്ഥിരീകരണം",
+    step1SelectDate: "ഘട്ടം 1: തീയതി തിരഞ്ഞെടുക്കുക",
+    step1Desc: "ഡോക്ടർ കൺസൾട്ടേഷനായി സൗകര്യപ്രദമായ തീയതി തിരഞ്ഞെടുക്കുക",
+    moreDates: "മറ്റ് തീയതികൾ",
+    nextSelectTime: "അടുത്തത്: സമയം തിരഞ്ഞെടുക്കുക",
+    step2SelectTime: "ഘട്ടം 2: സമയം തിരഞ്ഞെടുക്കുക",
+    liveDoctorSchedule: "{doctor}-ന്റെ ഷെഡ്യൂളിൽ നിന്നുള്ള തത്സമയ ലഭ്യത",
+    morningSlots: "രാവിലെ സ്ലോട്ടുകൾ",
+    afternoonSlots: "ഉച്ചതിരിഞ്ഞ് സ്ലോട്ടുകൾ",
+    eveningSlots: "വൈകുന്നേരം സ്ലോട്ടുകൾ",
+    slotsAvailable: "സ്ലോട്ടുകൾ ലഭ്യമാണ്",
+    slotLeft: "സ്ലോട്ട് മാത്രം ബാക്കി",
+    slotsLeft: "സ്ലോട്ടുകൾ ലഭ്യമാണ്",
+    selected: "തിരഞ്ഞെടുത്തു",
+    fullyBooked: "പൂർണ്ണമായി ബുക്ക് ചെയ്‌തു",
+    closed: "അടച്ചു",
+    fillingFast: "വേഗത്തിൽ നിറയുന്നു",
+    available: "ലഭ്യമാണ്",
+    loadingLiveSchedule: "ഷെഡ്യൂൾ ലോഡ് ചെയ്യുന്നു…",
+    noSlotsAvailable: "ഈ തീയതിയിൽ സ്ലോട്ടുകളൊന്നും ലഭ്യമല്ല. ദയവായി മറ്റൊരു തീയതി തിരഞ്ഞെടുക്കുക.",
+    liveAvailabilityBadge: "തത്സമയ ലഭ്യത · ഓരോ 15 സെക്കൻഡിലും പുതുക്കുന്നു",
+    previous: "മുമ്പ്",
+    nextCase: "അടുത്തത്: ലക്ഷണങ്ങളും വിശദാംശങ്ങളും",
+    searchDoctorPlaceholder: "ഡോക്ടറുടെ പേരോ സ്പെഷ്യാലിറ്റിയോ തിരയുക...",
+    filters: "ഫിൽട്ടറുകൾ",
+    years: "വർഷം",
+    yrs: "വർഷം",
   },
   or: {
     portal: 'ରୋଗୀ ପୋର୍ଟାଲ',
@@ -1981,7 +2323,7 @@ export default function PatientDashboard() {
 
   // Load the logged-in patient's durable appointments.
   useEffect(() => {
-    if (!session.patient?.id) return;
+    if (!session.patient?.id && !session.patient?.phone && !session.patient?.abhaId) return;
     let active = true;
     db.appointments.getByPatient(session.patient.id).then(({ data, error }) => {
       if (!active) return;
@@ -1991,7 +2333,7 @@ export default function PatientDashboard() {
       setPatientHistory(mapped.filter(a => ['completed', 'cancelled', 'no_show'].includes(a.statusType)));
     });
     return () => { active = false; };
-  }, [session.patient?.id]);
+  }, [session.patient?.id, session.patient?.phone, session.patient?.abhaId]);
 
   // Appointment History State (Filters, Search & Pagination)
   const [historySearch, setHistorySearch] = useState('');
@@ -2626,6 +2968,11 @@ export default function PatientDashboard() {
       'dr-ananya-sharma': 'd0000001-0002-0002-0002-000000000001',
       'dr-anil-mehta': 'd0000001-0003-0003-0003-000000000002',
       'dr-vaidya-krishnamurthy': 'd0000001-0004-0004-0004-000000000002',
+      'vaidya-r-mehta': 'd0000001-0005-0005-0005-000000000002',
+      'dr-kavya-sharma': 'd0000001-0006-0006-0006-000000000002',
+      'vaidya-sanjeev-sharma': 'd0000001-0007-0007-0007-000000000002',
+      'dr-priya-verma': 'd0000001-0008-0008-0008-000000000001',
+      'dr-rohan-mehta': 'd0000001-0009-0009-0009-000000000001',
     };
     const doctorId = selectedDoctorObj.id || seededDoctorIds[slug(selectedDoctorObj.name)] || `${hospitalId}-${slug(selectedDoctorObj.name)}`;
     const isWizard = bookingFlowView === 'booking_steps';
@@ -3423,7 +3770,7 @@ export default function PatientDashboard() {
                       }}
                     >
                       <ArrowLeft size={16} />
-                      <span>Back to Dashboard</span>
+                      <span>{tr('backToDashboard')}</span>
                     </button>
                   </div>
 
@@ -3535,7 +3882,7 @@ export default function PatientDashboard() {
                           e.currentTarget.style.borderColor = '#e2e8f0';
                         }}
                       >
-                        <span>Change Hospital</span>
+                        <span>{tr('changeHospital')}</span>
                         <Edit3 size={14} />
                       </button>
                     </div>
@@ -3555,7 +3902,7 @@ export default function PatientDashboard() {
                         type="text"
                         value={doctorSearchQuery}
                         onChange={e => setDoctorSearchQuery(e.target.value)}
-                        placeholder="Search doctor by name or specialty..."
+                        placeholder={tr('searchDoctorPlaceholder')}
                         style={{
                           width: '100%',
                           padding: '11px 14px 11px 40px',
@@ -4472,8 +4819,8 @@ export default function PatientDashboard() {
                           return {
                             dateStr: `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`,
                             day: String(value.getDate()).padStart(2, '0'),
-                            month: value.toLocaleDateString('en-US', { month: 'short' }),
-                            weekday: value.toLocaleDateString('en-US', { weekday: 'short' }),
+                            month: value.toLocaleDateString(currentLang === 'en' ? 'en-IN' : (currentLang + '-IN'), { month: 'short' }).toUpperCase(),
+                            weekday: value.toLocaleDateString(currentLang === 'en' ? 'en-IN' : (currentLang + '-IN'), { weekday: 'short' }).toUpperCase(),
                             isToday: offset === 0
                           };
                         }).map((d) => {
@@ -4609,7 +4956,7 @@ export default function PatientDashboard() {
                           }}>
                             <Calendar size={18} color="#64748b" />
                           </div>
-                          <span style={{ fontSize: '0.825rem', fontWeight: '800', color: '#475569' }}>More Dates</span>
+                          <span style={{ fontSize: '0.825rem', fontWeight: '800', color: '#475569' }}>{tr('moreDates')}</span>
                         </div>
                       </div>
 
@@ -4642,7 +4989,7 @@ export default function PatientDashboard() {
                             e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)';
                           }}
                         >
-                          <span>Next: Select Time</span>
+                          <span>{tr('nextSelectTime')}</span>
                           <ArrowRight size={18} />
                         </button>
                       </div>
@@ -4663,7 +5010,7 @@ export default function PatientDashboard() {
                             <span style={{ fontSize: '1.15rem' }}>{emoji}</span>
                             <span>{label}</span>
                             <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>
-                              {visibleSlots.filter(s => s.state === 'open' || s.state === 'fast').length} slots available
+                              {visibleSlots.filter(s => s.state === 'open' || s.state === 'fast').length} {tr('slotsAvailable')}
                             </span>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.9rem' }}>
@@ -4783,7 +5130,7 @@ export default function PatientDashboard() {
                               borderTop: '3px solid #0c4e47', borderRadius: '50%',
                               margin: '0 auto 12px', animation: 'spin 1s linear infinite'
                             }} />
-                            <p style={{ fontSize: '0.9rem', fontWeight: '600' }}>Loading live schedule…</p>
+                            <p style={{ fontSize: '0.9rem', fontWeight: '600' }}>{tr('loadingLiveSchedule')}</p>
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.85rem', marginBottom: '2.25rem' }}>
@@ -4828,7 +5175,7 @@ export default function PatientDashboard() {
                             }}
                           >
                             <ArrowLeft size={16} />
-                            <span>Previous</span>
+                            <span>{tr('previous')}</span>
                           </button>
 
                           {/* Real-time Badge */}
@@ -4843,7 +5190,7 @@ export default function PatientDashboard() {
                               backgroundColor: '#10b981', display: 'inline-block',
                               boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)'
                             }} />
-                            <span>Live availability · Refreshes every 15s</span>
+                            <span>{tr('liveAvailabilityBadge')}</span>
                           </div>
 
                           <button
@@ -4868,7 +5215,7 @@ export default function PatientDashboard() {
                             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(12, 78, 71, 0.4)'; }}
                             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)'; }}
                           >
-                            <span>Next: Case</span>
+                            <span>{tr('nextCase')}</span>
                             <ArrowRight size={18} />
                           </button>
                         </div>

@@ -7,12 +7,16 @@ import CommunitiesTab from '../components/CommunitiesTab';
 import HelpSupportTab from '../components/HelpSupportTab';
 import {
   Activity,
+  AlertCircle,
   ArrowLeft,
+  Bell,
+  BellRing,
   Briefcase,
   Building2,
   CalendarCheck,
   CalendarDays,
   Check,
+  CheckCheck,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -517,35 +521,401 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
 }
 
 /**
- * Top Header Component
+ * Top Header Component with Interactive Clinical Reminders & Notifications
  */
 function Top({ doctor, onLogout }) {
   const [showProfile, setShowProfile] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const storageKey = `swasthya_doc_reminders_${doctor?.id || 'default'}`;
+
+  const defaultReminders = [
+    {
+      id: 'rem-1',
+      title: 'OPD Queue Active',
+      text: 'Today’s clinic queue is live. Review scheduled tokens in the appointments tab.',
+      time: 'Today, 09:00 AM',
+      type: 'schedule',
+      unread: true,
+    },
+    {
+      id: 'rem-2',
+      title: 'AI Clinical Anamnesis Ready',
+      text: 'Pre-consultation intake reports are automatically processed and ready for incoming patients.',
+      time: 'Today, 10:15 AM',
+      type: 'clinical',
+      unread: true,
+    },
+  ];
+
+  const [reminders, setReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return defaultReminders;
+  });
+
+  // Sync to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(reminders));
+    } catch (e) {
+      console.warn('Could not save reminders to localStorage', e);
+    }
+  }, [reminders, storageKey]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowReminders(false);
+      }
+    }
+    if (showReminders) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showReminders]);
+
+  const unreadCount = reminders.filter(r => r.unread).length;
+
+  const markAllRead = () => {
+    setReminders(prev => prev.map(r => ({ ...r, unread: false })));
+  };
+
+  const toggleRead = id => {
+    setReminders(prev =>
+      prev.map(r => (r.id === id ? { ...r, unread: !r.unread } : r))
+    );
+  };
+
+  const deleteReminder = (id, e) => {
+    e?.stopPropagation();
+    setReminders(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleAddReminder = e => {
+    e.preventDefault();
+    if (!newNote.trim()) return;
+    const item = {
+      id: `rem-${Date.now()}`,
+      title: 'Clinical Note & Reminder',
+      text: newNote.trim(),
+      time: 'Just now',
+      type: 'note',
+      unread: true,
+    };
+    setReminders(prev => [item, ...prev]);
+    setNewNote('');
+    setShowAddForm(false);
+  };
 
   return (
-    <div className="dp-top">
-      {/* Notification Bell with Badge */}
-      <button type="button" className="dp-bell-btn" title="Notifications">
-        <span className="dp-bell-badge">2</span>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-        </svg>
+    <div className="dp-top" ref={dropdownRef}>
+      {/* Interactive Notification Bell with Badge */}
+      <button
+        type="button"
+        className="dp-bell-btn"
+        title="Clinical Reminders & Notifications"
+        onClick={() => {
+          setShowReminders(!showReminders);
+          setShowProfile(false);
+        }}
+        style={{
+          background: showReminders ? '#eaf7f0' : undefined,
+          borderColor: showReminders ? '#087d43' : undefined,
+          color: showReminders ? '#087d43' : undefined,
+        }}
+      >
+        {unreadCount > 0 && <span className="dp-bell-badge">{unreadCount}</span>}
+        <Bell size={19} />
       </button>
+
+      {/* Floating Reminders & Notifications Dropdown */}
+      {showReminders && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '48px',
+            right: '180px',
+            width: '360px',
+            background: '#ffffff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            overflow: 'hidden',
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BellRing size={16} color="#087d43" />
+              <b style={{ fontSize: '14px', color: '#0f172a' }}>Clinical Reminders</b>
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    background: '#eaf7f0',
+                    color: '#087d43',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    padding: '2px 8px',
+                    borderRadius: '10px',
+                  }}
+                >
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#087d43',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 6px',
+                  }}
+                  title="Mark all as read"
+                >
+                  <CheckCheck size={13} /> Mark Read
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowReminders(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Add Reminder Bar / Form */}
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', background: '#ffffff' }}>
+            {showAddForm ? (
+              <form onSubmit={handleAddReminder} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={e => setNewNote(e.target.value)}
+                  placeholder="Type a clinical reminder or note..."
+                  autoFocus
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    padding: '7px 10px',
+                    fontSize: '13px',
+                    outline: 'none',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewNote('');
+                    }}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      color: '#475569',
+                      borderRadius: '6px',
+                      padding: '5px 10px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{
+                      background: '#087d43',
+                      border: 'none',
+                      color: '#ffffff',
+                      borderRadius: '6px',
+                      padding: '5px 12px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                    }}
+                  >
+                    Save Reminder
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddForm(true)}
+                style={{
+                  width: '100%',
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '6px',
+                  padding: '7px 10px',
+                  color: '#087d43',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={14} /> Add Quick Doctor Note / Reminder
+              </button>
+            )}
+          </div>
+
+          {/* Reminder List */}
+          <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+            {reminders.length > 0 ? (
+              reminders.map(r => (
+                <div
+                  key={r.id}
+                  onClick={() => toggleRead(r.id)}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid #f1f5f9',
+                    background: r.unread ? '#f0fdf4' : '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'flex-start',
+                    transition: 'background 0.15s ease',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: r.unread ? '#dcfce7' : '#f1f5f9',
+                      color: r.unread ? '#16a34a' : '#64748b',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                      marginTop: '2px',
+                    }}
+                  >
+                    {r.type === 'schedule' ? (
+                      <CalendarCheck size={14} />
+                    ) : r.type === 'clinical' ? (
+                      <Activity size={14} />
+                    ) : (
+                      <Clock3 size={14} />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <b
+                        style={{
+                          fontSize: '13px',
+                          color: '#0f172a',
+                          fontWeight: r.unread ? '700' : '600',
+                        }}
+                      >
+                        {r.title}
+                      </b>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>{r.time}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#475569', lineHeight: '1.4' }}>
+                      {r.text}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={e => deleteReminder(r.id, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#cbd5e1',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'grid',
+                      placeItems: 'center',
+                      borderRadius: '4px',
+                    }}
+                    title="Dismiss"
+                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#cbd5e1')}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: '#94a3b8' }}>
+                <Check size={28} style={{ margin: '0 auto 8px', color: '#10b981' }} />
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#334155' }}>All caught up!</div>
+                <p style={{ fontSize: '12px', margin: '4px 0 0 0' }}>No pending clinical reminders at this moment.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div
+            style={{
+              padding: '10px 16px',
+              background: '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              textAlign: 'center',
+              fontSize: '11px',
+              color: '#64748b',
+            }}
+          >
+            Swasthya Setu Doctor Notification Network
+          </div>
+        </div>
+      )}
 
       {/* Doctor Profile Chip */}
       <div
         className="dp-doc"
-        onClick={() => setShowProfile(!showProfile)}
+        onClick={() => {
+          setShowProfile(!showProfile);
+          setShowReminders(false);
+        }}
         role="button"
         tabIndex={0}
       >
@@ -2486,7 +2856,52 @@ export default function PhysicianDashboard() {
         <Top doctor={doctor} onLogout={leave} />
 
         {activeTab === 'communities' ? (
-          <CommunitiesTab patientId={doctor?.id || session.staff?.id} />
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              padding: '60px 24px',
+              textAlign: 'center',
+              maxWidth: '620px',
+              margin: '40px auto',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            }}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#eaf7f0',
+                color: '#087d43',
+                display: 'grid',
+                placeItems: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <UsersRound size={32} />
+            </div>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
+              Doctor Forum & Medical Communities
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '14px', lineHeight: '1.6', margin: '0 0 24px 0' }}>
+              The verified Physician & Specialist Medical Network is currently being prepared. Clinical case discussions and peer consultation channels will be available soon.
+            </p>
+            <span
+              style={{
+                display: 'inline-block',
+                background: '#f1f5f9',
+                color: '#475569',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '6px 16px',
+                borderRadius: '20px',
+              }}
+            >
+              Doctor Network • Coming Soon
+            </span>
+          </div>
         ) : activeTab === 'help' ? (
           <HelpSupportTab patientId={doctor?.id || session.staff?.id} />
         ) : (
