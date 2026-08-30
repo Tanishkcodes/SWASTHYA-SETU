@@ -194,34 +194,79 @@ export function VoiceNavProvider({ children }) {
     // If it's a recognized command, dispatch it
     let handled = false;
     if (result.intent && result.intent !== 'free_text' && result.intent !== 'out_of_context') {
-      // Check page-level handlers first
+      // Normalized intent aliases — covers both snake_case and camelCase variants
       const aliases = {
-        book_appointment: 'bookAppointment', login_doctor: 'loginDoctor',
-        login_admin: 'loginAdmin', login_patient: 'loginPatient',
-        scan_document: 'scanDocument', select_language: 'selectLanguage',
-        read_summary: 'readSummary',
+        book_appointment:  'bookAppointment',
+        login_doctor:      'loginDoctor',
+        login_admin:       'loginAdmin',
+        login_patient:     'loginPatient',
+        scan_document:     'scanDocument',
+        select_language:   'selectLanguage',
+        read_summary:      'readSummary',
+        view_appointments: 'viewAppointments',
+        view_history:      'viewHistory',
+        view_reports:      'viewReports',
+        view_donations:    'viewDonations',
+        view_communities:  'viewCommunities',
+        view_help:         'viewHelp',
+        view_profile:      'viewProfile',
+        show_abha_card:    'showAbhaCard',
+        toggle_ayush:      'toggleAyush',
+        search_hospital:   'searchHospital',
+        start_consultation:'startConsultation',
+        select_doctor:     'select_doctor',
+        select_hospital:   'select_hospital',
       };
       const resolvedIntent = aliases[result.intent] || result.intent;
+
+      // 1. Page-level handlers (highest priority)
       if (pageHandlers && (pageHandlers[result.intent] || pageHandlers[resolvedIntent])) {
         (pageHandlers[result.intent] || pageHandlers[resolvedIntent])(result);
         handled = true;
       }
-      // Check global handlers
+      // 2. Global handlers
       else if (commandHandlersRef.current['__global__'] && (commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent])) {
         (commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent])(result);
         handled = true;
       }
 
+      // 3. AI DOM activation with SMART text-label matching (not just index)
       if (!handled && /^activate_\d+$/.test(result.intent)) {
-        const element = domElements[Number(result.intent.slice(9))];
-        if (element) { element.click(); handled = true; }
+        const idx = Number(result.intent.slice(9));
+        const target = domElements[idx];
+        if (target) { target.click(); handled = true; }
+      }
+
+      // 4. Semantic DOM label search — try to find a visible button matching the raw transcript
+      if (!handled && result.intent === 'activate_label') {
+        const label = (result.value || text || '').toLowerCase();
+        const matchedEl = domElements.find(el => {
+          const elText = (el.innerText || el.getAttribute('aria-label') || el.getAttribute('title') || '').toLowerCase();
+          return elText.includes(label) || label.includes(elText.slice(0, 10));
+        });
+        if (matchedEl) { matchedEl.click(); handled = true; }
       }
       
-      // Built-in handlers for common actions that work on every page
+      // 5. Built-in handlers for common actions that work on every page
       if (!handled) {
         switch (result.intent) {
+          case 'selectOption': {
+            const options = Array.from(document.querySelectorAll('[data-voice-option]'))
+              .filter(element => !element.disabled && element.getClientRects().length);
+            const option = options[Number(result.value)];
+            if (option) { option.click(); handled = true; }
+            break;
+          }
+          case 'next':
+          case 'back':
+          case 'confirm':
+          case 'skip': {
+            const action = document.querySelector(`[data-voice-action="${result.intent}"]`);
+            if (action && action.getClientRects().length && !action.disabled) { action.click(); handled = true; }
+            break;
+          }
           case 'scrollUp':
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollBy({ top: -(window.innerHeight * 0.8), behavior: 'smooth' });
             handled = true;
             break;
           case 'scrollDown':
@@ -232,8 +277,19 @@ export function VoiceNavProvider({ children }) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
             handled = true;
             break;
+          case 'navigate_to':
+          case 'navigate': {
+            // Let global handler take it — if we're here, it wasn't registered, navigate via commandParser routes
+            const routeTarget = result.value || result.target;
+            if (routeTarget && commandParser.routes?.length) {
+              const route = commandParser.routes.find(r => r.id === routeTarget);
+              if (route) { window.location.href = route.path; handled = true; }
+            }
+            break;
+          }
         }
       }
+
 
       if (handled) {
         audioFeedback.playSuccess();
@@ -364,11 +420,12 @@ export function VoiceNavProvider({ children }) {
   }, []);
 
   // Register page with its voice commands and handlers
-  const registerPage = useCallback((pageId, handlers) => {
+  const registerPage = useCallback((pageId, handlers, commands = {}) => {
     currentPageRef.current = pageId;
+    commandParser.setCurrentPage(pageId);
     commandHandlersRef.current[pageId] = handlers;
     commandParser.registerPageCommands(pageId, Object.fromEntries(
-      Object.keys(handlers || {}).map(intent => [intent, [intent.replace(/_/g, ' ')]])
+      Object.keys(handlers || {}).map(intent => [intent, commands[intent] || [intent.replace(/_/g, ' ')]] )
     ));
   }, []);
 

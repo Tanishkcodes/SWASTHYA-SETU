@@ -126,6 +126,13 @@ const patients = {
     const all = lsRead(LS.patients);
     return { data: all.find(p => p.id === id) || null, error: null };
   },
+
+  async updateBloodGroup(id, bloodGroup) {
+    if (!id) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    return supabase.from('patients').update({ blood_group: bloodGroup, updated_at: new Date().toISOString() })
+      .eq('id', id).select().single();
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -328,6 +335,7 @@ const slots = {
         booked,
         slotsLeft,
         state,
+        isPast,
       };
     }));
 
@@ -347,8 +355,17 @@ const appointments = {
    * Book an appointment. Returns { data: appointment, token, error }
    */
   async book({ patientId, doctorId, hospitalId, date, time24, timeLabel, reason }) {
-    // Generate token number for the day
-    let tokenNum = 1;
+    const now = new Date();
+    const todayKey = localDateKey(now);
+    const [slotHour, slotMinute] = String(time24 || '').split(':').map(Number);
+    const isExpired = date < todayKey || (
+      date === todayKey &&
+      Number.isFinite(slotHour) &&
+      slotHour * 60 + slotMinute <= now.getHours() * 60 + now.getMinutes()
+    );
+    if (!date || !time24 || isExpired) {
+      return { data: null, token: null, error: new Error('Past appointment dates and time slots cannot be booked.') };
+    }
 
     if (USE_SUPABASE()) {
       const { data, error } = await supabase.rpc('book_appointment', {
@@ -364,11 +381,18 @@ const appointments = {
       return { data: row, token: row?.token_number || null, error };
     }
 
-    // localStorage fallback
+    // Local fallback mirrors the database format and never invents a
+    // display-only token that differs from the stored appointment.
     const all = lsRead(LS.appointments);
-    const dayAppts = all.filter(a => a.doctor_id === doctorId && a.date === date && a.status !== 'cancelled');
-    tokenNum = dayAppts.length + 1;
-    const token = `#${String(tokenNum).padStart(3, '0')}`;
+    const existingTokens = all.map(a => a.token_number || a.token).filter(Boolean);
+    const compactDate = String(date).replace(/-/g, '');
+    let nextNum = all.filter(a => a.date === date).length + 1;
+    let candidateToken = `APT-${compactDate}-${String(nextNum).padStart(3, '0')}`;
+    while (existingTokens.includes(candidateToken)) {
+      nextNum += 1;
+      candidateToken = `APT-${compactDate}-${String(nextNum).padStart(3, '0')}`;
+    }
+    const token = candidateToken;
 
     const appt = {
       id:          uuid(),
@@ -456,17 +480,27 @@ const reports = {
         .select('*')
         .eq('patient_id', patientId)
         .order('uploaded_at', { ascending: false });
-      return { data: data || [], error };
+      if (error) return { data: [], error };
+      const hydrated = await Promise.all((data || []).map(async report => {
+        if (!report.file_url || /^https?:|^data:|^blob:/.test(report.file_url)) return report;
+        const { data: signed } = await supabase.storage
+          .from('medical-reports')
+          .createSignedUrl(report.file_url, 60 * 60);
+        return { ...report, storage_path: report.file_url, file_url: signed?.signedUrl || null };
+      }));
+      return { data: hydrated, error: null };
     }
     const all = lsRead(LS.reports);
     return { data: all.filter(r => r.patient_id === patientId), error: null };
   },
 
-  async upload({ patientId, appointmentId, reportType, title, file, ocrText }) {
+  async upload({ patientId, appointmentId, reportType, title, file, dataUrl, ocrText }) {
     let fileUrl = null;
 
     if (USE_SUPABASE() && file) {
-      const fileName = `${patientId}/${Date.now()}_${file.name}`;
+      const safeName = String(file.name || 'medical-report')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_');
+      const fileName = `${patientId}/${Date.now()}_${safeName}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('medical-reports')
         .upload(fileName, file, { upsert: false });
@@ -497,7 +531,7 @@ const reports = {
       appointment_id: appointmentId,
       report_type:    reportType,
       title,
-      file_url:       fileUrl,
+      file_url:       dataUrl || fileUrl,
       ocr_text:       ocrText,
       uploaded_at:    new Date().toISOString(),
     };
@@ -581,23 +615,144 @@ const staff = {
 };
 
 const communities = {
+  async getDirectory() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('communities')
+      .select('*, patient_community_memberships(count), community_posts(count), community_professionals(count)')
+      .eq('is_active', true).order('sort_order').order('title');
+    return { data: data || [], error };
+  },
+  async getImpact() {
+    if (!USE_SUPABASE()) return { data: { members: 0, posts: 0, reactions: 0, experts: 0 }, error: new Error('Database is not configured') };
+    const tables = ['patient_community_memberships', 'community_posts', 'community_post_reactions', 'community_professionals'];
+    const results = await Promise.all(tables.map(table => supabase.from(table).select('*', { count: 'exact', head: true })));
+    const firstError = results.find(result => result.error)?.error || null;
+    return { data: { members: results[0].count || 0, posts: results[1].count || 0, reactions: results[2].count || 0, experts: results[3].count || 0 }, error: firstError };
+  },
   async getMemberships(patientId) {
-    if (!USE_SUPABASE()) return { data: [], error: null };
+    if (!patientId) return { data: [], error: null };
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
     return supabase.from('patient_community_memberships').select('community_id').eq('patient_id', patientId);
   },
   async setMembership(patientId, communityId, joined) {
-    if (!USE_SUPABASE()) return { data: null, error: null };
-    if (joined) return supabase.from('patient_community_memberships')
-      .upsert({ patient_id: patientId, community_id: communityId }).select().single();
-    return supabase.from('patient_community_memberships').delete()
-      .eq('patient_id', patientId).eq('community_id', communityId);
+    if (!patientId) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    return supabase.rpc('set_community_membership', { p_patient_id: patientId, p_community_id: communityId, p_joined: joined });
+  },
+  async getPosts(communityId) {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('community_posts')
+      .select('*, doctors(name,degrees,speciality,avatar_url,hospitals(name,city)), community_post_reactions(count), community_post_comments(count)')
+      .eq('community_id', communityId).eq('status', 'published')
+      .order('published_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+  async getPatientReactions(patientId, postIds) {
+    if (!patientId || !postIds?.length) return { data: [], error: null };
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('community_post_reactions')
+      .select('post_id,reaction_type').eq('patient_id', patientId).in('post_id', postIds);
+    return { data: data || [], error };
+  },
+  async toggleReaction(patientId, postId, reactionType = 'helpful') {
+    if (!patientId) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    return supabase.rpc('set_community_post_reaction', { p_patient_id: patientId, p_post_id: postId, p_reaction_type: reactionType });
+  },
+  async getComments(postId) {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('community_post_comments')
+      .select('*, patients(name)')
+      .eq('post_id', postId).eq('status', 'published').order('created_at');
+    return { data: data || [], error };
+  },
+  async addComment(patientId, postId, body) {
+    if (!patientId) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    return supabase.rpc('add_community_post_comment', { p_patient_id: patientId, p_post_id: postId, p_body: body });
   },
 };
 
 const donations = {
-  async pledge(patientId, amountInr) {
+  async getActiveRequests() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('donation_requests')
+      .select('*, hospitals(id,name,address,city,state,type)')
+      .eq('status', 'active')
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .order('urgency_rank', { ascending: false })
+      .order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+
+  async getAllRequests() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase
+      .from('donation_requests')
+      .select('*, hospitals(id,name,address,city,state,type), donation_contributions(count)')
+      .order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+
+  async createRequest(request) {
     if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
-    return supabase.from('donation_pledges').insert({ patient_id: patientId, amount_inr: amountInr, status: 'pledged' }).select().single();
+    return supabase.from('donation_requests').insert({
+      hospital_id: request.hospitalId,
+      created_by_staff_id: request.staffId || null,
+      category: request.category,
+      title: request.title?.trim(),
+      description: request.description?.trim(),
+      urgency: request.urgency || 'normal',
+      status: request.status || 'active',
+      amount_target: request.category === 'financial' ? Number(request.amountTarget) : null,
+      blood_group: request.category === 'blood' ? request.bloodGroup : null,
+      units_needed: request.category === 'blood' ? Number(request.unitsNeeded) : null,
+      patient_summary: request.patientSummary?.trim() || null,
+      location: request.location?.trim() || null,
+      contact_instructions: request.contactInstructions?.trim() || null,
+      expires_at: request.expiresAt || null,
+    }).select('*, hospitals(id,name,address,city,state,type)').single();
+  },
+
+  async updateRequest(requestId, changes) {
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    return supabase.from('donation_requests')
+      .update({ ...changes, updated_at: new Date().toISOString() })
+      .eq('id', requestId).select('*, hospitals(id,name,address,city,state,type)').single();
+  },
+
+  async getContributions(patientId) {
+    if (!patientId) return { data: [], error: null };
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('donation_contributions')
+      .select('*, donation_requests(id,title,category,blood_group,hospital_id,hospitals(name,city))')
+      .eq('patient_id', patientId).order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+
+  async getResponsesForRequest(requestId) {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('donation_contributions')
+      .select('*, patients(id,name,phone,blood_group)')
+      .eq('request_id', requestId).order('created_at', { ascending: false });
+    return { data: data || [], error };
+  },
+
+  async respond({ requestId, patientId, contributionType, amountInr = null, unitsOffered = null, bloodGroup = null, message = null }) {
+    if (!patientId) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    const { data, error } = await supabase.rpc('respond_to_donation_request', {
+      p_request_id: requestId,
+      p_patient_id: patientId,
+      p_contribution_type: contributionType,
+      p_amount_inr: amountInr ? Number(amountInr) : null,
+      p_units_offered: unitsOffered ? Number(unitsOffered) : null,
+      p_blood_group: bloodGroup || null,
+      p_message: message?.trim() || null,
+    });
+    return { data: Array.isArray(data) ? data[0] : data, error };
   },
 };
 
@@ -612,6 +767,48 @@ const feedback = {
   async submit({ patientId = null, pageId, language, message }) {
     if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
     return supabase.from('feedback').insert({ patient_id: patientId, page_id: pageId, language, message }).select().single();
+  },
+};
+
+const support = {
+  async getChannels() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('support_channels').select('*')
+      .eq('is_active', true).eq('is_verified', true).order('display_order').order('label');
+    return { data: data || [], error };
+  },
+  async getHospitals() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('hospitals')
+      .select('id,name,address,city,state,support_phone,emergency_phone,support_email,website_url,support_hours,contact_verified_at')
+      .not('contact_verified_at', 'is', null).order('name');
+    return { data: (data || []).filter(row => row.support_phone || row.emergency_phone || row.support_email || row.website_url), error };
+  },
+  async getFaqs() {
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.from('support_faqs').select('*')
+      .eq('is_active', true).order('display_order').order('created_at');
+    return { data: data || [], error };
+  },
+  async getRequests(patientId) {
+    if (!patientId) return { data: [], error: null };
+    if (!USE_SUPABASE()) return { data: [], error: new Error('Database is not configured') };
+    const { data, error } = await supabase.rpc('list_support_requests', { p_patient_id: patientId });
+    return { data: data || [], error };
+  },
+  async createRequest({ patientId, hospitalId = null, category, subject, message, preferredContact = 'in_app', language = 'en' }) {
+    if (!patientId) return { data: null, error: new Error('Patient session is required') };
+    if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
+    const { data, error } = await supabase.rpc('create_support_request', {
+      p_patient_id: patientId,
+      p_hospital_id: hospitalId || null,
+      p_category: category,
+      p_subject: subject?.trim(),
+      p_message: message?.trim(),
+      p_preferred_contact: preferredContact,
+      p_language: language,
+    });
+    return { data, error };
   },
 };
 
@@ -655,6 +852,7 @@ export const db = {
   donations,
   voice,
   feedback,
+  support,
   /** Direct Supabase client access for advanced queries */
   client: supabase,
   isConfigured: isSupabaseConfigured,

@@ -7,6 +7,17 @@
 import audioFeedback from './AudioFeedback';
 import { getAudioPrompt } from './LanguagePack';
 
+function isMutedPortal() {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  return path.includes('/physician') ||
+         path.includes('/doctor') ||
+         path.includes('/admin') ||
+         search.includes('role=doctor') ||
+         search.includes('role=admin');
+}
+
 class AudioPromptManager {
   constructor() {
     this.idleTimer = null;
@@ -23,6 +34,7 @@ class AudioPromptManager {
   // the previously selected UI language. Devanagari gives TTS engines the most
   // reliable pronunciation of “Swasthya Setu”.
   async speakInitialLandingWelcome() {
+    if (isMutedPortal()) return;
     this.currentPageId = 'landing';
     if (!this.isEnabled || this.hasSpokenWelcome.landing_initial_hi) return;
     const text = 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।';
@@ -51,12 +63,15 @@ class AudioPromptManager {
     const prevLang = this.currentLang;
     this.currentLang = lang;
 
+    if (isMutedPortal()) return;
+
     // When language changes, immediately speak the page guidance in the new language!
     if (autoReplay && prevLang !== lang && this.isEnabled) {
       if (this._langChangeTimer) clearTimeout(this._langChangeTimer);
       audioFeedback.stop();
       this._langChangeTimer = setTimeout(() => {
-        const pageId = this.currentPageId || 'patientDashboard';
+        const pageId = this.currentPageId;
+        if (!pageId) return;
         const promptKey = `welcome${pageId.charAt(0).toUpperCase() + pageId.slice(1)}`;
         const text = getAudioPrompt(this.currentLang, promptKey);
         if (text) {
@@ -81,6 +96,7 @@ class AudioPromptManager {
 
   // Speak a page welcome message
   async speakPageWelcome(pageId, force = false) {
+    if (isMutedPortal()) return;
     this.currentPageId = pageId;
     if (!this.isEnabled) return;
     const cacheKey = `${pageId}_${this.currentLang}`;
@@ -96,7 +112,7 @@ class AudioPromptManager {
 
     if (text) {
       this.hasSpokenWelcome[cacheKey] = true;
-      await audioFeedback.speak(text, this.currentLang);
+      await audioFeedback.interrupt(text, this.currentLang);
     }
   }
 
@@ -105,7 +121,7 @@ class AudioPromptManager {
     if (!this.isEnabled) return;
     const text = getAudioPrompt(this.currentLang, promptKey);
     if (text) {
-      await audioFeedback.speak(text, this.currentLang);
+      await audioFeedback.interrupt(text, this.currentLang);
     }
   }
 
@@ -186,6 +202,10 @@ class AudioPromptManager {
   // Stop everything
   stop() {
     this.clearIdleTimer();
+    if (this._langChangeTimer) {
+      clearTimeout(this._langChangeTimer);
+      this._langChangeTimer = null;
+    }
     if (this._landingGestureRetry && typeof window !== 'undefined') {
       window.removeEventListener('pointerdown', this._landingGestureRetry);
       this._landingGestureRetry = null;

@@ -267,7 +267,11 @@ function sessionReducer(state, action) {
     case 'ADD_DOCUMENT':
       return {
         ...state,
-        documents: [...state.documents, { ...action.payload, id: Date.now().toString(), timestamp: new Date().toISOString() }],
+        documents: [...state.documents, {
+          ...action.payload,
+          id: action.payload.id || Date.now().toString(),
+          timestamp: action.payload.timestamp || new Date().toISOString(),
+        }],
       };
 
     case 'UPDATE_DOCUMENT':

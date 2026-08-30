@@ -6,8 +6,8 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useSession } from './SessionContext';
 import { UI_STRINGS, getAllLanguages } from '../voicenav/LanguagePack';
-import audioPromptManager from '../voicenav/AudioPromptManager';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
+import domTranslator from '../engine/DOMTranslator';
 
 const LanguageContext = createContext(null);
 
@@ -20,16 +20,15 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     // Initial hydration must not speak over the fixed Hindi landing welcome.
     // Explicit header selections still replay the current page below.
-    audioPromptManager.setLanguage(currentLang, false);
     setVoiceLanguage(currentLang);
+    domTranslator.start(currentLang);
+    document.documentElement.lang = currentLang;
   }, [currentLang, setVoiceLanguage]);
 
   const setCurrentLang = useCallback((langCode) => {
     setCurrentLangState(langCode);
     if (setLanguage) setLanguage(langCode);
-    audioPromptManager.setLanguage(langCode);
-    setVoiceLanguage(langCode);
-  }, [setLanguage, setVoiceLanguage]);
+  }, [setLanguage]);
 
   // Translate function
   const t = useCallback((key) => {

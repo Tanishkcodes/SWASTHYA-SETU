@@ -12,7 +12,7 @@ export default function LanguageSelectPage() {
   const navigate = useNavigate();
   const { t, setCurrentLang } = useLanguage();
   const { session, setLanguage: setSessionLanguage } = useSession();
-  const { audioPromptManager, registerPage, unregisterPage, commandParser, speak, setLanguage: setVoiceLanguage } = useVoiceNav();
+  const { audioPromptManager, registerPage, unregisterPage, commandParser, speak } = useVoiceNav();
 
   const languages = getAllLanguages();
   const [selectedLang, setSelectedLang] = useState(session.language || 'en');
@@ -49,7 +49,6 @@ export default function LanguageSelectPage() {
     setSelectedLang(langCode);
     setSessionLanguage(langCode); // Update session context
     setCurrentLang(langCode); // Update UI text language
-    setVoiceLanguage(langCode); // Update voice input/output language
     
     // Announce selection in that language
     const langInfo = languages.find(l => l.code === langCode);
@@ -59,7 +58,6 @@ export default function LanguageSelectPage() {
   const handleNext = () => {
     setSessionLanguage(selectedLang);
     setCurrentLang(selectedLang);
-    setVoiceLanguage(selectedLang);
     navigate('/consent');
   };
 

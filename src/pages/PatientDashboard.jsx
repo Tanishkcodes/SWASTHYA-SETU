@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -6,7 +6,13 @@ import { db } from '../lib/db';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
 import SwasthyaLogo from '../components/SwasthyaLogo';
 import ClinicalAnamnesisChat from '../components/ClinicalAnamnesisChat';
+import ReportUploadStep from '../components/ReportUploadStep';
+import BookingConfirmationStep from '../components/BookingConfirmationStep';
+import DonationsTab from '../components/DonationsTab';
+import CommunitiesTab from '../components/CommunitiesTab';
+import HelpSupportTab from '../components/HelpSupportTab';
 import aiTranslationService from '../engine/AiTranslationService';
+import aiCommandEngine from '../engine/AICommandEngine';
 import {
   Calendar, Clock, FileText, User, Heart, Users, Headphones,
   Search, MapPin, Star, ChevronDown, Check, ArrowRight, ArrowLeft,
@@ -23,6 +29,21 @@ import {
    ========================================================================= */
 const DASHBOARD_I18N = {
   en: {
+    trustHeader: 'Your Health, Our Priority',
+    trustBody: 'Your data is safe and secure with us.',
+    trustBadge: 'HIPAA Compliant',
+
+    bookStep1: 'Step 1: Select an appointment date.',
+    bookStep2: 'Step 2: Select a time slot.',
+    bookStep3: 'Step 3: Tell us about your symptoms or the reason for your visit. You can tap the microphone and speak.',
+    bookStep4: 'Step 4: Upload any previous medical reports. This is optional.',
+    bookStep5: 'Step 5: Review your details and confirm the appointment.',
+
+    selectDoctorPrompt: 'Please select a doctor for your appointment.',
+    doctorProfilePrompt: 'Viewing doctor profile and available time slots.',
+    abhaModalPrompt: 'Ayushman Bharat Digital Health Card details.',
+    ocrDocumentPrompt: 'OCR Scanned Document Details.',
+    communityGroupPrompt: 'Viewing community chat group.',
     portal: 'Patient Portal',
     appointments: 'Appointments',
     history: 'Appointment History',
@@ -85,6 +106,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 National Health Helpline, Voice navigation assistance, and FAQ.'
   },
   hi: {
+    trustHeader: 'आपका स्वास्थ्य, हमारी प्राथमिकता',
+    trustBody: 'आपका डेटा हमारे साथ सुरक्षित और गोपनीय है।',
+    trustBadge: 'HIPAA अनुरूप',
+
+    bookStep1: 'चरण 1: अपॉइंटमेंट की तारीख चुनें।',
+    bookStep2: 'चरण 2: समय चुनें।',
+    bookStep3: 'चरण 3: अपने लक्षणों या परेशानी के बारे में बताएं। आप माइक बटन दबाकर बोल सकते हैं।',
+    bookStep4: 'चरण 4: कोई पिछली मेडिकल रिपोर्ट अपलोड करें। यह अनिवार्य नहीं है।',
+    bookStep5: 'चरण 5: अपने विवरण जांचें और अपॉइंटमेंट की पुष्टि करें।',
+
+    selectDoctorPrompt: 'कृपया अपनी अपॉइंटमेंट के लिए एक डॉक्टर चुनें।',
+    doctorProfilePrompt: 'डॉक्टर की प्रोफाइल और उपलब्ध समय देख रहे हैं।',
+    abhaModalPrompt: 'आयुष्मान भारत डिजिटल हेल्थ कार्ड विवरण।',
+    ocrDocumentPrompt: 'ओसीआर स्कैन किए गए दस्तावेज़ का विवरण।',
+    communityGroupPrompt: 'सामुदायिक चैट समूह देख रहे हैं।',
     portal: 'रोगी पोर्टल',
     appointments: 'अपॉइंटमेंट्स',
     history: 'अपॉइंटमेंट इतिहास',
@@ -134,7 +170,7 @@ const DASHBOARD_I18N = {
     selectSlot: 'समय स्लॉट',
     reasonForVisit: 'परामर्श का कारण / लक्षण (वैकल्पिक)',
     confirmBookingBtn: 'अपॉइंटमेंट पक्का करें और टोकन पाएं',
-    appointmentConfirmed: 'अपॉइंटमेंट बुक हो गया!',
+    appointmentConfirmed: 'अपॉइंटमेंट की बुकिंग पूरी है!',
     tokenGeneratedDesc: 'आपका ओपीडी टोकन जारी कर दिया गया है।',
     close: 'बंद करें',
     digitalQueuePass: 'ओपीडी डिजिटल कतार पास',
@@ -147,6 +183,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 राष्ट्रीय स्वास्थ्य हेल्पलाइन, आवाज नेविगेशन सहायता और अक्सर पूछे जाने वाले प्रश्न।'
   },
   mr: {
+    trustHeader: 'तुमचे आरोग्य, आमचे प्राधान्य',
+    trustBody: 'तुमचा डेटा आमच्याकडे सुरक्षित आणि संरक्षित आहे.',
+    trustBadge: 'HIPAA सुसंगत',
+
+    bookStep1: 'पायरी 1: अपॉइंटमेंटची तारीख निवडा.',
+    bookStep2: 'पायरी 2: वेळ निवडा.',
+    bookStep3: 'पायरी 3: आम्हाला तुमची लक्षणे सांगा. तुम्ही माइक बटण दाबून बोलू शकता.',
+    bookStep4: 'पायरी 4: मागील वैद्यकीय अहवाल अपलोड करा. हे ऐच्छिक आहे.',
+    bookStep5: 'पायरी 5: तुमच्या तपशीलांचे पुनरावलोकन करा आणि अपॉइंटमेंटची पुष्टी करा.',
+
+    selectDoctorPrompt: 'कृपया तुमच्या अपॉइंटमेंटसाठी डॉक्टर निवडा.',
+    doctorProfilePrompt: 'डॉक्टर प्रोफाइल आणि उपलब्ध वेळ पाहत आहात.',
+    abhaModalPrompt: 'आयुष्मान भारत डिजिटल हेल्थ कार्ड तपशील.',
+    ocrDocumentPrompt: 'OCR स्कॅन केलेले दस्तऐवज तपशील.',
+    communityGroupPrompt: 'समुदाय चॅट ग्रुप पाहत आहात.',
     portal: 'रुग्ण पोर्टल',
     appointments: 'अपॉइंटमेंट्स',
     history: 'अपॉइंटमेंट इतिहास',
@@ -209,6 +260,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 राष्ट्रीय आरोग्य हेल्पलाइन आणि व्हॉईस सहाय्यता.'
   },
   gu: {
+    trustHeader: 'તમારું સ્વાસ્થ્ય, અમારી પ્રાથમિકતા',
+    trustBody: 'તમારો ડેટા અમારી સાથે સુરક્ષિત અને ગોપનીય છે.',
+    trustBadge: 'HIPAA સુસંગત',
+
+    bookStep1: 'પગલું 1: એપોઇન્ટમેન્ટની તારીખ પસંદ કરો.',
+    bookStep2: 'પગલું 2: સમય પસંદ કરો.',
+    bookStep3: 'પગલું 3: અમને તમારા લક્ષણો જણાવો. તમે માઇક બટન દબાવીને બોલી શકો છો.',
+    bookStep4: 'પગલું 4: અગાઉના મેડિકલ રિપોર્ટ અપલોડ કરો. આ વૈકલ્પિક છે.',
+    bookStep5: 'પગલું 5: તમારી વિગતો તપાસો અને એપોઇન્ટમેન્ટની પુષ્ટિ કરો.',
+
+    selectDoctorPrompt: 'કૃપા કરીને તમારી એપોઇન્ટમેન્ટ માટે ડૉક્ટર પસંદ કરો.',
+    doctorProfilePrompt: 'ડૉક્ટર પ્રોફાઇલ અને ઉપલબ્ધ સમય જોઈ રહ્યા છીએ.',
+    abhaModalPrompt: 'આયુષ્માન ભારત ડિજિટલ હેલ્થ કાર્ડ વિગતો.',
+    ocrDocumentPrompt: 'OCR સ્કેન કરેલ દસ્તાવેજ વિગતો.',
+    communityGroupPrompt: 'સમુદાય ચેટ જૂથ જોઈ રહ્યા છીએ.',
     portal: 'દર્દી પોર્ટલ',
     appointments: 'મુલાકાતો',
     history: 'મુલાકાત ઇતિહાસ',
@@ -271,6 +337,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 હેલ્પલાઇન અને સહાય.'
   },
   ta: {
+    trustHeader: 'உங்கள் நல்வாழ்வு, எங்கள் முன்னுரிமை',
+    trustBody: 'உங்கள் தரவு எங்களிடம் பாதுகாப்பாக உள்ளது.',
+    trustBadge: 'HIPAA இணக்கமானது',
+
+    bookStep1: 'படி 1: சந்திப்பு தேதியைத் தேர்ந்தெடுக்கவும்.',
+    bookStep2: 'படி 2: நேரத்தைத் தேர்ந்தெடுக்கவும்.',
+    bookStep3: 'படி 3: உங்கள் அறிகுறிகளைச் சொல்லுங்கள். நீங்கள் மைக் பொத்தானை அழுத்திப் பேசலாம்.',
+    bookStep4: 'படி 4: முந்தைய மருத்துவ அறிக்கைகளைப் பதிவேற்றவும். இது விருப்பமானது.',
+    bookStep5: 'படி 5: விவரங்களைச் சரிபார்த்து முன்பதிவை உறுதிப்படுத்தவும்.',
+
+    selectDoctorPrompt: 'உங்கள் சந்திப்புக்கு மருத்துவரைத் தேர்ந்தெடுக்கவும்.',
+    doctorProfilePrompt: 'மருத்துவர் விவரம் மற்றும் கிடைக்கும் நேரங்களைப் பார்க்கிறீர்கள்.',
+    abhaModalPrompt: 'ஆயுஷ்மான் பாரத் டிஜிட்டல் ஹெல்த் கார்டு விவரங்கள்.',
+    ocrDocumentPrompt: 'OCR ஸ்கேன் செய்யப்பட்ட ஆவண விவரங்கள்.',
+    communityGroupPrompt: 'சமூக அரட்டை குழுவைப் பார்க்கிறீர்கள்.',
     portal: 'நோயாளி போர்டல்',
     appointments: 'முன்பதிவுகள்',
     history: 'முன்பதிவு வரலாறு',
@@ -333,6 +414,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 தேசிய சுகாதார உதவி எண் மற்றும் வழிகாட்டுதல்.'
   },
   te: {
+    trustHeader: 'మీ ఆరోగ్యం, మా ప్రాధాన్యత',
+    trustBody: 'మీ డేటా మా వద్ద సురక్షితంగా మరియు భద్రంగా ఉంటుంది.',
+    trustBadge: 'HIPAA కంప్లైంట్',
+
+    bookStep1: 'దశ 1: అపాయింట్‌మెంట్ తేదీని ఎంచుకోండి.',
+    bookStep2: 'దశ 2: సమయాన్ని ఎంచుకోండి.',
+    bookStep3: 'దశ 3: మీ లక్షణాలను చెప్పండి. మీరు మైక్ నొక్కి మాట్లాడవచ్చు.',
+    bookStep4: 'దశ 4: మునుపటి వైద్య నివేదికలను అప్‌లోడ్ చేయండి. ఇది ఐచ్ఛికం.',
+    bookStep5: 'దశ 5: వివరాలను సరిచూసుకుని అపాయింట్‌మెంట్‌ని నిర్ధారించండి.',
+
+    selectDoctorPrompt: 'దయచేసి మీ అపాయింట్‌మెంట్ కోసం వైద్యుడిని ఎంచుకోండి.',
+    doctorProfilePrompt: 'డాక్టర్ ప్రొఫైల్ మరియు అందుబాటులో ఉన్న సమయాలను చూస్తున్నారు.',
+    abhaModalPrompt: 'ఆయుష్మాన్ భారత్ డిజిటల్ హెల్త్ కార్డ్ వివరాలు.',
+    ocrDocumentPrompt: 'OCR స్కాన్ చేసిన పత్ర వివరాలు.',
+    communityGroupPrompt: 'కమ్యూనిటీ చాట్ గ్రూప్ చూస్తున్నారు.',
     portal: 'రోగి పోర్టల్',
     appointments: 'అపాయింట్‌మెంట్లు',
     history: 'అపాయింట్‌మెంట్ చరిత్ర',
@@ -395,6 +491,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 జాతీయ హెల్ప్‌లైన్ మరియు వాయిస్ సహాయం.'
   },
   kn: {
+    trustHeader: 'ನಿಮ್ಮ ಆರೋಗ್ಯ, ನಮ್ಮ ಆದ್ಯತೆ',
+    trustBody: 'ನಿಮ್ಮ ಡೇಟಾ ನಮ್ಮೊಂದಿಗೆ ಸುರಕ್ಷಿತ ಮತ್ತು ಭದ್ರವಾಗಿದೆ.',
+    trustBadge: 'HIPAA ಕಂಪ್ಲೈಂಟ್',
+
+    bookStep1: 'ಹಂತ 1: ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ದಿನಾಂಕವನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+    bookStep2: 'ಹಂತ 2: ಸಮಯವನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+    bookStep3: 'ಹಂತ 3: ನಿಮ್ಮ ರೋಗಲಕ್ಷಣಗಳ ಬಗ್ಗೆ ತಿಳಿಸಿ. ನೀವು ಮೈಕ್ ಬಟನ್ ಒತ್ತಿ ಮಾತನಾಡಬಹುದು.',
+    bookStep4: 'ಹಂತ 4: ಹಿಂದಿನ ವೈದ್ಯಕೀಯ ವರದಿಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ. ಇದು ಐಚ್ಛಿಕ.',
+    bookStep5: 'ಹಂತ 5: ನಿಮ್ಮ ವಿವರಗಳನ್ನು ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಅನ್ನು ದೃಢೀಕರಿಸಿ.',
+
+    selectDoctorPrompt: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಾಗಿ ವೈದ್ಯರನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+    doctorProfilePrompt: 'ವೈದ್ಯರ ಪ್ರೊಫೈಲ್ ಮತ್ತು ಲಭ್ಯವಿರುವ ಸಮಯವನ್ನು ವೀಕ್ಷಿಸುತ್ತಿರುವಿರಿ.',
+    abhaModalPrompt: 'ಆಯುಷ್ಮಾನ್ ಭಾರತ್ ಡಿಜಿಟಲ್ ಹೆಲ್ತ್ ಕಾರ್ಡ್ ವಿವರಗಳು.',
+    ocrDocumentPrompt: 'OCR ಸ್ಕ್ಯಾನ್ ಮಾಡಿದ ಡಾಕ್ಯುಮೆಂಟ್ ವಿವರಗಳು.',
+    communityGroupPrompt: 'ಸಮುದಾಯ ಚಾಟ್ ಗುಂಪು ವೀಕ್ಷಿಸುತ್ತಿರುವಿರಿ.',
     portal: 'ರೋಗಿ ಪೋರ್ಟಲ್',
     appointments: 'ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಳು',
     history: 'ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಇತಿಹಾಸ',
@@ -457,6 +568,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 ರಾಷ್ಟ್ರೀಯ ಸಹಾಯವಾಣಿ ಮತ್ತು ಧ್ವನಿ ಮಾರ್ಗದರ್ಶನ.'
   },
   bn: {
+    trustHeader: 'আপনার স্বাস্থ্য, আমাদের অগ্রাধিকার',
+    trustBody: 'আপনার ডেটা আমাদের সাথে সম্পূর্ণ নিরাপদ ও সুরক্ষিত।',
+    trustBadge: 'HIPAA অনুগত',
+
+    bookStep1: 'ধাপ ১: অ্যাপয়েন্টমেন্টের তারিখ নির্বাচন করুন।',
+    bookStep2: 'ধাপ ২: সময় নির্বাচন করুন।',
+    bookStep3: 'ধাপ ৩: আপনার লক্ষণগুলো আমাদের বলুন। আপনি মাইক বোতাম টিপে কথা বলতে পারেন।',
+    bookStep4: 'ধাপ ৪: পূর্বের কোনো মেডিকেল রিপোর্ট আপলোড করুন। এটি ঐচ্ছিক।',
+    bookStep5: 'ধাপ ৫: আপনার বিবরণ পরীক্ষা করে অ্যাপয়েন্টমেন্ট নিশ্চিত করুন।',
+
+    selectDoctorPrompt: 'অনুগ্রহ করে আপনার অ্যাপয়েন্টমেন্টের জন্য একজন ডাক্তার নির্বাচন করুন।',
+    doctorProfilePrompt: 'ডাক্তারের প্রোফাইল এবং উপলব্ধ সময় দেখছেন।',
+    abhaModalPrompt: 'আয়ুষ্মান ভারত ডিজিটাল হেলথ কার্ডের বিবরণ।',
+    ocrDocumentPrompt: 'ওসিআর স্ক্যান করা নথির বিবরণ।',
+    communityGroupPrompt: 'কমিউনিটি চ্যাট গ্রুপ দেখছেন।',
     portal: 'রোগী পোর্টাল',
     appointments: 'অ্যাপয়েন্টমেন্ট',
     history: 'অ্যাপয়েন্টমেন্টের ইতিহাস',
@@ -581,6 +707,21 @@ const DASHBOARD_I18N = {
     helpDesc: '24/7 ਹੈਲਪਲਾਈਨ ਅਤੇ ਸਹਾਇਤਾ।'
   },
   ml: {
+    trustHeader: 'നിങ്ങളുടെ ആരോഗ്യം, ഞങ്ങളുടെ മുൻഗണന',
+    trustBody: 'നിങ്ങളുടെ വിവരങ്ങൾ ഞങ്ങളുടെ പക്കൽ സുരക്ഷിതമാണ്.',
+    trustBadge: 'HIPAA അനുയോജ്യം',
+
+    bookStep1: 'ഘട്ടം 1: അപ്പോയിന്റ്മെന്റ് തീയതി തിരഞ്ഞെടുക്കുക.',
+    bookStep2: 'ഘട്ടം 2: സമയം തിരഞ്ഞെടുക്കുക.',
+    bookStep3: 'ഘട്ടം 3: നിങ്ങളുടെ ലക്ഷണങ്ങളെക്കുറിച്ച് പറയുക. മൈക്ക് ബട്ടൺ അമർത്തി സംസാരിക്കാം.',
+    bookStep4: 'ഘട്ടം 4: മുൻ റിപ്പോർട്ടുകൾ അപ്‌ലോഡ് ചെയ്യുക. ഇത് നിർബന്ധമല്ല.',
+    bookStep5: 'ഘട്ടം 5: നിങ്ങളുടെ വിശദാംശങ്ങൾ പരിശോധിച്ച് അപ്പോയിന്റ്മെന്റ് സ്ഥിരീകരിക്കുക.',
+
+    selectDoctorPrompt: 'നിങ്ങളുടെ അപ്പോയിന്റ്മെന്റിനായി ദയവായി ഒരു ഡോക്ടറെ തിരഞ്ഞെടുക്കുക.',
+    doctorProfilePrompt: 'ഡോക്ടർ പ്രൊഫൈലും ലഭ്യമായ സമയവും കാണുന്നു.',
+    abhaModalPrompt: 'ആയുഷ്മാൻ ഭാരത് ഡിജിറ്റൽ ഹെൽത്ത് കാർഡ് വിശദാംശങ്ങൾ.',
+    ocrDocumentPrompt: 'OCR സ്കാൻ ചെയ്ത ഡോക്യുമെന്റ് വിശദാംശങ്ങൾ.',
+    communityGroupPrompt: 'കമ്മ്യൂണിറ്റി ചാറ്റ് ഗ്രൂപ്പ് കാണുന്നു.',
     portal: 'പേഷ്യന്റ് പോർട്ടൽ',
     appointments: 'അപ്പോയിന്റ്മെന്റുകൾ',
     history: 'അപ്പോയിന്റ്മെന്റ് ചരിത്രം',
@@ -1066,6 +1207,9 @@ const MONTH_LOCALIZATION = {
 function localizeName(name, lang) {
   if (!name || typeof name !== 'string') return '';
   if (!lang || lang === 'en') return name;
+  // "Patient" is a role fallback, not a person's name. Sending it through
+  // phonetic name transliteration produces the incorrect Hindi "पतिन्त".
+  if (name.trim().toLowerCase() === 'patient' && lang === 'hi') return 'पेशेंट';
   return aiTranslationService.translate(name, lang, 'name');
 }
 
@@ -1106,7 +1250,8 @@ const DOCTOR_PROFILES = {
     rating: '4.6',
     reviewsCount: '128',
     isAyush: false,
-    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=300&fit=crop&crop=face',
+    gender: 'female',
+    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
     about: 'Dr. Ananya Sharma is a dedicated General Physician with over 12 years of experience in diagnosing and treating a wide range of medical conditions. She is known for her patient-centric approach and evidence-based treatment plans.',
     patientsTreated: '5000+',
     satisfaction: '98%',
@@ -1136,7 +1281,8 @@ const DOCTOR_PROFILES = {
     rating: '4.8',
     reviewsCount: '95',
     isAyush: false,
-    avatar: 'https://images.unsplash.com/photo-1594824813590-78965a14bc77?w=300&h=300&fit=crop&crop=face',
+    gender: 'female',
+    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
     about: 'Dr. Priya Verma is a skilled consultant providing comprehensive family healthcare and preventive wellness care.',
     patientsTreated: '4200+',
     satisfaction: '97%',
@@ -1163,7 +1309,8 @@ const DOCTOR_PROFILES = {
     rating: '4.7',
     reviewsCount: '84',
     isAyush: false,
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=face',
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
     about: 'Dr. Rohan Mehta specializes in internal medicine, managing chronic lifestyle diseases and acute clinical disorders.',
     patientsTreated: '3500+',
     satisfaction: '96%',
@@ -1189,7 +1336,8 @@ const DOCTOR_PROFILES = {
     rating: '4.9',
     reviewsCount: '110',
     isAyush: false,
-    avatar: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=300&h=300&fit=crop&crop=face',
+    gender: 'female',
+    avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
     about: 'Dr. Neha Agarwal focuses on holistic patient assessment, preventive diagnostics, and emergency outpatient care.',
     patientsTreated: '2900+',
     satisfaction: '99%',
@@ -1214,7 +1362,8 @@ const DOCTOR_PROFILES = {
     rating: '4.8',
     reviewsCount: '210',
     isAyush: false,
-    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&h=300&fit=crop&crop=face',
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/46.jpg',
     about: 'Dr. Amit Singh has 15+ years of clinical excellence in outpatient surgery, trauma care, and general physician consults.',
     patientsTreated: '7500+',
     satisfaction: '98%',
@@ -1239,7 +1388,8 @@ const DOCTOR_PROFILES = {
     rating: '4.9',
     reviewsCount: '190',
     isAyush: true,
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=face',
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/52.jpg',
     about: 'Vaidya R. Mehta is a distinguished Ayurvedic physician with expertise in Nadi Pariksha, Tridosha balancing, and Panchakarma therapies.',
     patientsTreated: '8000+',
     satisfaction: '99%',
@@ -1264,7 +1414,8 @@ const DOCTOR_PROFILES = {
     rating: '5.0',
     reviewsCount: '340',
     isAyush: true,
-    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=300&h=300&fit=crop&crop=face',
+    gender: 'male',
+    avatar: 'https://randomuser.me/api/portraits/men/61.jpg',
     about: 'Vaidya Sanjeev Sharma is an authority in traditional Indian medicine and integrative wellness care.',
     patientsTreated: '12000+',
     satisfaction: '100%',
@@ -1282,6 +1433,32 @@ const DOCTOR_PROFILES = {
   }
 };
 
+const DOCTOR_DIRECTORY_AVATARS = {
+  'dr. randeep guleria': ['men', 11],
+  'dr. vikramaditya rathore': ['men', 18],
+  'dr. naresh trehan': ['men', 24],
+  'dr. arjun mehta': ['men', 35],
+  'dr. rajesh verma': ['men', 43],
+  'dr. neha gupta': ['women', 12],
+  'dr. gayatri joshi': ['women', 28],
+  'dr. devi shetty': ['men', 57],
+  'dr. manoj saxena': ['men', 64],
+  'dr. sunita khandelwal': ['women', 39],
+};
+
+const getDoctorFallbackAvatar = name => {
+  const normalized = String(name || 'doctor').toLowerCase().trim();
+  const configured = DOCTOR_DIRECTORY_AVATARS[normalized];
+  if (configured) return `https://randomuser.me/api/portraits/${configured[0]}/${configured[1]}.jpg`;
+
+  const femaleName = /\b(ananya|priya|neha|anjali|pooja|sunita|kavita|gayatri)\b/.test(normalized);
+  // A stable name hash gives every future doctor a consistent portrait instead
+  // of reusing one global fallback image.
+  const hash = Array.from(normalized).reduce((value, char) => ((value * 31) + char.charCodeAt(0)) >>> 0, 7);
+  const portraitNumber = 10 + (hash % 80);
+  return `https://randomuser.me/api/portraits/${femaleName ? 'women' : 'men'}/${portraitNumber}.jpg`;
+};
+
 function getDoctorFullProfile(doctor, hospital) {
   const docKey = (doctor?.name || '').toLowerCase().trim();
   const profile = DOCTOR_PROFILES[docKey] || {};
@@ -1295,7 +1472,8 @@ function getDoctorFullProfile(doctor, hospital) {
     rating: profile.rating || '4.6',
     reviewsCount: profile.reviewsCount || '128',
     isAyush: doctor?.isAyush || profile.isAyush || false,
-    avatar: profile.avatar || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=300&fit=crop&crop=face',
+    gender: profile.gender || (/\b(ananya|priya|neha|anjali|pooja|sunita|kavita)\b/i.test(doctor?.name || '') ? 'female' : 'male'),
+    avatar: profile.avatar || getDoctorFallbackAvatar(doctor?.name),
     about: profile.about || `${doctor?.name || 'This doctor'} is a dedicated specialist at ${hospital?.name || 'the hospital'} with extensive clinical experience diagnosing and treating patients with evidence-based care.`,
     patientsTreated: profile.patientsTreated || '5000+',
     satisfaction: profile.satisfaction || '98%',
@@ -1652,24 +1830,48 @@ const HOSPITAL_LOCALIZATION = {
   }
 };
 
+const PATIENT_VOICE_COMMANDS = {
+  bookAppointment: ['book appointment','appointment book karo','अपॉइंटमेंट बुक करें','முன்பதிவு செய்யுங்கள்','అపాయింట్‌మెంట్ బుక్ చేయండి','অ্যাপয়েন্টমেন্ট বুক করুন','अपॉइंटमेंट बुक करा','એપોઇન્ટમેન્ટ બુક કરો','ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಬುಕ್ ಮಾಡಿ','അപ്പോയിന്റ്മെന്റ് ബുക്ക് ചെയ്യുക'],
+  viewAppointments: ['appointments','मेरे अपॉइंटमेंट','எனது முன்பதிவுகள்','నా అపాయింట్‌మెంట్లు','আমার অ্যাপয়েন্টমেন্ট','माझ्या अपॉइंटमेंट','મારી એપોઇન્ટમેન્ટ','ನನ್ನ ಅಪಾಯಿಂಟ್ಮೆಂಟ್‌ಗಳು','എന്റെ അപ്പോയിന്റ്മെന്റുകൾ'],
+  viewHistory: ['appointment history','पुराने अपॉइंटमेंट','முன்பதிவு வரலாறு','అపాయింట్‌మెంట్ చరిత్ర','অ্যাপয়েন্টমেন্ট ইতিহাস','अपॉइंटमेंट इतिहास','એપોઇન્ટમેન્ટ ઇતિહાસ','ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಇತಿಹಾಸ','അപ്പോയിന്റ്മെന്റ് ചരിത്രം'],
+  viewReports: ['medical reports','मेरी रिपोर्ट','மருத்துவ அறிக்கைகள்','వైద్య నివేదికలు','মেডিকেল রিপোর্ট','वैद्यकीय अहवाल','મેડિકલ રિપોર્ટ','ವೈದ್ಯಕೀಯ ವರದಿಗಳು','മെഡിക്കൽ റിപ്പോർട്ടുകൾ'],
+  viewDonations: ['donations','दान खोलें','நன்கொடைகள்','విరాళాలు','দান','देणगी','દાન','ದೇಣಿಗೆಗಳು','സംഭാവനകൾ'],
+  viewCommunities: ['communities','समुदाय खोलें','சமூகங்கள்','సంఘాలు','কমিউনিটি','समुदाय उघडा','સમુદાયો','ಸಮುದಾಯಗಳು','സമൂഹങ്ങൾ'],
+  help: ['help','support','मदद','सहायता','உதவி','సహాయం','সাহায্য','मदत','મદદ','ಸಹಾಯ','സഹായം'],
+  scanRecord: ['scan report','रिपोर्ट स्कैन करें','அறிக்கையை ஸ்கேன் செய்','నివేదిక స్కాన్ చేయండి','রিপোর্ট স্ক্যান করুন','अहवाल स्कॅन करा','રિપોર્ટ સ્કેન કરો','ವರದಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ','റിപ്പോർട്ട് സ്കാൻ ചെയ്യുക'],
+  toggleAyush: ['toggle ayush','आयुष मोड','ஆயுஷ் முறை','ఆయుష్ మోడ్','আয়ুষ মোড','आयुष मोड','આયુષ મોડ','ಆಯುಷ್ ಮೋಡ್','ആയുഷ് മോഡ്'],
+};
+
 export default function PatientDashboard() {
   const navigate = useNavigate();
-  const { session, setToken, setSubmitted, setAyushMode, removeDocument, logout } = useSession();
+  const { session, setToken, setSubmitted, setAyushMode, addDocument, removeDocument, logout } = useSession();
   const isAyushMode = session.isAyushMode;
   const { currentLang, setCurrentLang, availableLanguages } = useLanguage();
-  const { setLanguage: setVoiceLanguage, audioPromptManager, registerPage, unregisterPage } = useVoiceNav();
+  const { registerPage, unregisterPage, setOnTranscript, clearOnTranscript, speak } = useVoiceNav();
+  const reportsFileInputRef = useRef(null);
 
   // Translation helper
   const tr = (key) => {
     const langDict = DASHBOARD_I18N[currentLang] || DASHBOARD_I18N.en;
     return langDict[key] || DASHBOARD_I18N.en[key] || key;
   };
+  const ui = (text) => currentLang === 'en' ? text : aiTranslationService.translate(text, currentLang, 'general');
 
   // Sidebar Collapsible State
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState('appointments');
+
+  // Trigger voice feedback dynamically when navigating between tabs
+  useEffect(() => {
+    import('../voicenav/AudioPromptManager').then(module => {
+      const audioPromptManager = module.default;
+      audioPromptManager.setCurrentPage(activeTab);
+      // The second parameter `true` forces it to speak even if it has spoken before in this session
+      audioPromptManager.speakPageWelcome(activeTab, true);
+    }).catch(err => console.error('Failed to load AudioPromptManager', err));
+  }, [activeTab]);
 
   // Header Dropdowns
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
@@ -1713,35 +1915,38 @@ export default function PatientDashboard() {
   // ABHA Card Modal
   const [showAbhaModal, setShowAbhaModal] = useState(false);
 
-  // Donation State
-  const [donationAmount, setDonationAmount] = useState(500);
-  const [donationSuccess, setDonationSuccess] = useState(false);
-
-  // Community State
-  const [joinedCommunities, setJoinedCommunities] = useState([]);
-
+  // Trigger voice feedback dynamically when modals open
   useEffect(() => {
-    if (!session.patient?.id) return;
-    db.communities.getMemberships(session.patient.id).then(({ data, error }) => {
-      if (error) console.error('Unable to load community memberships', error);
-      else setJoinedCommunities((data || []).map(item => item.community_id));
-    });
-  }, [session.patient?.id]);
+    const speakModal = async (text) => {
+      try {
+        const module = await import('../voicenav/AudioPromptManager');
+        if (text) module.default.interruptWith(text);
+      } catch (err) {
+        console.error('Failed to load AudioPromptManager', err);
+      }
+    };
 
-  const handleDonationPledge = async () => {
-    const { error } = await db.donations.pledge(session.patient?.id, donationAmount);
-    if (error) { alert(`Unable to record pledge: ${error.message}`); return; }
-    setDonationSuccess(true);
-    setTimeout(() => setDonationSuccess(false), 3000);
-  };
+    if (showBookingModal) speakModal(tr('confirmBookingTitle'));
+    else if (showAllHospitalsModal) speakModal(tr('allHospitalsDirectory'));
+    else if (selectedAppointment) speakModal(tr('digitalQueuePass'));
+    else if (showAbhaModal) speakModal(tr('abhaModalPrompt'));
+    else if (selectedDoc) speakModal(tr('ocrDocumentPrompt'));
+  }, [showBookingModal, showAllHospitalsModal, selectedAppointment, showAbhaModal, selectedDoc, currentLang]);
 
-  const toggleCommunity = async (communityId, currentlyJoined) => {
-    const { error } = await db.communities.setMembership(session.patient?.id, communityId, !currentlyJoined);
-    if (error) { alert(`Unable to update membership: ${error.message}`); return; }
-    setJoinedCommunities(current => currentlyJoined
-      ? current.filter(id => id !== communityId)
-      : [...new Set([...current, communityId])]);
-  };
+  // Voice for doctor selection flow
+  useEffect(() => {
+    const speakFlow = async (text) => {
+      try {
+        const module = await import('../voicenav/AudioPromptManager');
+        if (text) module.default.interruptWith(text);
+      } catch (err) {
+        console.error('Failed to load AudioPromptManager', err);
+      }
+    };
+    if (bookingFlowView === 'doctor_select') speakFlow(tr('selectDoctorPrompt'));
+    else if (bookingFlowView === 'doctor_profile') speakFlow(tr('doctorProfilePrompt'));
+  }, [bookingFlowView, currentLang]);
+
 
   // Real Appointments Only (Tied to the specific logged-in patient, NO FAKE/DUMMY DATA)
   const patientKey = session.patient?.phone || session.patient?.abhaId || session.patient?.name || 'guest_patient';
@@ -1750,6 +1955,7 @@ export default function PatientDashboard() {
 
   const appointmentForUi = (row) => {
     const date = new Date(`${row.date}T00:00:00`);
+
     return {
       id: row.id,
       doctorName: row.doctors?.name || 'Doctor',
@@ -1762,7 +1968,7 @@ export default function PatientDashboard() {
       year: date.getFullYear(),
       date: row.date,
       time: row.time_label,
-      token: row.token_number,
+      token: row.token_number || row.token || 'Pending',
       status: row.status === 'confirmed' ? 'Confirmed' : row.status,
       statusType: row.status,
       room: row.opd_room || '',
@@ -1796,28 +2002,199 @@ export default function PatientDashboard() {
 
   // Real Appointment History List (Tied to the specific logged-in patient)
   const [patientHistory, setPatientHistory] = useState([]);
+  const filteredHistory = useMemo(() => patientHistory.filter(item => {
+    const search = historySearch.trim().toLowerCase();
+    if (search && !`${item.doctorName || ''} ${item.specialty || ''} ${item.hospital || ''} ${item.dept || ''}`.toLowerCase().includes(search)) return false;
+    if (historyTypeFilter !== 'all' && item.hospitalType !== historyTypeFilter) return false;
+    if (historyStatusFilter !== 'all') {
+      const normalized = String(item.status || '').replace('_', ' ').toLowerCase();
+      if (normalized !== historyStatusFilter.toLowerCase()) return false;
+    }
+    if (historyDateFilter !== 'all' && item.date) {
+      const appointmentDate = new Date(`${item.date}T00:00:00`);
+      const cutoff = new Date();
+      if (historyDateFilter === 'last30') cutoff.setDate(cutoff.getDate() - 30);
+      else if (historyDateFilter === 'last6m') cutoff.setMonth(cutoff.getMonth() - 6);
+      else if (historyDateFilter === '2026') return appointmentDate.getFullYear() === 2026;
+      if (appointmentDate < cutoff) return false;
+    }
+    return true;
+  }), [patientHistory, historySearch, historyTypeFilter, historyStatusFilter, historyDateFilter]);
 
   // Medical Reports State (Search, Filter, Load More & Menus)
   const [reportsSearch, setReportsSearch] = useState('');
   const [reportsFilterType, setReportsFilterType] = useState('all');
   const [reportsPageLimit, setReportsPageLimit] = useState(5);
   const [activeReportMenu, setActiveReportMenu] = useState(null);
-
-  // Real Patient Reports List (Tied to session.documents and patient storage)
-  const [patientReports, setPatientReports] = useState([]);
+  const reportMenuItemStyle = {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '10px 11px',
+    border: 0,
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    color: '#1e293b',
+    fontSize: '0.82rem',
+    fontWeight: '700',
+    textAlign: 'left',
+    cursor: 'pointer'
+  };
 
   useEffect(() => {
-    if (!session.patient?.id) return;
-    db.reports.getByPatient(session.patient.id).then(({ data, error }) => {
-      if (error) console.error('Unable to load medical reports', error);
-      setPatientReports((data || []).map(report => ({
-        ...report,
-        title: report.title,
-        type: report.report_type,
-        category: report.report_type,
-        extractedData: report.ocr_text,
-      })));
+    if (!activeReportMenu) return undefined;
+    const closeMenu = event => {
+      if (!event.target.closest('[data-report-menu]')) setActiveReportMenu(null);
+    };
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') setActiveReportMenu(null);
+    };
+    document.addEventListener('pointerdown', closeMenu);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenu);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [activeReportMenu]);
+
+  // Real Patient Reports List (Tied directly to uploaded documents and database records)
+  const [patientReports, setPatientReports] = useState([]);
+  const filteredPatientReports = useMemo(() => patientReports.filter(report => {
+    const type = String(report.category || report.type || '').toLowerCase();
+    if (reportsFilterType === 'lab' && !/(lab|blood|cbc|lipid)/.test(type)) return false;
+    if (reportsFilterType === 'imaging' && !/(image|x-ray|ultrasound|scan|mri|radiology)/.test(type)) return false;
+    if (reportsFilterType === 'prescription' && !/(prescription|rx)/.test(type)) return false;
+    const search = reportsSearch.trim().toLowerCase();
+    if (!search) return true;
+    return `${report.title || ''} ${report.type || ''} ${report.doctor || ''} ${report.ocr_text || ''}`.toLowerCase().includes(search);
+  }), [patientReports, reportsFilterType, reportsSearch]);
+
+  const downloadReport = (report) => {
+    const url = report.file_url || report.dataUrl;
+    if (!url) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = report.title || report.name || 'medical-report';
+    link.rel = 'noopener';
+    link.click();
+  };
+
+  const copyReportId = async report => {
+    const recordId = report.testId || report.id;
+    if (!recordId) return;
+    try {
+      await navigator.clipboard.writeText(String(recordId));
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = String(recordId);
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand('copy');
+      field.remove();
+    }
+    setActiveReportMenu(null);
+  };
+
+  const handleDirectReportUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataUrl = event.target.result;
+        const isPdf = file.type.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+        const docType = isPdf ? 'pdf' : file.name.toLowerCase().includes('rx') ? 'prescription' : 'lab';
+        const newDoc = {
+          id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          title: file.name,
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          type: isPdf ? 'PDF Document' : docType === 'prescription' ? 'Prescription' : 'Lab Report',
+          category: docType,
+          dataUrl,
+          imageData: dataUrl,
+          file_url: dataUrl,
+          uploadedAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          source: 'Direct Upload'
+        };
+
+        if (addDocument) addDocument(newDoc);
+
+        if (session.patient?.id) {
+          db.reports.upload({
+            patientId: session.patient.id,
+            appointmentId: null,
+            reportType: docType,
+            title: file.name,
+            file,
+            dataUrl,
+            ocrText: `Uploaded ${file.name} (${newDoc.size})`
+          }).catch(err => console.error('Error saving uploaded report:', err));
+        }
+      };
+      reader.readAsDataURL(file);
     });
+
+    if (reportsFileInputRef.current) {
+      reportsFileInputRef.current.value = '';
+    }
+  };
+
+  useEffect(() => {
+    const sessionDocs = (session.documents || []).map((doc, idx) => {
+      const date = doc.uploadedAt ? new Date(doc.uploadedAt) : (doc.timestamp ? new Date(doc.timestamp) : new Date());
+      const category = (doc.type || doc.category || 'lab').toLowerCase();
+      const rawTitle = doc.name || doc.title || (category.includes('rx') || category.includes('prescription') ? 'Prescription Document' : 'Lab Diagnostic Report');
+      const isPdf = String(rawTitle).toLowerCase().endsWith('.pdf') || String(doc.type || '').toLowerCase().includes('pdf') || String(doc.file_url || doc.dataUrl || doc.imageData || '').startsWith('data:application/pdf');
+      return {
+        id: doc.id || `DOC-${Date.now()}-${idx}`,
+        day: String(date.getDate()),
+        month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+        year: String(date.getFullYear()),
+        title: rawTitle,
+        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        testId: doc.testId || doc.id || `SCAN-${Math.floor(100000 + Math.random() * 900000)}`,
+        doctor: doc.doctor || session.patient?.name || 'Self Upload',
+        category: category.includes('rx') || category.includes('prescription') ? 'prescription' : category.includes('image') || category.includes('x-ray') ? 'imaging' : 'lab',
+        type: isPdf ? 'PDF Document' : category.includes('rx') || category.includes('prescription') ? 'Prescription' : category.includes('image') || category.includes('x-ray') ? 'Imaging Report' : 'Lab Report',
+        file_url: doc.dataUrl || doc.file_url || doc.imageData,
+        dataUrl: doc.dataUrl || doc.file_url || doc.imageData,
+        extractedData: doc.ocrResult?.text || doc.ocr_text || (typeof doc.extractedData === 'object' ? JSON.stringify(doc.extractedData) : doc.extractedData) || ''
+      };
+    });
+
+    if (session.patient?.id) {
+      db.reports.getByPatient(session.patient.id).then(({ data, error }) => {
+        if (error) console.error('Unable to load medical reports', error);
+        const dbDocs = (data || []).map(report => {
+          const date = report.uploaded_at ? new Date(report.uploaded_at) : new Date();
+          const category = String(report.report_type || 'lab').toLowerCase();
+          const rawTitle = report.title || (category.includes('rx') || category.includes('prescription') ? 'Prescription' : 'Medical Report');
+          const isPdf = String(rawTitle).toLowerCase().endsWith('.pdf') || String(report.report_type || '').toLowerCase().includes('pdf') || String(report.file_url || '').toLowerCase().includes('.pdf');
+          return {
+            ...report,
+            id: report.id,
+            day: String(date.getDate()),
+            month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+            year: String(date.getFullYear()),
+            time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            testId: report.id ? `REC-${String(report.id).slice(0, 8).toUpperCase()}` : `REC-001`,
+            title: rawTitle,
+            doctor: report.doctor || 'Attending Physician',
+            type: isPdf ? 'PDF Document' : category.includes('rx') || category.includes('prescription') ? 'Prescription' : category.includes('image') ? 'Imaging Report' : 'Lab Report',
+            category: category.includes('rx') || category.includes('prescription') ? 'prescription' : category.includes('image') ? 'imaging' : 'lab',
+            extractedData: report.ocr_text,
+          };
+        });
+        const existingIds = new Set(sessionDocs.map(d => d.id));
+        setPatientReports([...sessionDocs, ...dbDocs.filter(d => !existingIds.has(d.id))]);
+      });
+    } else {
+      setPatientReports([...sessionDocs]);
+    }
   }, [session.patient?.id, session.documents]);
 
   // Subscribe to AI dynamic translation updates
@@ -1828,36 +2205,127 @@ export default function PatientDashboard() {
     });
   }, []);
 
-  // Voice navigation registration
+  // Voice navigation registration — comprehensive for all dashboard features
   useEffect(() => {
-    if (audioPromptManager) {
-      audioPromptManager.setCurrentPage('patientDashboard');
-      audioPromptManager.speakPageWelcome('patientDashboard', true);
-    }
-
     registerPage('patientDashboard', {
-      startConsultation: () => navigate('/language'),
-      scanRecord: () => navigate('/scan'),
-      toggleAyush: () => setAyushMode(!isAyushMode),
+      // ── Tab navigation ─────────────────────────────────────────────────
+      appointments:     () => setActiveTab('appointments'),
       viewAppointments: () => setActiveTab('appointments'),
-      viewHistory: () => setActiveTab('history'),
-      viewReports: () => setActiveTab('reports')
-    });
+      history:          () => setActiveTab('history'),
+      viewHistory:      () => setActiveTab('history'),
+      records:          () => setActiveTab('reports'),
+      viewReports:      () => setActiveTab('reports'),
+      prescriptions:    () => setActiveTab('reports'),
+      donations:        () => setActiveTab('donations'),
+      viewDonations:    () => setActiveTab('donations'),
+      communities:      () => setActiveTab('communities'),
+      viewCommunities:  () => setActiveTab('communities'),
+      help:             () => setActiveTab('help'),
+      viewHelp:         () => setActiveTab('help'),
+
+      // ── Booking actions ───────────────────────────────────────────────
+      bookAppointment:  () => { setActiveTab('appointments'); setBookingFlowView('main'); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+      startConsultation: () => navigate('/language'),
+      scanRecord:        () => navigate('/scan'),
+
+      // ── Booking flow step navigation ──────────────────────────────────
+      next: () => {
+        const btn = document.querySelector('[data-voice-action="next"]');
+        if (btn && !btn.disabled) { btn.click(); }
+      },
+      back: () => {
+        const btn = document.querySelector('[data-voice-action="back"]');
+        if (btn && !btn.disabled) { btn.click(); return; }
+        if (showBookingModal) setShowBookingModal(false);
+        else if (showAllHospitalsModal) setShowAllHospitalsModal(false);
+        else if (bookingFlowView !== 'main') setBookingFlowView('main');
+      },
+      confirm: () => {
+        const btn = document.querySelector('[data-voice-action="confirm"]');
+        if (btn && !btn.disabled) { btn.click(); return; }
+        const confirmBtn = document.querySelector('[data-booking-confirm]');
+        if (confirmBtn) confirmBtn.click();
+      },
+      skip: () => {
+        const btn = document.querySelector('[data-voice-action="skip"]');
+        if (btn && !btn.disabled) { btn.click(); }
+      },
+
+      // ── Doctor / hospital selection by voice (number) ─────────────────
+      select_doctor: ({ value }) => {
+        const idx = typeof value === 'number' ? value : 0;
+        const doctorBtns = document.querySelectorAll('[data-voice-doctor]');
+        if (doctorBtns[idx]) { doctorBtns[idx].click(); return; }
+        const doctorCards = document.querySelectorAll('.doctor-card, [data-doctor-card]');
+        if (doctorCards[idx]) doctorCards[idx].click();
+      },
+      select_hospital: ({ value }) => {
+        const idx = typeof value === 'number' ? value : 0;
+        const hospitalBtns = document.querySelectorAll('[data-voice-hospital]');
+        if (hospitalBtns[idx]) { hospitalBtns[idx].click(); return; }
+        const hospitalCards = document.querySelectorAll('.hospital-card, [data-hospital-card]');
+        if (hospitalCards[idx]) hospitalCards[idx].click();
+      },
+      searchHospital: ({ value }) => {
+        if (typeof value === 'string' && value.length > 2) {
+          setSearchQuery(value);
+          setActiveTab('appointments');
+        }
+      },
+
+      // ── Profile & ID ──────────────────────────────────────────────────
+      viewProfile:  () => setProfileDropdownOpen(true),
+      showAbhaCard: () => setShowAbhaModal(true),
+
+      // ── AYUSH toggle ──────────────────────────────────────────────────
+      toggleAyush: () => setAyushMode(!isAyushMode),
+
+      // ── App-level ─────────────────────────────────────────────────────
+      home:    () => navigate('/'),
+      logout:  () => { logout?.(); navigate('/'); },
+      triage:  () => navigate('/language'),
+
+      // ── Option selection (e.g., select doctor 1, 2, 3) ───────────────
+      selectOption: ({ value }) => {
+        const options = Array.from(document.querySelectorAll('[data-voice-option]'))
+          .filter(el => !el.disabled && el.getClientRects().length);
+        if (options[value]) options[value].click();
+      },
+    }, PATIENT_VOICE_COMMANDS);
 
     return () => {
       unregisterPage('patientDashboard');
+      clearOnTranscript?.();
     };
-  }, [audioPromptManager, navigate, registerPage, unregisterPage, isAyushMode, setAyushMode, currentLang]);
+  }, [navigate, registerPage, unregisterPage, isAyushMode, setAyushMode, currentLang, logout, clearOnTranscript, showBookingModal, showAllHospitalsModal, bookingFlowView]);
 
-  // Browser Native Back Button Navigation — smoothly returns to Landing Page
+  // ── Voice transcript callback for booking modal symptoms/reason ──────────
   useEffect(() => {
-    window.history.pushState(null, '', window.location.href);
-    const handlePopState = () => {
-      navigate('/', { replace: true });
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+    if (showBookingModal) {
+      setOnTranscript?.(async (text) => {
+        if (!text || text.trim().length < 2) return;
+        try {
+          const extracted = await aiCommandEngine.extractRegistrationDetails(text, currentLang || 'en');
+          if (extracted && extracted.symptoms) {
+            setBookingReason(prev => prev ? `${prev}. ${extracted.symptoms}` : extracted.symptoms);
+            speak?.(extracted.confirmationMessage || `Noted: ${extracted.symptoms}`, currentLang);
+          } else {
+            setBookingReason(prev => prev ? `${prev} ${text}` : text);
+            speak?.(`Noted: ${text}`, currentLang);
+          }
+        } catch (e) {
+          setBookingReason(prev => prev ? `${prev} ${text}` : text);
+        }
+      });
+    } else {
+      clearOnTranscript?.();
+    }
+    return () => clearOnTranscript?.();
+  }, [showBookingModal, setOnTranscript, clearOnTranscript, currentLang, speak]);
+
+
+
+
 
   // Real Logged-in Patient Info with localized transliteration
   const rawPatientName = session.patient?.name ? session.patient.name.trim() : '';
@@ -2074,10 +2542,34 @@ export default function PatientDashboard() {
 
   // Booking Wizard Step States
   const [bookingStep, setBookingStep] = useState(1); // 1: Date, 2: Time, 3: Case, 4: Reports, 5: Confirmation
-  const [selectedBookingDate, setSelectedBookingDate] = useState('2026-08-29');
-  const [selectedBookingSlot, setSelectedBookingSlot] = useState('10:00 AM');
+
+  // Voice for booking steps (1-5)
+  useEffect(() => {
+    const speakStep = async (text) => {
+      try {
+        const module = await import('../voicenav/AudioPromptManager');
+        if (text) module.default.interruptWith(text);
+      } catch (err) {
+        console.error('Failed to load AudioPromptManager', err);
+      }
+    };
+
+    if (activeTab === 'appointments' && bookingFlowView === 'booking_steps' && selectedDoctorObj && bookingHospital) {
+      if (bookingStep === 1) speakStep(tr('bookStep1'));
+      else if (bookingStep === 2) speakStep(tr('bookStep2'));
+      else if (bookingStep === 3) speakStep(tr('bookStep3'));
+      else if (bookingStep === 4) speakStep(tr('bookStep4'));
+      else if (bookingStep === 5) speakStep(tr('bookStep5'));
+    }
+  }, [bookingStep, activeTab, bookingFlowView, selectedDoctorObj, bookingHospital, currentLang]);
+  const [selectedBookingDate, setSelectedBookingDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
+  const [selectedBookingSlot, setSelectedBookingSlot] = useState('');
   const [bookingCaseSymptoms, setBookingCaseSymptoms] = useState(['Fever & Chills']);
   const [bookingCaseNotes, setBookingCaseNotes] = useState('');
+  const [bookingReports, setBookingReports] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [liveSlots, setLiveSlots] = useState({ morning: [], afternoon: [], evening: [] });
 
@@ -2100,6 +2592,9 @@ export default function PatientDashboard() {
       const result = doctorSave.error ? { morning: [], afternoon: [], evening: [] } : await db.slots.getLive(doctorId, selectedBookingDate);
       if (active) {
         setLiveSlots(result);
+        const available = [...result.morning, ...result.afternoon, ...result.evening]
+          .filter(slot => slot.state === 'open' || slot.state === 'fast');
+        setSelectedBookingSlot(current => available.some(slot => slot.label === current) ? current : '');
         setSlotsLoading(false);
       }
     };
@@ -2136,6 +2631,16 @@ export default function PatientDashboard() {
     const isWizard = bookingFlowView === 'booking_steps';
     const effectiveDate = isWizard ? selectedBookingDate : selectedDate;
     const effectiveSlot = isWizard ? selectedBookingSlot : selectedSlot;
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    if (!effectiveDate || effectiveDate < todayKey) {
+      alert('Please select today or a future appointment date.');
+      return;
+    }
+    if (!effectiveSlot) {
+      alert('Please select an available appointment time.');
+      return;
+    }
     const time24 = (() => {
       const match = String(effectiveSlot).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
       if (!match) return effectiveSlot;
@@ -2143,6 +2648,13 @@ export default function PatientDashboard() {
       if (match[3].toUpperCase() === 'PM') hour += 12;
       return `${String(hour).padStart(2, '0')}:${match[2]}`;
     })();
+    if (effectiveDate === todayKey) {
+      const [slotHour, slotMinute] = String(time24).split(':').map(Number);
+      if (!Number.isFinite(slotHour) || slotHour * 60 + slotMinute <= now.getHours() * 60 + now.getMinutes()) {
+        alert('That time slot has already passed. Please select a later time.');
+        return;
+      }
+    }
 
     const hospitalSave = await db.hospitals.ensure({ ...bookingHospital, id: hospitalId });
     if (hospitalSave.error) { alert(`Unable to save hospital: ${hospitalSave.error.message}`); return; }
@@ -2164,17 +2676,22 @@ export default function PatientDashboard() {
       alert(`Appointment could not be booked: ${booked.error?.message || 'unknown error'}`);
       return;
     }
-    await db.intakes.attachAppointment(session.intakeId, booked.data.id);
+    const effectiveDoctorName = selectedDoctorObj?.name || selectedDoctor || 'Dr. Ananya Sharma';
+    const effectiveSpecialty = selectedDoctorObj?.specialty || selectedDept || 'General Medicine';
+
     const tokenStr = booked.token;
-    const tokenNum = Number(String(tokenStr).replace(/\D/g, '')) || tokenStr;
+    if (!tokenStr) {
+      alert('Appointment was saved without a token. Please contact the registration desk.');
+      return;
+    }
     const dateObj = new Date(effectiveDate);
     const dayStr = dateObj.getDate().toString().padStart(2, '0');
     const monthStr = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
 
     const newApt = {
       id: booked.data.id,
-      doctorName: selectedDoctor || 'Dr. Ananya Sharma',
-      specialty: selectedDept,
+      doctorName: effectiveDoctorName,
+      specialty: effectiveSpecialty,
       hospital: bookingHospital?.name || 'Sawai Man Singh Hospital',
       hospitalType: bookingHospital?.type || tr('government'),
       day: dayStr || '30',
@@ -2183,21 +2700,59 @@ export default function PatientDashboard() {
       token: tokenStr,
       status: 'Confirmed',
       statusType: 'confirmed',
-      room: `104`,
-      dept: selectedDept,
-      reason: bookingReason || 'General Consultation'
+      room: selectedDoctorObj?.room || '104',
+      dept: effectiveSpecialty,
+      reason: bookingReason || bookingCaseNotes || 'General Consultation'
     };
 
     setNewlyBookedToken(`${tr('tokenWord')} ${tokenStr}`);
     setAppointments(prev => [newApt, ...prev]);
-    setToken(tokenNum);
+    setToken(tokenStr);
     setSubmitted();
+
+    // Persist Step 4 uploads as medical-report records, then mirror them into
+    // the current session so the Medical Reports tab updates immediately.
+    if (bookingReports && bookingReports.length > 0) {
+      const savedReports = await Promise.all(bookingReports.map(async r => {
+        const category = r.type === 'pdf' ? 'pdf' : /prescription|\brx\b/i.test(r.name || '') ? 'prescription' : 'lab';
+        const saved = await db.reports.upload({
+          patientId: session.patient.id,
+          appointmentId: booked.data.id,
+          reportType: category,
+          title: r.name || 'Uploaded Clinical Document',
+          file: r.file,
+          dataUrl: r.dataUrl,
+          ocrText: r.ocrSummary || '',
+        });
+        if (saved.error) throw saved.error;
+        const docEntry = {
+          id: saved.data?.id || r.id || 'doc_' + Date.now(),
+          title: r.name || 'Uploaded Clinical Document',
+          name: r.name || 'Uploaded Clinical Document',
+          type: r.type === 'pdf' ? 'PDF Document' : 'Medical Report',
+          category,
+          dataUrl: r.dataUrl,
+          file_url: saved.data?.file_url || r.dataUrl,
+          imageData: r.dataUrl,
+          uploadedAt: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
+          ocr_text: r.ocrSummary || ''
+        };
+        if (addDocument) addDocument(docEntry);
+        return docEntry;
+      })).catch(error => {
+        console.error('Unable to save Step 4 medical reports', error);
+        return null;
+      });
+      if (!savedReports) {
+        alert('The appointment was booked, but one or more medical reports could not be saved. Please upload them again from Medical Reports.');
+      }
+    }
 
     if (isWizard) {
       setSelectedAppointment(newApt);
       setBookingFlowView('main');
       setBookingStep(1);
-      alert(`Appointment Confirmed! Token ${tokenStr} assigned.`);
       return;
     }
     setBookingSuccess(true);
@@ -2521,7 +3076,7 @@ export default function PatientDashboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck size={20} color="#0f766e" />
               <span style={{ fontSize: '0.875rem', fontWeight: '800', color: '#0f766e', letterSpacing: '-0.2px' }}>
-                Your Health, Our Priority
+                {tr('trustHeader')}
               </span>
             </div>
 
@@ -2533,20 +3088,20 @@ export default function PatientDashboard() {
               fontWeight: '500',
               lineHeight: 1.45
             }}>
-              Your data is safe and secure with us.
+              {tr('trustBody')}
             </p>
 
             {/* Footer Badge: Lock + HIPAA Compliant */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
               <Lock size={15} color="#0f766e" />
               <span style={{ fontSize: '0.825rem', fontWeight: '800', color: '#0f766e' }}>
-                HIPAA Compliant
+                {tr('trustBadge')}
               </span>
             </div>
           </div>
         ) : (
           <div
-            title="Your Health, Our Priority — HIPAA Compliant"
+            title={`${tr('trustHeader')} — ${tr('trustBadge')}`}
             style={{
               width: '42px',
               height: '42px',
@@ -2613,12 +3168,14 @@ export default function PatientDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
 
             {/* Language Switcher Dropdown */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} className="notranslate" translate="no">
               <button
                 onClick={() => {
                   setLangDropdownOpen(!langDropdownOpen);
                   setProfileDropdownOpen(false);
                 }}
+                className="notranslate"
+                translate="no"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -2657,7 +3214,6 @@ export default function PatientDashboard() {
                       key={l.code}
                       onClick={() => {
                         setCurrentLang(l.code);
-                        setVoiceLanguage(l.code);
                         setLangDropdownOpen(false);
                       }}
                       style={{
@@ -3147,7 +3703,7 @@ export default function PatientDashboard() {
                               alt={fullProf.name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               onError={(e) => {
-                                e.currentTarget.src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=face';
+                                e.currentTarget.src = getDoctorFallbackAvatar(fullProf.name);
                               }}
                             />
                           </div>
@@ -3305,7 +3861,7 @@ export default function PatientDashboard() {
                             alt={selectedDoctorObj.name}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             onError={(e) => {
-                              e.currentTarget.src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=face';
+                              e.currentTarget.src = getDoctorFallbackAvatar(selectedDoctorObj.name);
                             }}
                           />
                         </div>
@@ -3355,7 +3911,7 @@ export default function PatientDashboard() {
 
                         <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
                           <MapPin size={12} />
-                          <span>{bookingHospital?.address || 'Jawahar Lal Nehru Marg, Jaipur, Rajasthan'} • {bookingHospital?.distance || '1.8 km away'}</span>
+                          <span>{[bookingHospital?.address, bookingHospital?.distance].filter(Boolean).join(' • ')}</span>
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -3808,7 +4364,7 @@ export default function PatientDashboard() {
                           alt={selectedDoctorObj.name}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&crop=face';
+                            e.currentTarget.src = getDoctorFallbackAvatar(selectedDoctorObj.name);
                           }}
                         />
                       </div>
@@ -3858,7 +4414,7 @@ export default function PatientDashboard() {
                           {bookingHospital?.name || 'Sawai Man Singh Hospital'}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1px' }}>
-                          {bookingHospital?.address?.split(',')[1] || 'Jaipur, Rajasthan'}
+                          {bookingHospital?.city || bookingHospital?.address || ''}
                         </div>
                       </div>
                     </div>
@@ -3909,15 +4465,18 @@ export default function PatientDashboard() {
                         gap: '1.25rem',
                         marginBottom: '2.5rem'
                       }}>
-                        {[
-                          { dateStr: '2026-08-29', day: '29', month: 'Aug', weekday: 'Sat', isToday: true },
-                          { dateStr: '2026-08-30', day: '30', month: 'Aug', weekday: 'Sun' },
-                          { dateStr: '2026-08-31', day: '31', month: 'Aug', weekday: 'Mon' },
-                          { dateStr: '2026-09-01', day: '01', month: 'Sep', weekday: 'Tue' },
-                          { dateStr: '2026-09-02', day: '02', month: 'Sep', weekday: 'Wed' },
-                          { dateStr: '2026-09-03', day: '03', month: 'Sep', weekday: 'Thu' },
-                          { dateStr: '2026-09-04', day: '04', month: 'Sep', weekday: 'Fri' }
-                        ].map((d) => {
+                        {Array.from({ length: 7 }, (_, offset) => {
+                          const value = new Date();
+                          value.setHours(0, 0, 0, 0);
+                          value.setDate(value.getDate() + offset);
+                          return {
+                            dateStr: `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`,
+                            day: String(value.getDate()).padStart(2, '0'),
+                            month: value.toLocaleDateString('en-US', { month: 'short' }),
+                            weekday: value.toLocaleDateString('en-US', { weekday: 'short' }),
+                            isToday: offset === 0
+                          };
+                        }).map((d) => {
                           const isSelected = selectedBookingDate === d.dateStr;
                           return (
                             <button
@@ -4025,8 +4584,17 @@ export default function PatientDashboard() {
                             e.currentTarget.style.transform = 'translateY(0)';
                           }}
                           onClick={() => {
-                            const custom = prompt("Enter desired date (YYYY-MM-DD):", "2026-09-05");
-                            if (custom) setSelectedBookingDate(custom);
+                            const now = new Date();
+                            const minimum = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                            const custom = prompt("Enter desired date (YYYY-MM-DD):", minimum);
+                            if (!custom) return;
+                            if (!/^\d{4}-\d{2}-\d{2}$/.test(custom) || Number.isNaN(new Date(`${custom}T00:00:00`).getTime())) {
+                              alert('Please enter a valid date in YYYY-MM-DD format.');
+                            } else if (custom < minimum) {
+                              alert('Past dates cannot be selected.');
+                            } else {
+                              setSelectedBookingDate(custom);
+                            }
                           }}
                         >
                           <div style={{
@@ -4049,6 +4617,7 @@ export default function PatientDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
                         <button
                           onClick={() => setBookingStep(2)}
+                          data-voice-action="next"
                           style={{
                             background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
                             color: '#ffffff',
@@ -4086,18 +4655,19 @@ export default function PatientDashboard() {
                   {bookingStep === 2 && (() => {
                     // Render slot grid for one session group
                     const renderSlotGroup = (slots, emoji, label) => {
-                      if (!slots || slots.length === 0) return null;
+                      const visibleSlots = (slots || []).filter(slot => !slot.isPast);
+                      if (visibleSlots.length === 0) return null;
                       return (
                         <div key={label}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.925rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>
                             <span style={{ fontSize: '1.15rem' }}>{emoji}</span>
                             <span>{label}</span>
                             <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>
-                              {slots.filter(s => s.state === 'open' || s.state === 'fast').length} slots available
+                              {visibleSlots.filter(s => s.state === 'open' || s.state === 'fast').length} slots available
                             </span>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.9rem' }}>
-                            {slots.map((slot) => {
+                            {visibleSlots.map((slot) => {
                               const isSelected = selectedBookingSlot === slot.label;
                               const isDisabled = slot.state === 'full' || slot.state === 'closed';
 
@@ -4222,7 +4792,7 @@ export default function PatientDashboard() {
                             {renderSlotGroup(liveSlots.evening,   '🌙', 'Evening Slots')}
 
                             {/* All sessions empty message */}
-                            {liveSlots.morning.length === 0 && liveSlots.afternoon.length === 0 && liveSlots.evening.length === 0 && (
+                            {[...liveSlots.morning, ...liveSlots.afternoon, ...liveSlots.evening].filter(slot => !slot.isPast).length === 0 && (
                               <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem 0' }}>
                                 No slots available for this date. Please select a different date.
                               </div>
@@ -4249,6 +4819,7 @@ export default function PatientDashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                           <button
                             onClick={() => setBookingStep(1)}
+                            data-voice-action="back"
                             style={{
                               backgroundColor: '#ffffff', color: '#334155', border: '1px solid #e2e8f0',
                               borderRadius: '14px', padding: '11px 24px', fontSize: '0.9rem', fontWeight: '700',
@@ -4286,6 +4857,7 @@ export default function PatientDashboard() {
                               }
                               setBookingStep(3);
                             }}
+                            data-voice-action="next"
                             style={{
                               background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
                               color: '#ffffff', border: 'none', borderRadius: '14px', padding: '13px 30px',
@@ -4324,250 +4896,38 @@ export default function PatientDashboard() {
                   )}
 
                   {/* ─────────────────────────────────────────────────────────
-                      STEP 4: UPLOAD REPORTS (Optional)
+                      STEP 4: UPLOAD REPORTS (Scan Report or Device Upload)
                       ───────────────────────────────────────────────────────── */}
                   {bookingStep === 4 && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '18px',
-                      border: '1px solid #e2e8f0',
-                      padding: '1.75rem 2rem',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '12px',
-                          backgroundColor: '#f0fdf9',
-                          border: '1px solid #ccfbf1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#0c4e47'
-                        }}>
-                          <Download size={20} />
-                        </div>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                            Step 4: Attach Medical Records & Reports
-                          </h3>
-                          <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-                            Attach existing diagnostic tests or let the doctor access your linked ABHA records
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* ABHA Link Card */}
-                      <div style={{
-                        backgroundColor: '#f0fdf9',
-                        border: '1px solid #ccfbf1',
-                        borderRadius: '14px',
-                        padding: '1.25rem',
-                        marginBottom: '1.5rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <ShieldCheck size={28} color="#0c4e47" />
-                          <div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0c4e47' }}>
-                              Auto-Share ABHA Health Locker
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                              Securely grants 24-hour read access for this OPD visit
-                            </div>
-                          </div>
-                        </div>
-                        <span style={{ backgroundColor: '#dcfce7', color: '#15803d', fontWeight: '800', fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px' }}>
-                          Enabled
-                        </span>
-                      </div>
-
-                      {/* Dropzone Upload */}
-                      <div style={{
-                        border: '2px dashed #cbd5e1',
-                        borderRadius: '16px',
-                        padding: '2rem 1.5rem',
-                        textAlign: 'center',
-                        backgroundColor: '#fafbfc',
-                        marginBottom: '2rem',
-                        cursor: 'pointer'
-                      }}>
-                        <FileText size={36} color="#64748b" style={{ margin: '0 auto 10px auto' }} />
-                        <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0f172a', marginBottom: '4px' }}>
-                          Drag and drop past lab reports (PDF, JPG, PNG)
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                          or click to browse from device (Max 15MB)
-                        </div>
-                      </div>
-
-                      {/* Navigation Buttons */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-                        <button
-                          onClick={() => setBookingStep(3)}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            color: '#334155',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '12px',
-                            padding: '10px 20px',
-                            fontSize: '0.9rem',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <ArrowLeft size={16} />
-                          <span>Previous</span>
-                        </button>
-
-                        <button
-                          onClick={() => setBookingStep(5)}
-                          style={{
-                            backgroundColor: '#0c4e47',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '12px',
-                            padding: '12px 26px',
-                            fontSize: '0.95rem',
-                            fontWeight: '800',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            boxShadow: '0 4px 14px rgba(12, 78, 71, 0.25)'
-                          }}
-                        >
-                          <span>Next: Confirmation</span>
-                          <ArrowRight size={18} />
-                        </button>
-                      </div>
-                    </div>
+                    <ReportUploadStep
+                      doctor={selectedDoctorObj}
+                      hospital={bookingHospital}
+                      uploadedReports={bookingReports}
+                      onUpdateReports={(newReports) => setBookingReports(newReports)}
+                      onPrevious={() => setBookingStep(3)}
+                      onNext={() => setBookingStep(5)}
+                      language={currentLang || 'en'}
+                    />
                   )}
 
                   {/* ─────────────────────────────────────────────────────────
-                      STEP 5: CONFIRMATION & TOKEN PASS
+                      STEP 5: CONFIRMATION & PRE-VISIT CASE REVIEW
                       ───────────────────────────────────────────────────────── */}
                   {bookingStep === 5 && (
-                    <div style={{
-                      backgroundColor: '#ffffff',
-                      borderRadius: '18px',
-                      border: '1px solid #e2e8f0',
-                      padding: '1.75rem 2rem',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '12px',
-                          backgroundColor: '#f0fdf9',
-                          border: '1px solid #ccfbf1',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#0c4e47'
-                        }}>
-                          <CheckCircle2 size={22} color="#0c4e47" />
-                        </div>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                            Step 5: Review & Confirm Appointment
-                          </h3>
-                          <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-                            Verify all appointment details before generating your OPD token
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Summary Review Card */}
-                      <div style={{
-                        backgroundColor: '#fafbfc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '16px',
-                        padding: '1.5rem',
-                        marginBottom: '2rem',
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '1.25rem'
-                      }}>
-                        <div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>DOCTOR</div>
-                          <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a', marginTop: '2px' }}>{selectedDoctorObj.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#0f766e', fontWeight: '600' }}>{selectedDoctorObj.specialty}</div>
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>HOSPITAL</div>
-                          <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a', marginTop: '2px' }}>{bookingHospital?.name || 'Sawai Man Singh Hospital'}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{bookingHospital?.address}</div>
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>DATE & TIME</div>
-                          <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0c4e47', marginTop: '2px' }}>{selectedBookingDate}</div>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '800', color: '#0f172a' }}>{selectedBookingSlot}</div>
-                        </div>
-
-                        <div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700' }}>PATIENT</div>
-                          <div style={{ fontSize: '1rem', fontWeight: '900', color: '#0f172a', marginTop: '2px' }}>{patientName || 'Tanishk Sharma'}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{session.patient?.phone || '9876543210'}</div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-                        <button
-                          onClick={() => setBookingStep(4)}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            color: '#334155',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '12px',
-                            padding: '10px 20px',
-                            fontSize: '0.9rem',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <ArrowLeft size={16} />
-                          <span>Previous</span>
-                        </button>
-
-                        <button
-                          onClick={handleConfirmBooking}
-                          style={{
-                            backgroundColor: '#0c4e47',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '12px',
-                            padding: '14px 32px',
-                            fontSize: '1rem',
-                            fontWeight: '800',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            boxShadow: '0 6px 18px rgba(12, 78, 71, 0.35)',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#083934'}
-                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0c4e47'}
-                        >
-                          <Check size={20} />
-                          <span>Confirm & Generate Token</span>
-                        </button>
-                      </div>
-                    </div>
+                    <BookingConfirmationStep
+                      doctor={selectedDoctorObj}
+                      hospital={bookingHospital}
+                      selectedDate={selectedBookingDate}
+                      selectedSlot={selectedBookingSlot}
+                      caseSymptoms={bookingCaseSymptoms}
+                      caseNotes={bookingCaseNotes}
+                      uploadedReports={bookingReports}
+                      onEditCase={() => setBookingStep(3)}
+                      onEditReports={() => setBookingStep(4)}
+                      onPrevious={() => setBookingStep(4)}
+                      onConfirm={handleConfirmBooking}
+                      language={currentLang || 'en'}
+                    />
                   )}
 
                 </div>
@@ -4613,7 +4973,7 @@ export default function PatientDashboard() {
                         alignItems: 'center',
                         gap: '10px'
                       }}>
-                        <span>{greetingText}{patientName ? ', ' + patientName : ''}</span>
+                        <span className="notranslate" translate="no">{greetingText}{patientName ? ', ' + patientName : ''}</span>
                         <span style={{ fontSize: '1.6rem' }}>👋</span>
                       </h2>
                       <p style={{
@@ -5064,31 +5424,6 @@ export default function PatientDashboard() {
                         </div>
                       )}
 
-                      {/* Quick Action: Start Voice Intake */}
-                      <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #f1f5f9' }}>
-                        <button
-                          onClick={() => navigate('/language')}
-                          style={{
-                            width: '100%',
-                            backgroundColor: '#f0fdf4',
-                            color: '#0f766e',
-                            border: '1px solid #99f6e4',
-                            borderRadius: '12px',
-                            padding: '10px 14px',
-                            fontSize: '0.85rem',
-                            fontWeight: '800',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <Sparkles size={16} color="#0d9488" />
-                          <span>{tr('startVoiceIntake')}</span>
-                        </button>
-                      </div>
-
                     </div>
 
                   </div>
@@ -5106,7 +5441,7 @@ export default function PatientDashboard() {
                       {tr('history')}
                     </h1>
                     <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
-                      View your past appointments and consultations.
+                      {tr('historyDesc')}
                     </p>
                   </div>
 
@@ -5131,7 +5466,7 @@ export default function PatientDashboard() {
                           type="text"
                           value={historySearch}
                           onChange={e => setHistorySearch(e.target.value)}
-                          placeholder="Search by doctor, hospital or department..."
+                          placeholder={ui('Search by doctor, hospital or department…')}
                           style={{
                             width: '100%',
                             padding: '10px 14px 10px 38px',
@@ -5151,7 +5486,7 @@ export default function PatientDashboard() {
 
                     {/* Date Range Dropdown */}
                     <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Date Range</label>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Date range')}</label>
                       <div style={{ position: 'relative' }}>
                         <select
                           value={historyDateFilter}
@@ -5168,9 +5503,9 @@ export default function PatientDashboard() {
                             cursor: 'pointer'
                           }}
                         >
-                          <option value="all">All Time</option>
-                          <option value="last30">Last 30 Days</option>
-                          <option value="last6m">Last 6 Months</option>
+                          <option value="all">{ui('All time')}</option>
+                          <option value="last30">{ui('Last 30 days')}</option>
+                          <option value="last6m">{ui('Last 6 months')}</option>
                           <option value="2026">2026</option>
                         </select>
                         <Calendar size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -5180,7 +5515,7 @@ export default function PatientDashboard() {
 
                     {/* Hospital Type Dropdown */}
                     <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Hospital Type</label>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Hospital type')}</label>
                       <div style={{ position: 'relative' }}>
                         <select
                           value={historyTypeFilter}
@@ -5198,9 +5533,9 @@ export default function PatientDashboard() {
                             minWidth: '120px'
                           }}
                         >
-                          <option value="all">All</option>
-                          <option value="Government">Government</option>
-                          <option value="Private">Private</option>
+                          <option value="all">{tr('all')}</option>
+                          <option value="Government">{tr('government')}</option>
+                          <option value="Private">{tr('private')}</option>
                           <option value="AYUSH">AYUSH</option>
                         </select>
                         <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -5209,7 +5544,7 @@ export default function PatientDashboard() {
 
                     {/* Status Dropdown */}
                     <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>Status</label>
+                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Status')}</label>
                       <div style={{ position: 'relative' }}>
                         <select
                           value={historyStatusFilter}
@@ -5227,11 +5562,11 @@ export default function PatientDashboard() {
                             minWidth: '110px'
                           }}
                         >
-                          <option value="all">All</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Confirmed">Confirmed</option>
-                          <option value="Cancelled">Cancelled</option>
-                          <option value="No Show">No Show</option>
+                          <option value="all">{tr('all')}</option>
+                          <option value="Completed">{ui('Completed')}</option>
+                          <option value="Confirmed">{tr('confirmed')}</option>
+                          <option value="Cancelled">{ui('Cancelled')}</option>
+                          <option value="No Show">{ui('No show')}</option>
                         </select>
                         <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                       </div>
@@ -5264,7 +5599,7 @@ export default function PatientDashboard() {
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
                       >
                         <RotateCcw size={14} />
-                        <span>Clear Filters</span>
+                        <span>{ui('Clear filters')}</span>
                       </button>
                     </div>
                   </div>
@@ -5289,17 +5624,17 @@ export default function PatientDashboard() {
                       color: '#64748b',
                       letterSpacing: '0.3px'
                     }}>
-                      <div>Date & Time</div>
-                      <div>Doctor & Department</div>
-                      <div>Hospital</div>
-                      <div>Status</div>
-                      <div style={{ textAlign: 'right' }}>Action</div>
+                      <div>{ui('Date and time')}</div>
+                      <div>{ui('Doctor and department')}</div>
+                      <div>{ui('Hospital')}</div>
+                      <div>{ui('Status')}</div>
+                      <div style={{ textAlign: 'right' }}>{ui('Action')}</div>
                     </div>
 
                     {/* Data Rows or Empty State */}
-                    {patientHistory.length > 0 ? (
+                    {filteredHistory.length > 0 ? (
                       <div>
-                        {patientHistory.map((item, idx) => {
+                        {filteredHistory.map((item, idx) => {
                           const localizedDoc = localizeDoctor(item.doctorName || item.doctor, currentLang);
                           const localizedSpec = localizeSpecialty(item.specialty || item.dept, currentLang);
                           const localizedHosp = localizeHospitalName(item.hospital, currentLang);
@@ -5338,7 +5673,7 @@ export default function PatientDashboard() {
                                 display: 'grid',
                                 gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr',
                                 padding: '1.25rem 1.75rem',
-                                borderBottom: idx !== patientHistory.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                borderBottom: idx !== filteredHistory.length - 1 ? '1px solid #f1f5f9' : 'none',
                                 alignItems: 'center',
                                 transition: 'background 0.15s ease'
                               }}
@@ -5357,14 +5692,14 @@ export default function PatientDashboard() {
                                   flexShrink: 0
                                 }}>
                                   <div style={{ fontSize: '1.25rem', fontWeight: '900', color: dateTileColor, lineHeight: 1 }}>
-                                    {item.day || '29'}
+                                    {item.day}
                                   </div>
                                   <div style={{ fontSize: '0.62rem', fontWeight: '800', color: dateTileColor, marginTop: '2px', letterSpacing: '0.4px' }}>
-                                    {item.monthYear || `${item.month || 'AUG'} ${item.year || '2026'}`}
+                                    {item.monthYear || `${item.month || ''} ${item.year || ''}`}
                                   </div>
                                 </div>
                                 <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>
-                                  {item.time || '10:30 AM'}
+                                  {item.time || ui('Time not set')}
                                 </span>
                               </div>
 
@@ -5384,7 +5719,7 @@ export default function PatientDashboard() {
                                   {localizedHosp}
                                 </h4>
                                 <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                  {item.location || 'Jaipur, Rajasthan'}
+                                  {item.location || ''}
                                 </span>
                               </div>
 
@@ -5399,7 +5734,7 @@ export default function PatientDashboard() {
                                   backgroundColor: statusBg,
                                   color: statusColor
                                 }}>
-                                  {item.status || 'Completed'}
+                                  {ui(item.status || 'Completed')}
                                 </span>
                               </div>
 
@@ -5432,7 +5767,7 @@ export default function PatientDashboard() {
                                   }}
                                 >
                                   <Eye size={14} />
-                                  <span>View Details</span>
+                                  <span>{ui('View details')}</span>
                                 </button>
                               </div>
 
@@ -5444,10 +5779,10 @@ export default function PatientDashboard() {
                       <div style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
                         <CalendarCheck size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
                         <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                          No Past Appointments Found
+                          {ui('No past appointments found')}
                         </h3>
                         <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
-                          When your clinical appointments and doctor visits are completed, their full history, prescriptions, and digital records will be listed here.
+                          {ui('Completed appointments, prescriptions and digital records will appear here automatically.')}
                         </p>
                         <button
                           onClick={() => setActiveTab('appointments')}
@@ -5477,7 +5812,7 @@ export default function PatientDashboard() {
                       backgroundColor: '#ffffff'
                     }}>
                       <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
-                        Showing {patientHistory.length > 0 ? `1 to ${patientHistory.length}` : '0'} of {patientHistory.length} appointments
+                        {ui('Showing')} {filteredHistory.length} {ui('of')} {patientHistory.length} {ui('appointments')}
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -5553,21 +5888,26 @@ export default function PatientDashboard() {
                   {/* Header */}
                   <div style={{ marginBottom: '1.5rem' }}>
                     <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
-                      Medical Reports
+                      {tr('reports')}
                     </h1>
                     <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
-                      View, download and manage your medical reports in one place.
+                      {tr('reportsDesc')}
                     </p>
                   </div>
 
+                  <div style={{
+                    backgroundColor: '#ffffff',
+                    borderRadius: '14px',
+                    border: '1px solid #dfe6ee',
+                    padding: '1.3rem 1.5rem 1.5rem',
+                    boxShadow: '0 2px 10px rgba(15, 23, 42, 0.025)',
+                    overflow: 'visible'
+                  }}>
                   {/* Sub-Header / Controls */}
                   <div style={{
                     backgroundColor: '#ffffff',
-                    borderRadius: '16px',
-                    border: '1px solid #e2e8f0',
-                    padding: '1.25rem 1.5rem',
-                    marginBottom: '2rem',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                    padding: '0 0 1.35rem',
+                    marginBottom: '0.15rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -5576,7 +5916,7 @@ export default function PatientDashboard() {
                   }}>
                     {/* Left Title */}
                     <div style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
-                      Your Reports <span style={{ color: '#16a34a', fontWeight: '700' }}>(Chronological Order)</span>
+                      {ui('Your reports')} <span style={{ color: '#16a34a', fontWeight: '700' }}>({ui('Chronological order')})</span>
                     </div>
 
                     {/* Right Search & Filter */}
@@ -5587,7 +5927,7 @@ export default function PatientDashboard() {
                           type="text"
                           value={reportsSearch}
                           onChange={e => setReportsSearch(e.target.value)}
-                          placeholder="Search reports by name, type, doctor..."
+                          placeholder={ui('Search reports by name, type or doctor…')}
                           style={{
                             width: '100%',
                             padding: '10px 14px 10px 38px',
@@ -5623,13 +5963,20 @@ export default function PatientDashboard() {
                           }}
                         >
                           <Filter size={15} color="#64748b" />
-                          <span>Filters</span>
+                          <span>{ui('Filter')}: {ui(reportsFilterType)}</span>
                           <ChevronDown size={14} color="#64748b" />
                         </button>
                       </div>
 
+                      <input
+                        type="file"
+                        ref={reportsFileInputRef}
+                        accept=".pdf,image/*,.png,.jpg,.jpeg"
+                        onChange={handleDirectReportUpload}
+                        style={{ display: 'none' }}
+                      />
                       <button
-                        onClick={() => navigate('/scan')}
+                        onClick={() => reportsFileInputRef.current?.click()}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -5645,14 +5992,14 @@ export default function PatientDashboard() {
                         }}
                       >
                         <Plus size={16} />
-                        <span>Upload / Scan</span>
+                        <span>{ui('Upload or scan')}</span>
                       </button>
                     </div>
                   </div>
 
                   {/* Reports Timeline & List */}
-                  {patientReports.length > 0 ? (
-                    <div style={{ position: 'relative', paddingLeft: '1.5rem' }}>
+                  {filteredPatientReports.length > 0 ? (
+                    <div style={{ position: 'relative', paddingLeft: '0.75rem' }}>
                       {/* Vertical Connecting Timeline Bar */}
                       <div style={{
                         position: 'absolute',
@@ -5665,7 +6012,7 @@ export default function PatientDashboard() {
                       }} />
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {patientReports.slice(0, reportsPageLimit).map((report, idx) => {
+                        {filteredPatientReports.slice(0, reportsPageLimit).map((report, idx) => {
                           const categoryLower = (report.category || report.type || 'lab').toLowerCase();
                           const isLab = categoryLower.includes('lab') || categoryLower.includes('blood') || categoryLower.includes('cbc') || categoryLower.includes('lipid');
                           const isImaging = categoryLower.includes('image') || categoryLower.includes('x-ray') || categoryLower.includes('ultrasound') || categoryLower.includes('scan') || categoryLower.includes('mri');
@@ -5678,7 +6025,7 @@ export default function PatientDashboard() {
                           let badgeBg = '#f0fdf4';
                           let badgeColor = '#166534';
                           let badgeBorder = '#bbf7d0';
-                          let badgeText = 'Lab Report';
+                          let badgeText = ui('Lab report');
 
                           if (isImaging) {
                             dotColor = '#7c3aed';
@@ -5687,7 +6034,7 @@ export default function PatientDashboard() {
                             badgeBg = '#faf5ff';
                             badgeColor = '#6b21a8';
                             badgeBorder = '#e9d5ff';
-                            badgeText = 'Imaging Report';
+                            badgeText = ui('Imaging report');
                           } else if (isPrescription) {
                             dotColor = '#ea580c';
                             iconBg = '#ea580c';
@@ -5695,7 +6042,7 @@ export default function PatientDashboard() {
                             badgeBg = '#fff7ed';
                             badgeColor = '#c2410c';
                             badgeBorder = '#fed7aa';
-                            badgeText = 'Prescription';
+                            badgeText = ui('Prescription');
                           }
 
                           return (
@@ -5706,7 +6053,7 @@ export default function PatientDashboard() {
                                 alignItems: 'center',
                                 gap: '2rem',
                                 position: 'relative',
-                                zIndex: 2
+                                zIndex: activeReportMenu === (report.id || `report-${idx}`) ? 20 : 2
                               }}
                             >
                               {/* Left Date Column & Timeline Dot */}
@@ -5720,13 +6067,13 @@ export default function PatientDashboard() {
                               }}>
                                 <div style={{ textAlign: 'center' }}>
                                   <div style={{ fontSize: '1.2rem', fontWeight: '900', color: dotColor, lineHeight: 1 }}>
-                                    {report.day || '20'}
+                                    {report.day || (report.uploaded_at ? new Date(report.uploaded_at).getDate() : '')}
                                   </div>
                                   <div style={{ fontSize: '0.68rem', fontWeight: '800', color: '#0f172a', marginTop: '2px', letterSpacing: '0.4px' }}>
-                                    {report.month || 'MAY'}
+                                    {report.month || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleDateString(currentLang, { month: 'short' }) : '')}
                                   </div>
                                   <div style={{ fontSize: '0.65rem', fontWeight: '700', color: '#64748b' }}>
-                                    {report.year || '2024'}
+                                    {report.year || (report.uploaded_at ? new Date(report.uploaded_at).getFullYear() : '')}
                                   </div>
                                 </div>
 
@@ -5783,16 +6130,16 @@ export default function PatientDashboard() {
 
                                   <div>
                                     <h3 style={{ margin: '0 0 3px 0', fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
-                                      {report.title || report.name || 'Medical Diagnostic Report'}
+                                      {report.title || report.name || ui('Medical report')}
                                     </h3>
                                     <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                      <span>{report.time || '10:30 AM'}</span>
+                                      <span>{report.time || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleTimeString(currentLang, { hour: '2-digit', minute: '2-digit' }) : '')}</span>
                                       <span>•</span>
-                                      <span>Test ID: {report.testId || report.id || 'TEST-24052024'}</span>
+                                      <span>{ui('Record ID')}: {report.testId || report.id}</span>
                                     </div>
                                     <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
                                       <User size={13} color="#64748b" />
-                                      <span>{report.doctor || 'Dr. Anjali Sharma'}</span>
+                                      <span>{report.doctor || ''}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -5813,17 +6160,17 @@ export default function PatientDashboard() {
                                   </span>
 
                                   {/* Action Buttons: View, Download, More */}
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
                                     <button
                                       onClick={() => setSelectedDoc(report)}
-                                      title="View Report / OCR"
+                                      title={ui('View report and OCR')}
                                       style={{
-                                        width: '36px',
-                                        height: '36px',
+                                        width: '42px',
+                                        height: '42px',
                                         borderRadius: '10px',
                                         border: '1px solid #e2e8f0',
                                         backgroundColor: '#ffffff',
-                                        color: '#64748b',
+                                        color: '#07834f',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -5836,24 +6183,23 @@ export default function PatientDashboard() {
                                       }}
                                       onMouseLeave={e => {
                                         e.currentTarget.style.backgroundColor = '#ffffff';
-                                        e.currentTarget.style.color = '#64748b';
+                                        e.currentTarget.style.color = '#07834f';
                                       }}
                                     >
                                       <Eye size={16} />
                                     </button>
 
                                     <button
-                                      onClick={() => {
-                                        alert(`Downloading ${report.title || 'Medical Report'} (PDF)`);
-                                      }}
-                                      title="Download Report (PDF)"
+                                      onClick={() => downloadReport(report)}
+                                      disabled={!(report.file_url || report.dataUrl)}
+                                      title={ui('Download report')}
                                       style={{
-                                        width: '36px',
-                                        height: '36px',
+                                        width: '42px',
+                                        height: '42px',
                                         borderRadius: '10px',
                                         border: '1px solid #e2e8f0',
                                         backgroundColor: '#ffffff',
-                                        color: '#64748b',
+                                        color: '#07834f',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
@@ -5866,30 +6212,72 @@ export default function PatientDashboard() {
                                       }}
                                       onMouseLeave={e => {
                                         e.currentTarget.style.backgroundColor = '#ffffff';
-                                        e.currentTarget.style.color = '#64748b';
+                                        e.currentTarget.style.color = '#07834f';
                                       }}
                                     >
                                       <Download size={16} />
                                     </button>
 
-                                    <button
-                                      onClick={() => setActiveReportMenu(activeReportMenu === report.id ? null : report.id)}
-                                      title="More Options"
-                                      style={{
-                                        width: '36px',
-                                        height: '36px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #e2e8f0',
-                                        backgroundColor: '#ffffff',
-                                        color: '#64748b',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      <MoreVertical size={16} />
-                                    </button>
+                                    <div data-report-menu style={{ position: 'relative' }}>
+                                      <button
+                                        type="button"
+                                        aria-haspopup="menu"
+                                        aria-expanded={activeReportMenu === (report.id || `report-${idx}`)}
+                                        onClick={event => {
+                                          event.stopPropagation();
+                                          const reportKey = report.id || `report-${idx}`;
+                                          setActiveReportMenu(activeReportMenu === reportKey ? null : reportKey);
+                                        }}
+                                        title={ui('More options')}
+                                        style={{
+                                          width: '42px',
+                                          height: '42px',
+                                          borderRadius: '11px',
+                                          border: '1px solid #dbe3ec',
+                                          backgroundColor: activeReportMenu === (report.id || `report-${idx}`) ? '#ecfdf5' : '#ffffff',
+                                          color: '#07834f',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        <MoreVertical size={19} />
+                                      </button>
+
+                                      {activeReportMenu === (report.id || `report-${idx}`) && (
+                                        <div
+                                          role="menu"
+                                          aria-label={ui('Report options')}
+                                          onClick={event => event.stopPropagation()}
+                                          style={{
+                                            position: 'absolute',
+                                            top: 'calc(100% + 8px)',
+                                            right: 0,
+                                            zIndex: 50,
+                                            width: '190px',
+                                            padding: '6px',
+                                            borderRadius: '12px',
+                                            border: '1px solid #dbe3ec',
+                                            backgroundColor: '#ffffff',
+                                            boxShadow: '0 14px 35px rgba(15, 23, 42, 0.16)'
+                                          }}
+                                        >
+                                          <button type="button" role="menuitem" onClick={() => { setSelectedDoc(report); setActiveReportMenu(null); }} style={reportMenuItemStyle}>
+                                            <Eye size={16} color="#07834f" />
+                                            <span>{ui('View details')}</span>
+                                          </button>
+                                          <button type="button" role="menuitem" disabled={!(report.file_url || report.dataUrl)} onClick={() => { downloadReport(report); setActiveReportMenu(null); }} style={{ ...reportMenuItemStyle, opacity: (report.file_url || report.dataUrl) ? 1 : 0.45 }}>
+                                            <Download size={16} color="#07834f" />
+                                            <span>{ui('Download report')}</span>
+                                          </button>
+                                          <button type="button" role="menuitem" onClick={() => copyReportId(report)} style={reportMenuItemStyle}>
+                                            <FileText size={16} color="#07834f" />
+                                            <span>{ui('Copy record ID')}</span>
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
 
                                 </div>
@@ -5903,9 +6291,9 @@ export default function PatientDashboard() {
                       {/* Load More Button */}
                       <div style={{ textAlign: 'center', marginTop: '2rem' }}>
                         <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '10px', fontWeight: '500' }}>
-                          Showing {Math.min(reportsPageLimit, patientReports.length)} of {patientReports.length} reports
+                          {ui('Showing')} {Math.min(reportsPageLimit, filteredPatientReports.length)} {ui('of')} {filteredPatientReports.length} {ui('reports')}
                         </div>
-                        {patientReports.length > reportsPageLimit && (
+                        {filteredPatientReports.length > reportsPageLimit && (
                           <button
                             onClick={() => setReportsPageLimit(prev => prev + 5)}
                             style={{
@@ -5922,7 +6310,7 @@ export default function PatientDashboard() {
                               cursor: 'pointer'
                             }}
                           >
-                            <span>Load More</span>
+                            <span>{ui('Load more')}</span>
                             <ChevronDown size={15} />
                           </button>
                         )}
@@ -5938,13 +6326,13 @@ export default function PatientDashboard() {
                     }}>
                       <FileText size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
                       <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                        No Medical Reports Uploaded Yet
+                        {ui('No medical reports uploaded yet')}
                       </h3>
                       <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
-                        Upload or scan your medical prescriptions, lab blood reports, and radiology scans using our AI OCR engine.
+                        {ui('Upload or scan prescriptions, laboratory reports and radiology files. OCR text will be saved with the report when available.')}
                       </p>
                       <button
-                        onClick={() => navigate('/scan')}
+                        onClick={() => reportsFileInputRef.current?.click()}
                         style={{
                           backgroundColor: '#0c4e47',
                           color: '#ffffff',
@@ -5956,280 +6344,30 @@ export default function PatientDashboard() {
                           cursor: 'pointer'
                         }}
                       >
-                        Scan Document Now
+                        <Plus size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                        <span>{ui('Upload report or PDF')}</span>
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               )}
 
-              {/* TAB 4: DONATIONS */}
+              {/* TAB 4: DONATIONS (Matching Exact Design with Full Working Donation/Blood Directory) */}
               {activeTab === 'donations' && (
-                <div>
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
-                      {tr('donations')}
-                    </h1>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '4px 0 0 0' }}>
-                      {tr('donationsDesc')}
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.75rem' }}>
-                    <div style={{ backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '1.75rem' }}>
-                      <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                        Make a Contribution
-                      </h3>
-
-                      <div style={{ display: 'flex', gap: '10px', marginBottom: '1.25rem' }}>
-                        {[100, 250, 500, 1000, 2500].map(amt => (
-                          <button
-                            key={amt}
-                            onClick={() => setDonationAmount(amt)}
-                            style={{
-                              flex: 1,
-                              padding: '10px',
-                              borderRadius: '12px',
-                              fontSize: '0.9rem',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              backgroundColor: donationAmount === amt ? '#0c4e47' : '#f8fafc',
-                              color: donationAmount === amt ? '#ffffff' : '#334155',
-                              border: donationAmount === amt ? '1px solid #0c4e47' : '1px solid #e2e8f0'
-                            }}
-                          >
-                            ₹{amt}
-                          </button>
-                        ))}
-                      </div>
-
-                      {donationSuccess ? (
-                        <div style={{ padding: '1.5rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '16px', textAlign: 'center' }}>
-                          <CheckCircle2 size={36} color="#16a34a" style={{ margin: '0 auto 8px auto' }} />
-                          <h4 style={{ margin: 0, color: '#14532d', fontWeight: '800' }}>Thank You for Your Generosity!</h4>
-                          <p style={{ color: '#166534', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-                            Your pledge of ₹{donationAmount} has been recorded. No payment has been charged yet.
-                          </p>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleDonationPledge}
-                          style={{
-                            width: '100%',
-                            backgroundColor: '#0c4e47',
-                            color: '#ffffff',
-                            borderRadius: '14px',
-                            padding: '12px',
-                            fontSize: '0.95rem',
-                            fontWeight: '800',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px'
-                          }}
-                        >
-                          <Heart size={18} />
-                          <span>Donate ₹{donationAmount} Securely</span>
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ backgroundColor: '#ffffff', borderRadius: '20px', border: '1px solid #e2e8f0', padding: '1.75rem' }}>
-                      <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>
-                        Impact Highlights
-                      </h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#dcfce7', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>
-                            🏥
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>4,820+ Subsidized Consultations</div>
-                            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Covered under Swasthya Setu Ayushman Aid</div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#e0f2fe', color: '#0369a1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>
-                            💊
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: '800', fontSize: '0.95rem', color: '#0f172a' }}>12,400+ Free Medicine Kits</div>
-                            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Distributed in rural health camps</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <DonationsTab
+                  patientId={session.patient?.id}
+                />
               )}
 
               {/* TAB 5: COMMUNITIES */}
               {activeTab === 'communities' && (
-                <div>
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
-                      {tr('communities')}
-                    </h1>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '4px 0 0 0' }}>
-                      {tr('communitiesDesc')}
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                    {[
-                      {
-                        id: 'ayush-wellness',
-                        title: 'AYUSH & Daily Dinacharya Club',
-                        members: '3.4k members',
-                        desc: 'Ayurvedic nutrition, herbal brews, yoga pranayama, and seasonal lifestyle balance.',
-                        icon: '🌿',
-                        tag: 'Ayurveda'
-                      },
-                      {
-                        id: 'senior-care',
-                        title: 'Senior Health & Mobility Circle',
-                        members: '2.1k members',
-                        desc: 'Joint care, gentle walking routines, blood pressure monitoring, and wellness tips.',
-                        icon: '❤️',
-                        tag: 'General Care'
-                      },
-                      {
-                        id: 'diabetes-care',
-                        title: 'Diabetes & Nutrition Support Group',
-                        members: '5.8k members',
-                        desc: 'Low GI meals, glucose tracking, doctor Q&A, and fitness motivation.',
-                        icon: '🥗',
-                        tag: 'Chronic Care'
-                      },
-                      {
-                        id: 'maternal-health',
-                        title: 'Mother & Child Care Community',
-                        members: '4.2k members',
-                        desc: 'Prenatal care, vaccination schedules, infant nutrition, and pediatrician advice.',
-                        icon: '👶',
-                        tag: 'Family Health'
-                      }
-                    ].map(comm => {
-                      const isJoined = joinedCommunities.includes(comm.id);
-                      return (
-                        <div
-                          key={comm.id}
-                          style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: '18px',
-                            border: '1px solid #e2e8f0',
-                            padding: '1.5rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-                          }}
-                        >
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                              <span style={{ fontSize: '1.8rem' }}>{comm.icon}</span>
-                              <span style={{ backgroundColor: '#f1f5f9', color: '#475569', fontSize: '0.72rem', fontWeight: '800', padding: '3px 8px', borderRadius: '6px' }}>
-                                {comm.tag}
-                              </span>
-                            </div>
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
-                              {comm.title}
-                            </h3>
-                            <div style={{ fontSize: '0.75rem', color: '#0d9488', fontWeight: '700', marginBottom: '8px' }}>
-                              {comm.members}
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', lineHeight: 1.45 }}>
-                              {comm.desc}
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={() => toggleCommunity(comm.id, isJoined)}
-                            style={{
-                              marginTop: '1.25rem',
-                              padding: '9px',
-                              borderRadius: '10px',
-                              fontSize: '0.85rem',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              backgroundColor: isJoined ? '#f0fdf4' : '#0c4e47',
-                              color: isJoined ? '#15803d' : '#ffffff',
-                              border: isJoined ? '1px solid #bbf7d0' : 'none',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            {isJoined ? <Check size={16} /> : <Plus size={16} />}
-                            <span>{isJoined ? 'Joined Community' : 'Join Group'}</span>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                <CommunitiesTab patientId={session.patient?.id} />
               )}
 
               {/* TAB 6: HELP & SUPPORT */}
               {activeTab === 'help' && (
-                <div>
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: 0 }}>
-                      {tr('help')}
-                    </h1>
-                    <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '4px 0 0 0' }}>
-                      {tr('helpDesc')}
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                    <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', border: '1px solid #e2e8f0', padding: '1.5rem' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#e0f2fe', color: '#0369a1', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                        <Phone size={22} />
-                      </div>
-                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                        Emergency & Helpline
-                      </h3>
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 12px 0' }}>
-                        Direct emergency lines for ambulance and National Health Portal.
-                      </p>
-                      <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0369a1' }}>
-                        📞 108 / 1075 (Toll Free)
-                      </div>
-                    </div>
-
-                    <div style={{ backgroundColor: '#ffffff', borderRadius: '18px', border: '1px solid #e2e8f0', padding: '1.5rem' }}>
-                      <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#f0fdf4', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                        <Mic size={22} />
-                      </div>
-                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                        Voice AI Assistant
-                      </h3>
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 12px 0' }}>
-                        Navigate without typing. Just speak your symptoms in your regional dialect.
-                      </p>
-                      <button
-                        onClick={() => navigate('/language')}
-                        style={{
-                          backgroundColor: '#0c4e47',
-                          color: '#ffffff',
-                          borderRadius: '10px',
-                          padding: '8px 14px',
-                          fontSize: '0.85rem',
-                          fontWeight: '700',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Start Voice Interaction
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <HelpSupportTab patientId={session.patient?.id} language={currentLang || 'en'} />
               )}
 
             </div>
@@ -6606,7 +6744,14 @@ export default function PatientDashboard() {
                     <input
                       type="date"
                       value={selectedDate}
-                      onChange={e => setSelectedDate(e.target.value)}
+                      min={(() => {
+                        const now = new Date();
+                        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      })()}
+                      onChange={e => {
+                        setSelectedDate(e.target.value);
+                        setSelectedSlot('');
+                      }}
                       style={{
                         width: '100%',
                         padding: '9px 12px',
@@ -6635,11 +6780,24 @@ export default function PatientDashboard() {
                         backgroundColor: '#ffffff'
                       }}
                     >
-                      <option value="09:30 AM">09:30 AM (Morning)</option>
-                      <option value="10:30 AM">10:30 AM (Morning)</option>
-                      <option value="11:30 AM">11:30 AM (Morning)</option>
-                      <option value="02:30 PM">02:30 PM (Afternoon)</option>
-                      <option value="04:00 PM">04:00 PM (Evening)</option>
+                      <option value="">Select an available time</option>
+                      {[
+                        ['09:30 AM', 'Morning'],
+                        ['10:30 AM', 'Morning'],
+                        ['11:30 AM', 'Morning'],
+                        ['02:30 PM', 'Afternoon'],
+                        ['04:00 PM', 'Evening']
+                      ].filter(([label]) => {
+                        const now = new Date();
+                        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                        if (selectedDate !== todayKey) return true;
+                        const match = label.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+                        let hour = Number(match[1]) % 12;
+                        if (match[3] === 'PM') hour += 12;
+                        return hour * 60 + Number(match[2]) > now.getHours() * 60 + now.getMinutes();
+                      }).map(([label, period]) => (
+                        <option key={label} value={label}>{label} ({period})</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -6782,10 +6940,7 @@ export default function PatientDashboard() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
-                onClick={() => {
-                  setSelectedAppointment(null);
-                  navigate('/language');
-                }}
+                onClick={() => setSelectedAppointment(null)}
                 style={{
                   width: '100%',
                   backgroundColor: '#0c4e47',
@@ -6799,11 +6954,12 @@ export default function PatientDashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px'
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(12, 78, 71, 0.25)'
                 }}
               >
-                <Sparkles size={16} />
-                <span>{tr('startVoiceIntake')}</span>
+                <Check size={18} />
+                <span>{tr('close') || 'Done'}</span>
               </button>
 
               <button
@@ -6949,8 +7105,24 @@ export default function PatientDashboard() {
               </button>
             </div>
 
-            {selectedDoc.imageData && (
-              <img src={selectedDoc.imageData} alt="Scan preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '12px', backgroundColor: '#f8fafc', marginBottom: '1rem' }} />
+            {(selectedDoc.file_url || selectedDoc.dataUrl || selectedDoc.imageData) && (
+              (String(selectedDoc.title || '').toLowerCase().endsWith('.pdf') || String(selectedDoc.type || '').toLowerCase().includes('pdf') || String(selectedDoc.file_url || selectedDoc.dataUrl || '').startsWith('data:application/pdf')) ? (
+                <div style={{ marginBottom: '1rem', textAlign: 'center', padding: '1.5rem', backgroundColor: '#f1f5f9', borderRadius: '12px' }}>
+                  <FileText size={48} color="#dc2626" style={{ margin: '0 auto 8px auto' }} />
+                  <div style={{ fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>{selectedDoc.title || 'PDF Medical Document'}</div>
+                  <a
+                    href={selectedDoc.file_url || selectedDoc.dataUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#0c4e47', color: '#ffffff', borderRadius: '8px', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem' }}
+                  >
+                    <Eye size={15} />
+                    <span>Open PDF Document</span>
+                  </a>
+                </div>
+              ) : (
+                <img src={selectedDoc.file_url || selectedDoc.dataUrl || selectedDoc.imageData} alt="Scan preview" style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '12px', backgroundColor: '#f8fafc', marginBottom: '1rem' }} />
+              )
             )}
 
             <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', fontSize: '0.875rem', color: '#334155' }}>

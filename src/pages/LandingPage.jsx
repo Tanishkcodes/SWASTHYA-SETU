@@ -200,7 +200,7 @@ export default function LandingPage() {
                 {t('featureConverse')}
               </h2>
               <p style={{ fontSize: '1.2rem', color: 'var(--gray-600)', marginBottom: '3rem', lineHeight: '1.7' }}>
-                {t('featureConverseDesc')} Our advanced natural language processing engine listens, understands, and structures patient complaints into professional medical notes instantly.
+                {t('featureConverseDesc')}
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -251,7 +251,7 @@ export default function LandingPage() {
                 <Clock size={32} color="var(--teal-700)" />
               </div>
               <h3 style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--navy-900)', marginBottom: '1rem', position: 'relative', zIndex: 1 }}>{t('saveTime')}</h3>
-              <p style={{ color: 'var(--gray-600)', lineHeight: '1.7', fontSize: '1.1rem', maxWidth: '80%', position: 'relative', zIndex: 1 }}>{t('saveTimeDesc')} This allows doctors to spend 100% of their consultation time actually diagnosing the patient, rather than typing notes.</p>
+              <p style={{ color: 'var(--gray-600)', lineHeight: '1.7', fontSize: '1.1rem', maxWidth: '80%', position: 'relative', zIndex: 1 }}>{t('saveTimeDesc')}</p>
             </div>
 
             {/* Bento Card 2 — accent teal */}
@@ -515,7 +515,7 @@ export default function LandingPage() {
           </div>
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', color: '#A8A29E' }}>
-            <p>&copy; {new Date().getFullYear()} {t('appName')} Platform. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} {t('appName')}</p>
             <div style={{ display: 'flex', gap: '2rem' }}>
               <a href="#" className="hover:text-teal-400" style={{ transition: 'color 0.2s', color: '#A8A29E' }}>{t('termsOfService') || 'Terms of Service'}</a>
               <a href="#" className="hover:text-teal-400" style={{ transition: 'color 0.2s', color: '#A8A29E' }}>{t('privacyPolicy') || 'Privacy Policy'}</a>

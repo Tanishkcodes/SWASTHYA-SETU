@@ -5,11 +5,22 @@ import voiceAIService from './VoiceAIService';
    TTS synthesis + sound effects via Web Audio API
    ============================================ */
 
+function isMutedPortal() {
+  if (typeof window === 'undefined') return false;
+  const path = window.location.pathname.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  return path.includes('/physician') || 
+         path.includes('/doctor') || 
+         path.includes('/admin') || 
+         search.includes('role=doctor') || 
+         search.includes('role=admin');
+}
+
 class AudioFeedbackEngine {
   constructor() {
-    this.synth = window.speechSynthesis;
+    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.audioCtx = null;
-    this.elevenLabsAudio = new Audio();
+    this.elevenLabsAudio = typeof Audio !== 'undefined' ? new Audio() : null;
     this.activeBlobUrl = null;
     this.isSpeaking = false;
     this.speechQueue = [];
@@ -25,7 +36,9 @@ class AudioFeedbackEngine {
     this._audioCache = new Map();
     
     // Preload voices immediately
-    this._preloadVoices();
+    if (typeof window !== 'undefined' && this.synth) {
+      this._preloadVoices();
+    }
   }
 
   // Ensure voices are loaded before speaking
@@ -168,6 +181,12 @@ class AudioFeedbackEngine {
       cleaned = cleaned.replace(/\bABHA\b/g, 'आभा');
       cleaned = cleaned.replace(/\bAadhaar\b/gi, 'आधार');
       cleaned = cleaned.replace(/\bOTP\b/g, 'ओटीपी');
+      cleaned = cleaned.replace(/\bpatients?\b/gi, match => match.toLowerCase().endsWith('s') ? 'मरीज़ों' : 'मरीज़');
+      cleaned = cleaned.replace(/प[ेै]?शेंट|पतिन्त/g, 'मरीज़');
+      // Some neural/device Hindi voices incorrectly render "हैं" as "हो".
+      // A phonetic terminal न makes the intended "hain" sound unambiguous;
+      // this only changes speech input, never the visible Hindi UI text.
+      cleaned = cleaned.replace(/हैं/g, 'हैन्');
     } else if (lang === 'ta') {
       cleaned = cleaned.replace(/\bABHA\b/g, 'ஆபா');
       cleaned = cleaned.replace(/\bAadhaar\b/gi, 'ஆதார்');
@@ -203,11 +222,13 @@ class AudioFeedbackEngine {
 
   // Special handler to play studio-quality ElevenLabs welcome audio smoothly
   async playWelcomeAudio(audioUrl = '/welcome_hi.mp3', fallbackText = 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।', lang = 'hi') {
+    if (isMutedPortal()) return false;
     this.stop();
     const currentId = ++this.activePlaybackId;
 
     return new Promise(async (resolve) => {
       try {
+        if (isMutedPortal()) return resolve(false);
         this.isSpeaking = true;
         this.currentResolve = resolve;
 
@@ -227,6 +248,7 @@ class AudioFeedbackEngine {
           this.isSpeaking = false;
           this.currentResolve = null;
           this.onSpeakingChange?.(false);
+          if (isMutedPortal()) return resolve(false);
           this.speak(fallbackText, lang, { rate: 0.94, pitch: 1.03, speed: 0.98 }).then(resolve);
         };
 
@@ -245,6 +267,7 @@ class AudioFeedbackEngine {
         if (err.name === 'NotAllowedError') {
           return resolve(false);
         }
+        if (isMutedPortal()) return resolve(false);
         this.speak(fallbackText, lang, { rate: 0.94, pitch: 1.03, speed: 0.98 }).then(resolve);
       }
     });
@@ -252,6 +275,7 @@ class AudioFeedbackEngine {
 
   // Speak text aloud with high-fidelity authentic Indian voices (ElevenLabs Multilingual V2 + Neural Stream Fallback)
   async speak(rawText, lang = 'en', options = {}) {
+    if (isMutedPortal()) return false;
     const text = this._preprocessTextForTTS(rawText, lang);
     console.log(`[TTS] Speaking: "${text}" in ${lang}`);
     const currentId = ++this.activePlaybackId;
@@ -397,6 +421,15 @@ class AudioFeedbackEngine {
         if (this.synth) {
           const fallbackUtterance = new SpeechSynthesisUtterance(text);
           fallbackUtterance.lang = speechLang;
+          
+          // CRITICAL FIX: Explicitly assign a voice that matches the language prefix 
+          // so Devanagari/native script is not sent to an English voice (which results in silence).
+          const voices = this.synth.getVoices();
+          const fallbackVoice = preferredVoice || voices.find(v => v.lang.toLowerCase().startsWith(langPrefix)) || voices.find(v => v.default);
+          if (fallbackVoice) {
+            fallbackUtterance.voice = fallbackVoice;
+          }
+
           fallbackUtterance.rate = options.rate || this.rate;
           fallbackUtterance.pitch = options.pitch || this.pitch;
           fallbackUtterance.volume = options.volume || this.volume;

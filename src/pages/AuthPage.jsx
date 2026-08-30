@@ -50,7 +50,7 @@ export default function AuthPage() {
 
   const { t, currentLang } = useLanguage();
   const { setPatient, setStaff, setAyushMode, setAuth, session } = useSession();
-  const { audioPromptManager, registerPage, unregisterPage, language, setOnTranscript, clearOnTranscript, setDictationMode } = useVoiceNav();
+  const { audioPromptManager, registerPage, unregisterPage, language, setOnTranscript, clearOnTranscript, setDictationMode, speak } = useVoiceNav();
 
   // Patient states
   const [activeTab, setActiveTab] = useState('new'); // 'abha', 'aadhaar', 'new'
@@ -194,64 +194,88 @@ export default function AuthPage() {
     }
   };
 
-  const handleKeyboardChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'abhaId') setAbhaId(value);
-    else if (name === 'aadhaar') setAadhaar(value);
-    else if (name === 'staffUsername') setStaffUsername(value);
-    else if (name === 'staffPassword') setStaffPassword(value);
-    else setFormData(prev => ({ ...prev, [name]: value }));
-    
-    setActiveInput({ name, value });
-  };
-
-  const handleInputFocus = (name, value) => {
-    setActiveInput({ name, value });
-    if (window.innerWidth <= 768) {
-      setShowKeyboard(true);
-    }
-  };
-
   // ----------------------------
-  // GLOBAL VOICE ORB & FIELD TRANSCRIPT REGISTRATION
+  // GLOBAL VOICE ORB & FIELD TRANSCRIPT REGISTRATION (AI-POWERED)
   // ----------------------------
   useEffect(() => {
-    // Keep the global orb command-aware. Navigation/page commands are handled
-    // first; only unhandled free speech reaches the registration extractor.
     setDictationMode(false);
     setOnTranscript(async (text) => {
-      if (!text || text.length < 2) return;
+      if (!text || text.trim().length < 2) return;
       
-      if (activeTab === 'abha') {
-        const digits = text.replace(/[^0-9]/g, '');
+      setIsExtracting(true);
+      const extracted = await aiCommandEngine.extractRegistrationDetails(text, language || currentLang || 'en');
+      setIsExtracting(false);
+
+      if (!extracted) return;
+
+      // 1. If ABHA ID was detected
+      if (extracted.abhaId) {
+        setActiveTab('abha');
+        setAbhaId(extracted.abhaId);
+        speak?.(extracted.confirmationMessage || `ABHA number set: ${extracted.abhaId}`, language);
+        return;
+      }
+
+      // 2. If Aadhaar number was detected
+      if (extracted.aadhaar) {
+        setActiveTab('aadhaar');
+        setAadhaar(extracted.aadhaar);
+        speak?.(extracted.confirmationMessage || `Aadhaar number set`, language);
+        return;
+      }
+
+      // 3. If User is on ABHA or Aadhaar tab and spoke just digits/numbers
+      if (activeTab === 'abha' && !extracted.name) {
+        const converted = aiCommandEngine._convertSpokenNumberWords(text);
+        const digits = converted.replace(/[^0-9]/g, '');
         if (digits.length >= 14) {
           const formatted = `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}-${digits.slice(10,14)}`;
           setAbhaId(formatted);
+          speak?.(`ABHA number set: ${formatted}`, language);
+          return;
         } else if (digits.length >= 4) {
           setAbhaId(digits);
+          speak?.(`ABHA number: ${digits}`, language);
+          return;
         }
-      } else if (activeTab === 'aadhaar') {
-        const digits = text.replace(/[^0-9]/g, '');
-        if (digits.length >= 4) {
+      } else if (activeTab === 'aadhaar' && !extracted.name) {
+        const converted = aiCommandEngine._convertSpokenNumberWords(text);
+        const digits = converted.replace(/[^0-9]/g, '');
+        if (digits.length >= 12) {
           setAadhaar(digits.slice(0, 12));
+          speak?.(`Aadhaar number set`, language);
+          return;
+        } else if (digits.length >= 4) {
+          setAadhaar(prev => (prev + digits).slice(0, 12));
+          return;
         }
-      } else if (activeTab === 'new') {
-        setIsExtracting(true);
-        const extracted = completeRegistrationExtraction(
-          text,
-          await aiCommandEngine.extractRegistrationDetails(text, language)
-        );
-        setIsExtracting(false);
-        
-        if (extracted) {
-          const directPhone = aiCommandEngine._convertSpokenNumberWords(text).match(/\b[6-9]\d{9}\b/)?.[0] || '';
-          setFormData(prev => ({
-            ...prev,
-            name: (extracted.name && extracted.name.trim().length > 0) ? extracted.name : prev.name,
-            age: (extracted.age && extracted.age.trim().length > 0) ? extracted.age : prev.age,
-            phone: directPhone || ((extracted.phone && extracted.phone.trim().length > 0) ? extracted.phone : prev.phone),
-            gender: (extracted.gender && extracted.gender.trim().length > 0) ? normalizeGender(extracted.gender, t) : prev.gender
-          }));
+      }
+
+      // 4. Fill New Patient Registration Form with AI Extracted entities
+      const newName = extracted.name?.trim() || '';
+      const newAge = extracted.age ? String(extracted.age).trim() : '';
+      const newPhone = extracted.phone?.trim() || '';
+      const newGender = extracted.gender ? normalizeGender(extracted.gender, t) : '';
+
+      if (newName || newAge || newPhone || newGender) {
+        setActiveTab('new');
+        setFormData(prev => ({
+          ...prev,
+          name:   newName.length > 0 ? newName : prev.name,
+          age:    newAge.length > 0  ? newAge  : prev.age,
+          phone:  newPhone.length > 0 ? newPhone : prev.phone,
+          gender: newGender.length > 0 ? newGender : prev.gender,
+        }));
+
+        if (extracted.confirmationMessage) {
+          speak?.(extracted.confirmationMessage, language);
+        } else {
+          const confirmParts = [];
+          if (newName)   confirmParts.push(`Name: ${newName}`);
+          if (newAge)    confirmParts.push(`Age: ${newAge}`);
+          if (newPhone)  confirmParts.push(`Phone: ${newPhone}`);
+          if (newGender) confirmParts.push(`Gender: ${newGender}`);
+          speak?.(confirmParts.join(', '), language);
         }
       }
     });
@@ -260,37 +284,43 @@ export default function AuthPage() {
       setDictationMode(false);
       clearOnTranscript();
     };
-  }, [activeTab, language, setOnTranscript, clearOnTranscript, setDictationMode, t]);
+  }, [activeTab, language, currentLang, setOnTranscript, clearOnTranscript, setDictationMode, t, speak]);
 
   // Direct test hook to verify speech transcript auto-fill pipeline via URL query
   useEffect(() => {
     const testVoice = queryParams.get('test_voice');
     if (testVoice) {
       const phrases = {
-        hindi: "Mera naam Ramesh Kumar hai umar 45 saal phone number 9876543210 purush",
-        english: "My name is Priya Sharma age 28 phone 9812345678 female"
+        hindi:           "Mera naam Ramesh Kumar hai umar 45 saal phone number 9876543210 purush",
+        english:         "My name is Priya Sharma age 28 phone 9812345678 female",
+        tamil:           "என் பெயர் Kavitha, வயது 32, phone 9876543210, பெண்",
+        telugu:          "నా పేరు Ravi Teja, వయసు 35, phone 9123456789, పురుషుడు",
+        marathi:         "माझे नाव Suresh Patil आहे, वय 40, phone 9876543210, पुरुष",
+        bengali:         "আমার নাম Anita, বয়স 25, phone 9876543210, মহিলা",
+        gujarati:        "મારું નામ Hiren Shah, ઉંમર 38, phone 9876543210, purush",
+        kannada:         "ನನ್ನ ಹೆಸರು Ravi Kumar, ವಯಸ್ಸು 30, phone 9876543210, ಪುರುಷ",
+        malayalam:       "എന്റെ പേര് Arun Nair, വയസ്സ് 27, phone 9876543210, ആൺ",
+        self_correction: "Mera naam Suresh nahi Ramesh Kumar hai, umar 30 nahi 35 saal, phone 9876543210, purush",
+        mixed:           "My name is Priya, umar 28 saal, phone number nine eight seven six five four three two one zero, female",
       };
+
       const textToSimulate = phrases[testVoice] || decodeURIComponent(testVoice);
       setActiveTab('new');
       setTimeout(async () => {
         setIsExtracting(true);
-        const extracted = completeRegistrationExtraction(
-          textToSimulate,
-          await aiCommandEngine.extractRegistrationDetails(textToSimulate, language)
-        );
+        const extracted = await aiCommandEngine.extractRegistrationDetails(textToSimulate, language || currentLang || 'en');
         setIsExtracting(false);
         if (extracted) {
-          const directPhone = aiCommandEngine._convertSpokenNumberWords(textToSimulate).match(/\b[6-9]\d{9}\b/)?.[0] || '';
           setFormData({
             name: extracted.name || '',
-            age: extracted.age || '',
-            phone: directPhone || extracted.phone || '',
+            age: extracted.age ? String(extracted.age) : '',
+            phone: extracted.phone || '',
             gender: extracted.gender ? normalizeGender(extracted.gender, t) : ''
           });
         }
       }, 200);
     }
-  }, [location.search, language, t]);
+  }, [location.search, language, currentLang, t]);
 
   const isStaff = role === 'doctor' || role === 'admin';
 

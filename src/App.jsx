@@ -43,9 +43,13 @@ import Header from './components/Header';
 import './styles/global.css';
 import './styles/components.css';
 
+import domTranslator from './engine/DOMTranslator';
+import { useLanguage } from './context/LanguageContext';
+
 // Scroll to top and stop audio on route change
 function RouteChangeListener() {
   const { pathname } = useLocation();
+  const voiceEnabled = pathname !== '/physician' && pathname !== '/admin-dashboard';
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -54,52 +58,108 @@ function RouteChangeListener() {
     audioPromptManager.stop();
     const pageId = pathname === '/' ? 'landing' : pathname.replace(/^\//, '').replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
     audioPromptManager.setCurrentPage(pageId);
+
+    // Trigger instant DOM re-scan for dynamic language translation on route change
+    domTranslator.triggerFullScan();
     const timer = setTimeout(() => {
+      domTranslator.triggerFullScan();
+      if (!voiceEnabled) return;
       if (pageId === 'landing') audioPromptManager.speakInitialLandingWelcome();
       else audioPromptManager.speakPageWelcome(pageId);
     }, 250);
     return () => clearTimeout(timer);
-  }, [pathname]);
+  }, [pathname, voiceEnabled]);
 
   return null;
 }
 
 function GlobalVoiceHandler() {
   const { registerGlobalHandlers } = useVoiceNav();
+  const { setCurrentLang } = useLanguage();
+  const { logout } = useSession();
   const navigate = useNavigate();
 
   useEffect(() => {
     commandParser.setRoutes(VOICE_ROUTES.map(({ id, description }) => ({ id, description })));
     registerGlobalHandlers({
-      scrollDown: () => {
-        window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+      // ── Scroll ────────────────────────────────────────────────────────────
+      scrollDown: () => window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }),
+      scrollUp:   () => window.scrollBy({ top: -(window.innerHeight * 0.8), behavior: 'smooth' }),
+
+      // ── Navigation ───────────────────────────────────────────────────────
+      home:        () => navigate('/'),
+      back:        () => window.history.length > 1 ? window.history.back() : navigate('/'),
+      logout:      () => { logout?.(); navigate('/'); },
+      emergency:   () => { window.open('tel:108', '_self'); },
+
+      // ── Authentication portals ───────────────────────────────────────────
+      bookAppointment: () => navigate('/auth?role=patient'),
+      login_patient:   () => navigate('/auth?role=patient'),
+      login_doctor:    () => navigate('/auth?role=doctor'),
+      login_admin:     () => navigate('/auth?role=admin'),
+      login_abha:      () => navigate('/auth?role=patient'),
+      login_aadhaar:   () => navigate('/auth?role=patient'),
+      register_new:    () => navigate('/auth?role=patient'),
+
+      // ── App sections ─────────────────────────────────────────────────────
+      scan_document:     () => navigate('/scan'),
+      scanRecord:        () => navigate('/scan'),
+      select_language:   () => navigate('/language'),
+      startConsultation: () => navigate('/language'),
+      triage:            () => navigate('/language'),
+
+      // ── Patient Dashboard Tab Navigation (global fallback) ───────────────
+      // Page-level handlers override these when patientDashboard is active
+      viewAppointments: () => navigate('/patient-dashboard'),
+      viewHistory:      () => navigate('/patient-dashboard'),
+      viewReports:      () => navigate('/patient-dashboard'),
+      viewDonations:    () => navigate('/patient-dashboard'),
+      viewCommunities:  () => navigate('/patient-dashboard'),
+      viewHelp:         () => navigate('/patient-dashboard'),
+      viewProfile:      () => navigate('/patient-dashboard'),
+      showAbhaCard:     () => navigate('/patient-dashboard'),
+      toggleAyush:      () => navigate('/patient-dashboard'),
+      searchHospital:   () => navigate('/patient-dashboard'),
+
+      // ── Named route navigation (from AI navigate_to intent) ──────────────
+      navigate: ({ value, target }) => {
+        const dest = VOICE_ROUTES.find(r => r.id === (value || target));
+        if (dest) navigate(dest.path);
       },
-      scrollUp: () => {
-        window.scrollBy({ top: -(window.innerHeight * 0.8), behavior: 'smooth' });
+      navigate_to: ({ value }) => {
+        const dest = VOICE_ROUTES.find(r => r.id === value);
+        if (dest) navigate(dest.path);
       },
-      bookAppointment: () => {
-        navigate('/auth?role=patient');
-      },
-      home: () => {
-        navigate('/');
-      },
-      navigate: ({ target }) => {
-        const destination = VOICE_ROUTES.find(route => route.id === target);
-        if (destination) navigate(destination.path);
-      }
+
+      // ── Global Voice Language Switching (all 9 languages) ────────────────
+      set_language_hi: () => setCurrentLang('hi'),
+      set_language_mr: () => setCurrentLang('mr'),
+      set_language_gu: () => setCurrentLang('gu'),
+      set_language_ta: () => setCurrentLang('ta'),
+      set_language_te: () => setCurrentLang('te'),
+      set_language_bn: () => setCurrentLang('bn'),
+      set_language_kn: () => setCurrentLang('kn'),
+      set_language_ml: () => setCurrentLang('ml'),
+      set_language_en: () => setCurrentLang('en'),
     });
-  }, [registerGlobalHandlers, navigate]);
+  }, [registerGlobalHandlers, navigate, setCurrentLang, logout]);
 
   return null;
 }
 
 function Layout({ children, showHeader = true }) {
+  const { pathname, search } = useLocation();
+  const authRole = new URLSearchParams(search).get('role');
+  const showVoiceIndicator = !(
+    pathname === '/auth' && (authRole === 'doctor' || authRole === 'admin')
+  );
+
   return (
     <>
       <GlobalVoiceHandler />
       {showHeader && <Header />}
       <main className="app-main flex-grow">{children}</main>
-      <VoiceNavIndicator />
+      {showVoiceIndicator && <VoiceNavIndicator />}
     </>
   );
 }

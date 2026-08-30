@@ -1,22 +1,17 @@
-import React,{useEffect,useState}from'react';
-import{useNavigate}from'react-router-dom';
-import{useSession}from'../context/SessionContext';
-import{db}from'../lib/db';
-import SwasthyaLogo from'../components/SwasthyaLogo';
-import{Activity,ArrowLeft,CalendarCheck,CalendarDays,ChevronDown,Clock3,Download,Eye,FileText,Globe2,HelpCircle,Leaf,LogOut,Menu,Plus,Trash2,UsersRound,X,File,Image}from'lucide-react';
-import'../styles/doctor-portal.css';
-import'../styles/doctor-sidebar.css';
+const fs = require('fs');
+const path = require('path');
 
-const txt=v=>typeof v==='string'?v:v?JSON.stringify(v):'';
-const initials=n=>String(n||'Doctor').split(/\s+/).filter(Boolean).slice(-2).map(x=>x[0]).join('').toUpperCase();
-const today=()=>new Date().toISOString().slice(0,10);
-const date=v=>v?new Date(`${v}T00:00:00`).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const file = path.join(__dirname, 'src', 'pages', 'PhysicianDashboard.jsx');
+let content = fs.readFileSync(file, 'utf8');
 
-function Sidebar({logout}){const[collapsed,setCollapsed]=useState(false);const toggle=()=>setCollapsed(value=>!value);return <aside className={`dp-side ${collapsed?'collapsed':''}`}><div className="dp-brand"><SwasthyaLogo size={48}/><button type="button" onClick={toggle} aria-label={collapsed?'Expand sidebar':'Collapse sidebar'} title={collapsed?'Expand sidebar':'Collapse sidebar'}><Menu/></button></div><h4>DOCTOR PORTAL</h4><nav><button className="on" title="Appointments"><CalendarCheck/><span>Appointments</span></button><button title="Communities"><UsersRound/><span>Communities</span></button><button title="Help & Support"><HelpCircle/><span>Help & Support</span></button></nav><button className="dp-out" onClick={logout} title="Logout"><LogOut/><span>Logout</span></button></aside>}
-function Top({doctor}){return <div className="dp-top"><button style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"20px",padding:"8px 16px",display:"flex",alignItems:"center",gap:"8px",fontWeight:"500",fontSize:"14px",color:"#334155",cursor:"pointer"}}><Globe2 size={16}/> English <ChevronDown size={16}/></button><button style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"50%",width:"40px",height:"40px",display:"grid",placeItems:"center",position:"relative",cursor:"pointer"}}><span style={{position:"absolute",top:"-2px",right:"-2px",background:"#e63946",color:"#fff",fontSize:"10px",fontWeight:"bold",borderRadius:"10px",padding:"2px 6px"}}>2</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button><div className="dp-doc"><i>{doctor?.avatar_url?<img src={doctor.avatar_url} alt=""/>:initials(doctor?.name)}</i><span><b>{doctor?.name||'Doctor'}</b><small>{doctor?.speciality||doctor?.department||'Physician'}</small></span><ChevronDown/></div></div>}
-function Metrics({rows}){const done=rows.filter(x=>x.status==='completed').length,up=rows.filter(x=>['confirmed','upcoming'].includes(x.status)).length,wait=rows.filter(x=>['waiting','in_consultation'].includes(x.status)).length,next=rows.find(x=>['confirmed','upcoming'].includes(x.status));return <div className="dp-metrics"><article className="g"><i><CalendarCheck/></i><strong>{rows.length}</strong><span>Total Appointments Today</span><small>{done} Completed</small></article><article className="b"><i><UsersRound/></i><strong>{up}</strong><span>Upcoming Appointments</span><small>{next?`Next: ${next.time}`:'No upcoming appointment'}</small></article><article className="o"><i><Clock3/></i><strong>{wait}</strong><span>Patients Waiting</span><small>In Queue</small></article></div>}
-function Schedule({rows,selected,choose}){return <section className="dp-schedule"><header><h3>Today's Schedule</h3><button><CalendarCheck/>View Full Schedule</button></header><div className="dp-th"><span>Time</span><span>Patient</span><span>Age / Gender</span><span>Reason for Visit</span><span>Status</span><span>Action</span></div>{rows.map(x=><div className={`dp-tr ${selected?.id===x.id?'sel':''}`} key={x.id}><span>{x.time||'—'}</span><span><i/> <b>{x.name}</b></span><span>{x.age||'—'} / {x.gender||'—'}</span><span>{x.reason||'Not provided'}</span><span><em className={x.status}>{String(x.status||'confirmed').replace('_',' ')}</em></span><span><button onClick={()=>choose(x)}>View</button></span></div>)}{!rows.length&&<div className="dp-empty">No appointments are scheduled for today.</div>}</section>}
-function Drawer({p,intake,reports,close,start}){
+// Replace lucide-react imports to include Image, FileIcon
+content = content.replace(
+  "import{Activity,ArrowLeft,CalendarCheck,ChevronDown,Clock3,Download,Eye,FileText,Globe2,HelpCircle,Leaf,LogOut,Menu,Plus,Trash2,UsersRound,X}from'lucide-react';",
+  "import{Activity,ArrowLeft,CalendarCheck,CalendarDays,ChevronDown,Clock3,Download,Eye,FileText,Globe2,HelpCircle,Leaf,LogOut,Menu,Plus,Trash2,UsersRound,X,File,Image}from'lucide-react';"
+);
+
+// Drawer implementation
+const newDrawer = `function Drawer({p,intake,reports,close,start}){
   const h=intake?.history||{};
   return <aside className="dp-drawer">
     <header>
@@ -63,20 +58,21 @@ function Drawer({p,intake,reports,close,start}){
     </div>
     <button className="dp-start" onClick={start}>Start Consultation <span style={{float:'right'}}>→</span></button>
   </aside>;
-}
-function Section({n,title,children,action}){return <section className="dp-section"><header><i>{n}</i><h3>{title}</h3>{action}</header><div>{children}</div></section>}
-function Consultation({p,intake,reports,ayur,back,end}){
+}`;
+
+// Consultation implementation
+const newConsultation = `function Consultation({p,intake,reports,ayur,back,end}){
   const h=intake?.history||{},s=intake?.clinical_summary||{},a=h.ayushAssessment||{};
   const [meds,setMeds]=useState([{medicine:'Pantoprazole 40mg',dosage:'1 Tablet',frequency:'Before Breakfast',duration:'5 Days',instructions:'Take on empty stomach'},{medicine:'Dicyclomine 20mg',dosage:'1 Tablet',frequency:'After Meals',duration:'3 Days',instructions:'For stomach cramps'},{medicine:'Ondansetron 4mg',dosage:'1 Tablet',frequency:'As Needed',duration:'3 Days',instructions:'For nausea / vomiting'}]);
-  const [advice,setAdvice]=useState('• Eat small, frequent meals.\n• Avoid spicy, oily, and acidic foods.\n• Stay hydrated and avoid carbonated drinks.\n• Manage stress and get adequate sleep.');
+  const [advice,setAdvice]=useState('• Eat small, frequent meals.\\n• Avoid spicy, oily, and acidic foods.\\n• Stay hydrated and avoid carbonated drinks.\\n• Manage stress and get adequate sleep.');
   const [ayurMeds,setAyurMeds]=useState([{medicine:'Avipattikar Churna',dosage:'1 tsp',anupana:'Lukewarm Water',whenToTake:'After Lunch & Dinner',duration:'30 Days'},{medicine:'Godanti Bhasma',dosage:'1/2 tsp',anupana:'Ghee',whenToTake:'After Meals',duration:'30 Days'},{medicine:'Kutajghan Vati',dosage:'1 Tablet',anupana:'—',whenToTake:'Twice a Day',duration:'30 Days'},{medicine:'Brahmi Ghrita',dosage:'1 tsp',anupana:'Warm Milk',whenToTake:'At Bedtime',duration:'30 Days'}]);
-  const [ayurAdvice,setAyurAdvice]=useState('• Avoid spicy, oily, and heavy foods.\n• Prefer warm, light, and easily digestible meals.\n• Drink warm water. Avoid cold drinks.\n• Maintain regular meal timings and proper sleep.\n• Practice gentle yoga and deep breathing (Pranayama).');
+  const [ayurAdvice,setAyurAdvice]=useState('• Avoid spicy, oily, and heavy foods.\\n• Prefer warm, light, and easily digestible meals.\\n• Drink warm water. Avoid cold drinks.\\n• Maintain regular meal timings and proper sleep.\\n• Practice gentle yoga and deep breathing (Pranayama).');
   
   const add=()=>setMeds(v=>[...v,{medicine:'',dosage:'',frequency:'',duration:'',instructions:''}]);
   const addAyur=()=>setAyurMeds(v=>[...v,{medicine:'',dosage:'',anupana:'',whenToTake:'',duration:''}]);
   const edit=(i,k,v)=>setMeds(r=>r.map((x,j)=>j===i?{...x,[k]:v}:x));
   const editAyur=(i,k,v)=>setAyurMeds(r=>r.map((x,j)=>j===i?{...x,[k]:v}:x));
-  const finish=()=>end({prescription:(ayur?ayurMeds:meds).filter(x=>x.medicine).map(x=>Object.values(x).filter(Boolean).join(' | ')).join('\n'),doctor_notes:ayur?ayurAdvice:advice});
+  const finish=()=>end({prescription:(ayur?ayurMeds:meds).filter(x=>x.medicine).map(x=>Object.values(x).filter(Boolean).join(' | ')).join('\\n'),doctor_notes:ayur?ayurAdvice:advice});
   
   const renderList = (text) => {
     if(!text) return 'Not recorded';
@@ -317,6 +313,21 @@ function Consultation({p,intake,reports,ayur,back,end}){
       <button onClick={finish} style={{background:'#087d43',color:'#fff',border:'none',padding:'12px 24px',borderRadius:'8px',fontSize:'15px',fontWeight:'600',display:'flex',alignItems:'center',gap:'8px',cursor:'pointer'}}>End Session <span style={{fontSize:'18px'}}>→</span></button>
     </div>
   </main>;
-}
+}`;
 
-export default function PhysicianDashboard(){const nav=useNavigate(),{session,logout}=useSession();const[doctor,setDoctor]=useState(null),[rows,setRows]=useState([]),[selected,setSelected]=useState(null),[intake,setIntake]=useState(null),[reports,setReports]=useState([]),[consult,setConsult]=useState(false);const did=session.staff?.doctor_id||null;const leave=()=>{logout();nav('/auth?role=doctor')};useEffect(()=>{did?db.doctors.getById(did).then(x=>setDoctor(x.data)):setDoctor(session.staff||null)},[did,session.staff]);useEffect(()=>{if(!did){setRows([]);return}db.appointments.getDoctorQueue(did,today()).then(({data,error})=>{if(error)console.error(error);setRows((data||[]).map(r=>({id:r.id,patientId:r.patient_id,name:r.patients?.name||'Patient',age:r.patients?.age,gender:r.patients?.gender,phone:r.patients?.phone,date:r.date,time:r.time_label,token:r.token_number,status:r.status,reason:r.reason,prescription:r.prescription,doctor})))})},[did,doctor]);const choose=async p=>{setSelected(p);const[i,r]=await Promise.all([db.intakes.getLatest(p.patientId),db.reports.getByPatient(p.patientId)]);setIntake(i.data);setReports(r.data||[])};const start=async()=>{const r=await db.appointments.updateStatus(selected.id,'in_consultation');if(r.error)return alert(r.error.message);setSelected(x=>({...x,status:'in_consultation',doctor}));setConsult(true)};const end=async extra=>{const r=await db.appointments.updateStatus(selected.id,'completed',extra);if(r.error)return alert(r.error.message);setRows(v=>v.map(x=>x.id===selected.id?{...x,status:'completed'}:x));setConsult(false);setSelected(null)};const ayur=Boolean(/ayur|bams|ayush/i.test(`${doctor?.speciality||''} ${doctor?.degrees||''} ${session.staff?.department||''}`));const hr=new Date().getHours(),greet=hr<12?'Good Morning':hr<17?'Good Afternoon':'Good Evening';if(consult&&selected)return <div className="dp-shell"><Sidebar logout={leave}/><Consultation p={{...selected,doctor}} intake={intake} reports={reports} ayur={ayur} back={()=>setConsult(false)} end={end}/></div>;return <div className="dp-shell"><Sidebar logout={leave}/><main className="dp-main"><Top doctor={doctor}/><h1>{greet}, {doctor?.name||session.staff?.name||'Doctor'} 👋</h1><p>Here's your practice overview for today.</p><div className={`dp-work ${selected?'open':''}`}><div><Metrics rows={rows}/><Schedule rows={rows} selected={selected} choose={choose}/></div>{selected&&<Drawer p={selected} intake={intake} reports={reports} close={()=>setSelected(null)} start={start}/>}</div></main></div>}
+content = content.replace(/function Drawer\(\{p,intake,reports,close,start\}\)\{.*?\}/s, newDrawer);
+content = content.replace(/function Consultation\(\{p,intake,reports,ayur,back,end\}\)\{.*?\}/s, newConsultation);
+
+// Make Top Component English Button nicer
+content = content.replace(
+  '<button><Globe2/>English<ChevronDown/></button>',
+  '<button style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"20px",padding:"8px 16px",display:"flex",alignItems:"center",gap:"8px",fontWeight:"500",fontSize:"14px",color:"#334155",cursor:"pointer"}}><Globe2 size={16}/> English <ChevronDown size={16}/></button>'
+);
+// Notification bell in top bar
+content = content.replace(
+  '<div className="dp-doc">',
+  '<button style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:"50%",width:"40px",height:"40px",display:"grid",placeItems:"center",position:"relative",cursor:"pointer"}}><span style={{position:"absolute",top:"-2px",right:"-2px",background:"#e63946",color:"#fff",fontSize:"10px",fontWeight:"bold",borderRadius:"10px",padding:"2px 6px"}}>2</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></button><div className="dp-doc">'
+);
+
+fs.writeFileSync(file, content, 'utf8');
+console.log('Successfully updated PhysicianDashboard.jsx');

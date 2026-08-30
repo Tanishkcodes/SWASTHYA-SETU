@@ -1,23 +1,23 @@
 /* =========================================================================
-   SWASTHYA SETU — Clinical Anamnesis & Adaptive AI Consultation Scribe
-   Adapts dynamically to:
-   - Ayurvedic Doctors (Dashavidha & Ashtavidha Pariksha, Agni, Kostha, Tridosha)
-   - Allopathic Doctors (Onset, Severity, HPI, Red Flags, Prior Meds)
-   - Real-time Interactive Option Pills in Chat + Voice/Text Input
+   SWASTHYA SETU — Clinical Anamnesis & Adaptive AI Consultation Chat
+   - 100% Visual Chat Matching User's Design
+   - Interactive 5-Card Icon Options for Non-Tech Patients
+   - Clinically Smart Adaptive Reasoning (Stomach, Fever, Headache, Cough, Body Pain, Ayurvedic)
+   - Real-time Sync with Doctor Appointment Case File
    ========================================================================= */
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Send, Mic, MicOff, Sparkles, Bot, User, CheckCircle2,
-  AlertCircle, RotateCcw, ArrowRight, ArrowLeft, Activity,
-  HeartPulse, FileText, ChevronRight, ShieldCheck, Stethoscope, Leaf
+  Send, Mic, MicOff, Bot, User, CheckCircle2,
+  RotateCcw, ArrowRight, ArrowLeft, Stethoscope, Leaf
 } from 'lucide-react';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
+import voiceAIService from '../voicenav/VoiceAIService';
 
-// ── Custom SVG Icons for the Problem Grid matching the user's design ──
-function ThermometerIcon({ size = 32, color = '#059669' }) {
+// ── Custom SVG Icons for Initial Problem Selection ──
+function ThermometerIcon({ size = 46, color = '#059669' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(-20deg)' }}>
       <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
       <path d="M11.5 6h2" />
       <path d="M11.5 9h2" />
@@ -26,83 +26,210 @@ function ThermometerIcon({ size = 32, color = '#059669' }) {
   );
 }
 
-function HeadacheIcon({ size = 32, color = '#059669' }) {
+function HeadacheIcon({ size = 46, color = '#059669' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18h6" />
-      <path d="M10 22h4" />
-      <path d="M12 2v1" />
-      <path d="M4.93 4.93l.7.7" />
-      <path d="M19.07 4.93l-.7.7" />
-      <path d="M16 11a4 4 0 1 0-8 0c0 1.66.8 3.13 2 4.02V18h4v-2.98c1.2-.89 2-2.36 2-4.02z" />
-      <path d="M10 11h.01" />
-      <path d="M14 11h.01" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 19a7 7 0 0 1-7-7c0-2 .8-3.9 2.2-5.3A7 7 0 0 1 18 5v1" />
+      <path d="M9 12a4 4 0 0 0 4 4h1" />
+      <path d="M5 4l2 2" />
+      <path d="M2 9h3" />
+      <path d="M5 14l2-2" />
+      <path d="M8 3v3" />
+      <path d="M13 18v3" />
+      <path d="M16 21h4" />
     </svg>
   );
 }
 
-function StomachIcon({ size = 32, color = '#059669' }) {
+function StomachIcon({ size = 46, color = '#059669' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 3v4c0 1.5-1 2.5-2.5 3S7 11.5 7 14.5c0 3.5 3 6.5 7 6.5 3.5 0 6-2.5 6-6 0-3.5-2-5.5-3.5-7l.5-5" />
+    </svg>
+  );
+}
+
+function CoughIcon({ size = 46, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 19a6 6 0 0 0-6-6H8a4 4 0 0 1-4-4 6 6 0 0 1 12 0v2" />
+      <path d="M17 11h4" />
+      <path d="M18 14h4" />
+      <path d="M17 17h3" />
+    </svg>
+  );
+}
+
+function BodyPainIcon({ size = 46, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3l-3 4-2-1-3 4 2 2-3 4 4 2 2-3 4 2 3-4-2-2z" />
+      <path d="M11 9l-2 3 3 1-2 3" />
+    </svg>
+  );
+}
+
+// ── Specialized Question Option Card Icons ──
+function TargetIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  );
+}
+
+function ChestRadiateIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 21v-8a5 5 0 0 1 10 0v8" />
       <path d="M12 3v4" />
-      <path d="M12 7c-4 0-7 3-7 7a7 7 0 0 0 14 0c0-4-3-7-7-7z" />
-      <path d="M8 14c0 2 1.8 3.5 4 3.5s4-1.5 4-3.5" />
+      <path d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+      <path d="M9 9l-2-2" />
+      <path d="M15 9l2-2" />
     </svg>
   );
 }
 
-function CoughIcon({ size = 32, color = '#059669' }) {
+function BackSpineIcon({ size = 42, color = '#059669' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M16 8c0-3.3-2.7-6-6-6S4 4.7 4 8c0 2.2 1.2 4.1 3 5.1V18h6v-4.9c1.8-1 3-2.9 3-5.1z" />
-      <path d="M18 10h4" />
-      <path d="M19 14h3" />
-      <path d="M18 18h4" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 21v-7a5 5 0 0 1 10 0v7" />
+      <path d="M12 5v14" />
+      <circle cx="12" cy="15" r="2" />
+      <circle cx="12" cy="10" r="2" />
     </svg>
   );
 }
 
-function BodyPainIcon({ size = 32, color = '#059669' }) {
+function ShoulderJointIcon({ size = 42, color = '#059669' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
-      <path d="M12 8v8" />
-      <path d="M8 10l4 2 4-2" />
-      <path d="M9 22l3-6 3 6" />
-      <path d="M16 11l2 2-2 2" />
-      <path d="M8 11l-2 2 2 2" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 21v-6a6 6 0 0 1 12 0v6" />
+      <circle cx="15" cy="12" r="3" />
+      <path d="M15 9l2-2" />
+      <path d="M18 12h2" />
     </svg>
   );
 }
 
-// ── Initial Problem Cards list ──
+function QuestionPersonIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+      <path d="M19 8c.5-.7 1.5-.7 2 0 .5.7 0 1.5-.5 2l-.5.5v.5" />
+      <circle cx="20" cy="13" r="0.5" fill={color} />
+    </svg>
+  );
+}
+
+function ClockIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function FlameIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z" />
+    </svg>
+  );
+}
+
+function PillIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.5 20.5l10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+      <path d="m8.5 8.5 7 7" />
+    </svg>
+  );
+}
+
+function MoonIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
+
+function WindIcon({ size = 42, color = '#059669' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" />
+      <path d="M9.6 4.6A2 2 0 1 1 11 8H2" />
+      <path d="M12.6 19.4A2 2 0 1 0 14 16H2" />
+    </svg>
+  );
+}
+
+// ── Initial 5 Problem Tiles ──
 const INITIAL_PROBLEMS = [
-  { id: 'fever', label: 'Fever', sublabel: 'बुखार / காய்ச்சல்', icon: ThermometerIcon },
-  { id: 'headache', label: 'Headache', sublabel: 'सिरदर्द / தலைவலி', icon: HeadacheIcon },
-  { id: 'stomach', label: 'Stomach Pain', sublabel: 'पेट दर्द / வயிற்று வலி', icon: StomachIcon },
-  { id: 'cough', label: 'Cough / Cold', sublabel: 'खांसी-जुकाम / இருமல்', icon: CoughIcon },
-  { id: 'bodypain', label: 'Body Pain', sublabel: 'बदन दर्द / உடல் வலி', icon: BodyPainIcon },
+  { id: 'fever', icon: ThermometerIcon },
+  { id: 'headache', icon: HeadacheIcon },
+  { id: 'stomach', icon: StomachIcon },
+  { id: 'cough', icon: CoughIcon },
+  { id: 'bodypain', icon: BodyPainIcon },
 ];
 
+const CHAT_COPY = {
+  en:{title:'What problem are you having?',subtitle:'Select all that apply, or speak/type in your own words.',fever:'Fever',headache:'Headache',stomach:'Stomach pain',cough:'Cough / cold',bodypain:'Body pain',symptomPlaceholder:'Type your symptoms or details (optional)',answerPlaceholder:'You can also speak or type your answer…',speakSymptoms:'Speak your symptoms',speakAnswer:'Speak your answer',change:'Change problem',firstQuestion:'What problem are you having today?',patientHas:'I have {disease}.',complete:'Thank you. I have prepared your clinical briefing for {doctor}. You can now upload previous reports or continue the appointment.',proceed:'Proceed to upload reports',previous:'Previous: select time',next:'Next: upload reports'},
+  hi:{title:'आपको क्या समस्या हो रही है?',subtitle:'लागू सभी विकल्प चुनें, या अपनी भाषा में बोलें/लिखें।',fever:'बुखार',headache:'सिरदर्द',stomach:'पेट दर्द',cough:'खांसी / जुकाम',bodypain:'शरीर में दर्द',symptomPlaceholder:'अपने लक्षण या विवरण लिखें (वैकल्पिक)',answerPlaceholder:'आप अपना उत्तर बोल या लिख भी सकते हैं…',speakSymptoms:'अपने लक्षण बोलें',speakAnswer:'अपना उत्तर बोलें',change:'समस्या बदलें',firstQuestion:'आज आपको क्या समस्या हो रही है?',patientHas:'मुझे {disease} है।',complete:'धन्यवाद। मैंने {doctor} के लिए आपकी क्लिनिकल जानकारी तैयार कर दी है। अब आप पिछली रिपोर्ट अपलोड कर सकते हैं या अपॉइंटमेंट जारी रख सकते हैं।',proceed:'रिपोर्ट अपलोड करने के लिए आगे बढ़ें',previous:'पिछला: समय चुनें',next:'अगला: रिपोर्ट अपलोड करें'},
+  ta:{title:'உங்களுக்கு என்ன பிரச்சினை?',subtitle:'பொருந்தும் அனைத்தையும் தேர்ந்தெடுக்கவும் அல்லது உங்கள் சொற்களில் பேசவும்/தட்டச்சு செய்யவும்.',fever:'காய்ச்சல்',headache:'தலைவலி',stomach:'வயிற்று வலி',cough:'இருமல் / சளி',bodypain:'உடல் வலி',symptomPlaceholder:'அறிகுறிகள் அல்லது விவரங்களை உள்ளிடவும் (விருப்பம்)',answerPlaceholder:'பதிலை பேசலாம் அல்லது தட்டச்சு செய்யலாம்…',speakSymptoms:'அறிகுறிகளை பேசுங்கள்',speakAnswer:'பதிலை பேசுங்கள்',change:'பிரச்சினையை மாற்று',firstQuestion:'இன்று உங்களுக்கு என்ன பிரச்சினை?',patientHas:'எனக்கு {disease} உள்ளது.',complete:'நன்றி. {doctor} க்கான மருத்துவ குறிப்பைத் தயாரித்துள்ளேன். இப்போது பழைய அறிக்கைகளைப் பதிவேற்றலாம் அல்லது முன்பதிவைத் தொடரலாம்.',proceed:'அறிக்கைகளைப் பதிவேற்ற தொடரவும்',previous:'முந்தையது: நேரத்தைத் தேர்ந்தெடு',next:'அடுத்து: அறிக்கைகளைப் பதிவேற்று'},
+  te:{title:'మీకు ఏ సమస్య ఉంది?',subtitle:'వర్తించే అన్నింటినీ ఎంచుకోండి లేదా మీ మాటల్లో చెప్పండి/టైప్ చేయండి.',fever:'జ్వరం',headache:'తలనొప్పి',stomach:'కడుపు నొప్పి',cough:'దగ్గు / జలుబు',bodypain:'శరీర నొప్పి',symptomPlaceholder:'లక్షణాలు లేదా వివరాలు టైప్ చేయండి (ఐచ్ఛికం)',answerPlaceholder:'మీ సమాధానాన్ని చెప్పవచ్చు లేదా టైప్ చేయవచ్చు…',speakSymptoms:'లక్షణాలను చెప్పండి',speakAnswer:'సమాధానం చెప్పండి',change:'సమస్యను మార్చండి',firstQuestion:'ఈరోజు మీకు ఏ సమస్య ఉంది?',patientHas:'నాకు {disease} ఉంది.',complete:'ధన్యవాదాలు. {doctor} కోసం మీ క్లినికల్ వివరాలను సిద్ధం చేశాను. ఇప్పుడు పాత నివేదికలను అప్‌లోడ్ చేయండి లేదా అపాయింట్‌మెంట్ కొనసాగించండి.',proceed:'నివేదికలు అప్‌లోడ్ చేయడానికి కొనసాగండి',previous:'మునుపటి: సమయం ఎంచుకోండి',next:'తర్వాత: నివేదికలు అప్‌లోడ్ చేయండి'},
+  bn:{title:'আপনার কী সমস্যা হচ্ছে?',subtitle:'প্রযোজ্য সব নির্বাচন করুন, অথবা নিজের ভাষায় বলুন/লিখুন।',fever:'জ্বর',headache:'মাথাব্যথা',stomach:'পেট ব্যথা',cough:'কাশি / সর্দি',bodypain:'শরীর ব্যথা',symptomPlaceholder:'লক্ষণ বা বিস্তারিত লিখুন (ঐচ্ছিক)',answerPlaceholder:'উত্তর বলতেও বা লিখতেও পারেন…',speakSymptoms:'লক্ষণ বলুন',speakAnswer:'উত্তর বলুন',change:'সমস্যা পরিবর্তন করুন',firstQuestion:'আজ আপনার কী সমস্যা হচ্ছে?',patientHas:'আমার {disease} হয়েছে।',complete:'ধন্যবাদ। {doctor}-এর জন্য আপনার ক্লিনিক্যাল তথ্য প্রস্তুত করেছি। এখন আগের রিপোর্ট আপলোড করুন বা অ্যাপয়েন্টমেন্ট চালিয়ে যান।',proceed:'রিপোর্ট আপলোড করতে এগিয়ে যান',previous:'আগের: সময় নির্বাচন',next:'পরবর্তী: রিপোর্ট আপলোড'},
+  mr:{title:'तुम्हाला काय त्रास होत आहे?',subtitle:'लागू असलेले सर्व पर्याय निवडा किंवा तुमच्या शब्दांत बोला/लिहा.',fever:'ताप',headache:'डोकेदुखी',stomach:'पोटदुखी',cough:'खोकला / सर्दी',bodypain:'अंगदुखी',symptomPlaceholder:'लक्षणे किंवा तपशील लिहा (ऐच्छिक)',answerPlaceholder:'उत्तर बोलू किंवा लिहू शकता…',speakSymptoms:'लक्षणे सांगा',speakAnswer:'उत्तर सांगा',change:'समस्या बदला',firstQuestion:'आज तुम्हाला काय त्रास होत आहे?',patientHas:'मला {disease} आहे.',complete:'धन्यवाद. {doctor} साठी तुमची क्लिनिकल माहिती तयार केली आहे. आता जुने अहवाल अपलोड करा किंवा अपॉइंटमेंट पुढे सुरू ठेवा.',proceed:'अहवाल अपलोड करण्यासाठी पुढे जा',previous:'मागील: वेळ निवडा',next:'पुढील: अहवाल अपलोड करा'},
+  gu:{title:'તમને શું તકલીફ છે?',subtitle:'લાગુ પડતા બધા વિકલ્પ પસંદ કરો અથવા તમારા શબ્દોમાં બોલો/લખો.',fever:'તાવ',headache:'માથાનો દુખાવો',stomach:'પેટનો દુખાવો',cough:'ઉધરસ / શરદી',bodypain:'શરીરનો દુખાવો',symptomPlaceholder:'લક્ષણો અથવા વિગતો લખો (વૈકલ્પિક)',answerPlaceholder:'જવાબ બોલી અથવા લખી પણ શકો છો…',speakSymptoms:'લક્ષણો બોલો',speakAnswer:'જવાબ બોલો',change:'સમस्या બદલો',firstQuestion:'આજે તમને શું તકલીફ છે?',patientHas:'મને {disease} છે.',complete:'આભાર. {doctor} માટે તમારી ક્લિનિકલ માહિતી તૈયાર કરી છે. હવે જૂના રિપોર્ટ અપલોડ કરો અથવા અપોઇન્ટમેન્ટ ચાલુ રાખો.',proceed:'રિપોર્ટ અપલોડ કરવા આગળ વધો',previous:'પાછળ: સમય પસંદ કરો',next:'આગળ: રિપોર્ટ અપલોડ કરો'},
+  kn:{title:'ನಿಮಗೆ ಯಾವ ಸಮಸ್ಯೆ ಇದೆ?',subtitle:'ಅನ್ವಯಿಸುವ ಎಲ್ಲವನ್ನೂ ಆಯ್ಕೆ ಮಾಡಿ ಅಥವಾ ನಿಮ್ಮ ಮಾತಿನಲ್ಲಿ ಹೇಳಿ/ಟೈಪ್ ಮಾಡಿ.',fever:'ಜ್ವರ',headache:'ತಲೆನೋವು',stomach:'ಹೊಟ್ಟೆ ನೋವು',cough:'ಕೆಮ್ಮು / ಶೀತ',bodypain:'ದೇಹ ನೋವು',symptomPlaceholder:'ಲಕ್ಷಣಗಳು ಅಥವಾ ವಿವರಗಳನ್ನು ಟೈಪ್ ಮಾಡಿ (ಐಚ್ಛಿಕ)',answerPlaceholder:'ಉತ್ತರವನ್ನು ಹೇಳಬಹುದು ಅಥವಾ ಟೈಪ್ ಮಾಡಬಹುದು…',speakSymptoms:'ಲಕ್ಷಣಗಳನ್ನು ಹೇಳಿ',speakAnswer:'ಉತ್ತರ ಹೇಳಿ',change:'ಸಮಸ್ಯೆ ಬದಲಿಸಿ',firstQuestion:'ಇಂದು ನಿಮಗೆ ಯಾವ ಸಮಸ್ಯೆ ಇದೆ?',patientHas:'ನನಗೆ {disease} ಇದೆ.',complete:'ಧನ್ಯವಾದಗಳು. {doctor} ಗಾಗಿ ನಿಮ್ಮ ಕ್ಲಿನಿಕಲ್ ವಿವರಗಳನ್ನು ಸಿದ್ಧಪಡಿಸಿದ್ದೇನೆ. ಈಗ ಹಳೆಯ ವರದಿಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ ಅಥವಾ ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಮುಂದುವರಿಸಿ.',proceed:'ವರದಿಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಮುಂದುವರಿಸಿ',previous:'ಹಿಂದೆ: ಸಮಯ ಆಯ್ಕೆ',next:'ಮುಂದೆ: ವರದಿ ಅಪ್‌ಲೋಡ್'},
+  ml:{title:'നിങ്ങൾക്ക് എന്ത് പ്രശ്നമാണ്?',subtitle:'ബാധകമായ എല്ലാം തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ സ്വന്തം വാക്കുകളിൽ പറയുക/ടൈപ്പ് ചെയ്യുക.',fever:'പനി',headache:'തലവേദന',stomach:'വയറുവേദന',cough:'ചുമ / ജലദോഷം',bodypain:'ശരീരവേദന',symptomPlaceholder:'ലക്ഷണങ്ങളോ വിവരങ്ങളോ ടൈപ്പ് ചെയ്യുക (ഐച്ഛികം)',answerPlaceholder:'ഉത്തരം പറയുകയോ ടൈപ്പ് ചെയ്യുകയോ ചെയ്യാം…',speakSymptoms:'ലക്ഷണങ്ങൾ പറയുക',speakAnswer:'ഉത്തരം പറയുക',change:'പ്രശ്നം മാറ്റുക',firstQuestion:'ഇന്ന് നിങ്ങൾക്ക് എന്ത് പ്രശ്നമാണ്?',patientHas:'എനിക്ക് {disease} ഉണ്ട്.',complete:'നന്ദി. {doctor} നുള്ള ക്ലിനിക്കൽ വിവരങ്ങൾ തയ്യാറാക്കി. ഇനി പഴയ റിപ്പോർട്ടുകൾ അപ്‌ലോഡ് ചെയ്യുകയോ അപ്പോയിന്റ്മെന്റ് തുടരുകയോ ചെയ്യാം.',proceed:'റിപ്പോർട്ടുകൾ അപ്‌ലോഡ് ചെയ്യാൻ തുടരുക',previous:'മുമ്പ്: സമയം തിരഞ്ഞെടുക്കുക',next:'അടുത്തത്: റിപ്പോർട്ട് അപ്‌ലോഡ്'}
+};
+
 export default function ClinicalAnamnesisChat({
-  doctor,
-  hospital,
+  doctor = {},
+  hospital = {},
   initialSymptoms = [],
   initialNotes = '',
-  onUpdateCaseDetails,
-  onPrevious,
-  onNext,
+  onUpdateCaseDetails = () => {},
+  onPrevious = () => {},
+  onNext = () => {},
   language = 'en'
 }) {
-  const { isListening, toggleListening, interimTranscript } = useVoiceNav();
+  const { isListening, toggleListening, setOnTranscript, clearOnTranscript } = useVoiceNav();
+  const c = CHAT_COPY[language] || CHAT_COPY.en;
   
   // Determine if Doctor is Ayurvedic / AYUSH vs Allopathic
+  const docName = String(doctor?.name || '').toLowerCase();
+  const docSpec = String(doctor?.specialty || doctor?.speciality || '').toLowerCase();
+  const docDeg = String(doctor?.degrees || '').toLowerCase();
+  const docSys = String(doctor?.careSystem || doctor?.system || '').toLowerCase();
+  const hospName = String(hospital?.name || '').toLowerCase();
+  const hospType = String(hospital?.type || '').toUpperCase();
+
   const isAyurvedic = Boolean(
-    doctor?.specialty?.toLowerCase().includes('ayurved') ||
-    doctor?.degrees?.toLowerCase().includes('bams') ||
-    doctor?.degrees?.toLowerCase().includes('ayush') ||
-    doctor?.degrees?.toLowerCase().includes('panchakarma') ||
-    doctor?.degrees?.toLowerCase().includes('vaidya')
+    docSpec.includes('ayurved') ||
+    docSpec.includes('ayush') ||
+    docSpec.includes('panchakarma') ||
+    docSpec.includes('kayachikitsa') ||
+    docSpec.includes('shalyatantra') ||
+    docDeg.includes('bams') ||
+    docDeg.includes('ayurved') ||
+    docDeg.includes('ayush') ||
+    docDeg.includes('panchakarma') ||
+    docDeg.includes('vaidya') ||
+    docName.includes('vaidya') ||
+    docName.includes('krishnamurthy') ||
+    docSys.includes('ayurved') ||
+    docSys.includes('ayush') ||
+    hospType === 'AYUSH' ||
+    Boolean(hospital?.isAyush) ||
+    hospName.includes('ayurved') ||
+    hospName.includes('ayush')
   );
 
   const safeSymptoms = Array.isArray(initialSymptoms) ? initialSymptoms : [];
@@ -113,307 +240,583 @@ export default function ClinicalAnamnesisChat({
   const [inputVal, setInputVal] = useState('');
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [activeStepIdx, setActiveStepIdx] = useState(0);
+  const [currentStepData, setCurrentStepData] = useState(null);
+
   const [caseSummary, setCaseSummary] = useState({
     chiefComplaints: safeSymptoms,
+    location: '',
+    spread: '',
     duration: '',
     severity: '',
     nature: '',
     triggers: '',
-    ayushPrakriti: '',
     ayushAgni: '',
+    ayushPrakriti: '',
     medications: '',
     notes: safeNotes
   });
 
   const chatBottomRef = useRef(null);
 
-  // Auto-scroll chat
   useEffect(() => {
     if (chatStarted && chatBottomRef.current) {
       chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping, chatStarted]);
 
-  // Helper to sync case notes back to parent without render loops
+  // Voice output for AI messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.sender === 'ai' && lastMsg.text) {
+        import('../voicenav/AudioPromptManager').then(module => {
+          module.default.interruptWith(lastMsg.text);
+        }).catch(err => console.error('Failed to load AudioPromptManager', err));
+      }
+    }
+  }, [messages]);
+
+  // Sync to parent without infinite loops
   const syncToParent = (updatedSummary) => {
-    const summary = updatedSummary || caseSummary;
-    const complaints = Array.isArray(summary.chiefComplaints) ? summary.chiefComplaints : [];
+    const s = updatedSummary || caseSummary;
+    const complaints = Array.isArray(s.chiefComplaints) ? s.chiefComplaints : [];
     const formattedNotes = [
       complaints.length ? `• Chief Complaints: ${complaints.join(', ')}` : '',
-      summary.duration ? `• Duration: ${summary.duration}` : '',
-      summary.severity ? `• Severity: ${summary.severity}` : '',
-      summary.nature ? `• Nature: ${summary.nature}` : '',
-      isAyurvedic && summary.ayushAgni ? `• Ayurvedic Agni/Kostha: ${summary.ayushAgni}` : '',
-      isAyurvedic && summary.ayushPrakriti ? `• Doshic Manifestation: ${summary.ayushPrakriti}` : '',
-      summary.medications ? `• Prior Medication/History: ${summary.medications}` : '',
-      summary.notes ? `• Patient Statement: ${summary.notes}` : ''
+      s.location ? `• Location / Site: ${s.location}` : '',
+      s.spread ? `• Radiation / Spread: ${s.spread}` : '',
+      s.duration ? `• Duration: ${s.duration}` : '',
+      s.severity ? `• Severity: ${s.severity}` : '',
+      s.nature ? `• Nature: ${s.nature}` : '',
+      s.triggers ? `• Triggers: ${s.triggers}` : '',
+      isAyurvedic && s.ayushAgni ? `• Ayurvedic Agni/Kostha: ${s.ayushAgni}` : '',
+      isAyurvedic && s.ayushPrakriti ? `• Doshic Manifestation: ${s.ayushPrakriti}` : '',
+      s.medications ? `• Prior Medication/History: ${s.medications}` : '',
+      s.notes ? `• Patient Statement: ${s.notes}` : ''
     ].filter(Boolean).join('\n');
 
     onUpdateCaseDetails?.({
       symptoms: complaints,
-      notes: formattedNotes || summary.notes || ''
+      notes: formattedNotes || s.notes || ''
     });
   };
 
-  // ── CLINICAL INTERVIEW FLOW DEFINITIONS ──
-  // 1. Allopathic Flow
-  const allopathicFlow = [
-    {
-      id: 'duration',
-      question: (symptoms) => `Thank you for sharing. For how long have you been experiencing ${symptoms.join(' & ') || 'these symptoms'}?`,
-      options: ['Less than 24 hours', '2 - 3 Days', '4 - 7 Days (1 Week)', 'More than 2 Weeks (Chronic)']
-    },
-    {
-      id: 'severity',
-      question: () => `How severe is the discomfort right now?`,
-      options: ['Mild (Manageable)', 'Moderate (Affecting daily work)', 'Severe (Intense pain / high fever)', 'Intermittent / Comes and goes']
-    },
-    {
-      id: 'nature',
-      question: (symptoms) => `Are you experiencing any associated symptoms? (Select all that match or type below)`,
-      options: ['Chills & Sweating', 'Nausea / Loss of Appetite', 'Throbbing / Heaviness', 'Burning Sensation', 'No other issues, just this']
-    },
-    {
-      id: 'medications',
-      question: () => `Have you taken any medication (like Paracetamol, antacids, painkillers) or have existing BP/Diabetes?`,
-      options: ['Taken Paracetamol / OTC Tablet', 'Taking Regular BP/Sugar Medicine', 'No Medicines Taken', 'Allergic to specific drugs']
-    }
-  ];
+  // ── CLINICAL DECISION FLOWS WITH 5 CARDS EACH ──
 
-  // 2. Ayurvedic Flow (Dashavidha & Ashtavidha Pariksha)
-  const ayurvedicFlow = [
-    {
-      id: 'duration',
-      question: (symptoms) => `नमस्ते. How long has this ${symptoms.join(' & ') || 'discomfort'} (Roga Lakshana) been present?`,
-      options: ['1 - 2 Days (Navina / Acute)', '3 - 7 Days', 'More than 2 Weeks', 'Long-standing / Purana']
-    },
-    {
-      id: 'ayushAgni',
-      question: () => `[Ayurvedic Agni Pariksha] How is your appetite (Agni) and bowel movement (Kostha)?`,
-      options: ['Manda Agni (Low appetite / Heavy stomach)', 'Tikshna Agni (Intense hunger / Acid burning)', 'Visham Agni (Irregular / Gas & Bloating)', 'Sama Agni (Normal & Regular digestion)']
-    },
-    {
-      id: 'ayushPrakriti',
-      question: () => `[Doshic Lakshana] What sensations are dominant in your body?`,
-      options: ['Vata (Dryness, stiffness, pricking pain, restlessness)', 'Pitta (Burning sensation, excessive heat, red eyes/skin)', 'Kapha (Heavy head, congestion, sluggishness, phlegm)', 'Mixed (Vata-Pitta / Kapha)']
-    },
-    {
-      id: 'medications',
-      question: () => `[Ahara & Nidra] How is your sleep (Nidra) and stress level, and have you taken any home remedies or Kadha?`,
-      options: ['Disturbed Sleep / Insomnia', 'Sound Sleep / Normal', 'Taken Ginger / Tulsi / Kadha', 'No remedies yet']
-    }
-  ];
+  const CLINICAL_FLOWS = {
+    // 1. Stomach Pain (Matches screenshot)
+    stomach: [
+      {
+        question: "I understand. You are having stomach pain.\nWhere exactly does it hurt?",
+        field: 'location',
+        options: [
+          { text: "In the upper part of my stomach", icon: TargetIcon },
+          { text: "Lower right side (appendix)", icon: StomachIcon },
+          { text: "Around my belly button", icon: TargetIcon },
+          { text: "Lower abdomen / pelvic area", icon: StomachIcon },
+          { text: "All over my entire stomach", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Where does the pain spread?",
+        field: 'spread',
+        options: [
+          { text: "It stays in one place", icon: TargetIcon },
+          { text: "To my chest", icon: ChestRadiateIcon },
+          { text: "To my back", icon: BackSpineIcon },
+          { text: "To my shoulder", icon: ShoulderJointIcon },
+          { text: "I am not sure", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "How would you describe the feeling of pain?",
+        field: 'nature',
+        options: [
+          { text: "Burning / Acidity sensation", icon: FlameIcon },
+          { text: "Sharp / Cramping spasms", icon: StomachIcon },
+          { text: "Heavy bloating & full feeling", icon: WindIcon },
+          { text: "Constant dull ache", icon: ClockIcon },
+          { text: "Sudden sharp throbbing", icon: ChestRadiateIcon }
+        ]
+      },
+      {
+        question: "When does it feel worse or happen mostly?",
+        field: 'triggers',
+        options: [
+          { text: "After eating food", icon: FlameIcon },
+          { text: "On an empty stomach", icon: ClockIcon },
+          { text: "While walking or moving", icon: ShoulderJointIcon },
+          { text: "Late at night while sleeping", icon: MoonIcon },
+          { text: "Continuous throughout the day", icon: TargetIcon }
+        ]
+      }
+    ],
 
-  const activeFlow = isAyurvedic ? ayurvedicFlow : allopathicFlow;
+    // 2. Fever
+    fever: [
+      {
+        question: "I understand you have a fever.\nHow many days have you had the fever?",
+        field: 'duration',
+        options: [
+          { text: "Just started today (<24 hrs)", icon: ClockIcon },
+          { text: "2 to 3 days", icon: ClockIcon },
+          { text: "About 1 week", icon: ClockIcon },
+          { text: "More than 10 days", icon: ClockIcon },
+          { text: "Comes and goes on & off", icon: FlameIcon }
+        ]
+      },
+      {
+        question: "How high does the fever feel, and do you feel chills?",
+        field: 'severity',
+        options: [
+          { text: "Mild warmth (around 99°F)", icon: ThermometerIcon },
+          { text: "Moderate fever (100°-102°F)", icon: ThermometerIcon },
+          { text: "High fever (>102°F) with shivering", icon: FlameIcon },
+          { text: "Sweating and chills at night", icon: MoonIcon },
+          { text: "Have not measured temperature", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Do you have any other symptoms accompanying the fever?",
+        field: 'nature',
+        options: [
+          { text: "Severe body ache & weakness", icon: BodyPainIcon },
+          { text: "Headache & eye socket pain", icon: HeadacheIcon },
+          { text: "Cold, cough & sore throat", icon: CoughIcon },
+          { text: "Nausea or vomiting", icon: StomachIcon },
+          { text: "No other symptoms", icon: TargetIcon }
+        ]
+      },
+      {
+        question: "Have you taken any medicines or home remedies?",
+        field: 'medications',
+        options: [
+          { text: "Taken Paracetamol / Dolo", icon: PillIcon },
+          { text: "Taken Ayurvedic Kadha / Tulsi", icon: Leaf },
+          { text: "Taken antibiotics", icon: PillIcon },
+          { text: "Cold water compress only", icon: ThermometerIcon },
+          { text: "No medicines taken yet", icon: QuestionPersonIcon }
+        ]
+      }
+    ],
 
-  // Start the Chat flow
-  const startConsultationChat = (initialSymptomsList, userCustomText = '') => {
-    setChatStarted(true);
-    const symptoms = initialSymptomsList.length ? initialSymptomsList : (userCustomText ? [userCustomText] : ['General Discomfort']);
-    
-    setCaseSummary(prev => ({
-      ...prev,
-      chiefComplaints: symptoms,
-      notes: userCustomText || prev.notes
-    }));
+    // 3. Headache
+    headache: [
+      {
+        question: "I see you are suffering from a headache.\nWhere is the pain centered?",
+        field: 'location',
+        options: [
+          { text: "One side only (Left or Right)", icon: HeadacheIcon },
+          { text: "Forehead and temples", icon: TargetIcon },
+          { text: "Back of head and neck", icon: BackSpineIcon },
+          { text: "Top of my head", icon: TargetIcon },
+          { text: "All over my head", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "How does the headache feel?",
+        field: 'nature',
+        options: [
+          { text: "Throbbing / Pulsating heartbeat", icon: ChestRadiateIcon },
+          { text: "Tight band squeezing forehead", icon: TargetIcon },
+          { text: "Sharp shooting stabbing pain", icon: FlameIcon },
+          { text: "Heavy dull continuous pressure", icon: ClockIcon },
+          { text: "Lightheadedness & dizziness", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Does light, sound or screen exposure make it worse?",
+        field: 'triggers',
+        options: [
+          { text: "Yes, sensitive to light & sound", icon: FlameIcon },
+          { text: "Worse after mobile / computer screen", icon: ClockIcon },
+          { text: "Worse due to stress / lack of sleep", icon: MoonIcon },
+          { text: "Worse when skipping meals / acidity", icon: StomachIcon },
+          { text: "No specific trigger noticed", icon: QuestionPersonIcon }
+        ]
+      }
+    ],
 
-    const greeting = isAyurvedic
-      ? `🙏 Pranam! I am your AI Ayurvedic Scribe for **${doctor?.name || 'Vaidya Ji'}**.`
-      : `👋 Hello! I am your Clinical Pre-Consultation Assistant for **${doctor?.name || 'Dr. Specialist'}**.`;
+    // 4. Cough / Cold
+    cough: [
+      {
+        question: "I understand you have cough & cold.\nWhat type of cough are you experiencing?",
+        field: 'nature',
+        options: [
+          { text: "Dry irritating cough", icon: CoughIcon },
+          { text: "Wet cough with mucus / phlegm", icon: CoughIcon },
+          { text: "Blocked / runny nose & sneezing", icon: WindIcon },
+          { text: "Severe sore throat & irritation", icon: FlameIcon },
+          { text: "Chest congestion with whistling", icon: ChestRadiateIcon }
+        ]
+      },
+      {
+        question: "How many days has this been going on?",
+        field: 'duration',
+        options: [
+          { text: "Started today (<24 hours)", icon: ClockIcon },
+          { text: "2 to 3 days", icon: ClockIcon },
+          { text: "About 1 week", icon: ClockIcon },
+          { text: "More than 2 weeks", icon: ClockIcon },
+          { text: "Recurring frequent problem", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Are you feeling any breathing tightness?",
+        field: 'severity',
+        options: [
+          { text: "Normal comfortable breathing", icon: TargetIcon },
+          { text: "Mild tightness when coughing", icon: ChestRadiateIcon },
+          { text: "Shortness of breath on walking", icon: FlameIcon },
+          { text: "Wheezing whistling chest sound", icon: WindIcon },
+          { text: "Breathing is fine", icon: TargetIcon }
+        ]
+      }
+    ],
 
-    const firstStep = activeFlow[0];
-    const initialAiMsg = {
-      sender: 'ai',
-      text: `${greeting}\n\n${firstStep.question(symptoms)}`,
-      options: firstStep.options,
-      stepId: firstStep.id
-    };
+    // 5. Body Pain
+    bodypain: [
+      {
+        question: "I see you are having body pain.\nWhere is the pain located mostly?",
+        field: 'location',
+        options: [
+          { text: "Joints (Knees, Wrists, Ankles)", icon: BodyPainIcon },
+          { text: "Lower back & spine", icon: BackSpineIcon },
+          { text: "Neck & shoulder muscles", icon: ShoulderJointIcon },
+          { text: "Legs and calf muscles", icon: BodyPainIcon },
+          { text: "Whole body tiredness & fatigue", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "How does the pain feel?",
+        field: 'nature',
+        options: [
+          { text: "Morning stiffness in joints", icon: ClockIcon },
+          { text: "Continuous dull muscular ache", icon: BodyPainIcon },
+          { text: "Sudden sharp sprain / pull", icon: FlameIcon },
+          { text: "Burning or tingling sensation", icon: ChestRadiateIcon },
+          { text: "Heavy physical exhaustion", icon: MoonIcon }
+        ]
+      },
+      {
+        question: "How does movement affect your pain?",
+        field: 'triggers',
+        options: [
+          { text: "Worse when moving or walking", icon: ShoulderJointIcon },
+          { text: "Better after light walking", icon: TargetIcon },
+          { text: "Pain even while resting in bed", icon: MoonIcon },
+          { text: "Worse after sitting long hours", icon: ClockIcon },
+          { text: "Same throughout the day", icon: TargetIcon }
+        ]
+      }
+    ],
 
-    const initialUserMsg = userCustomText ? [{ sender: 'user', text: userCustomText }] : [];
-    setMessages([...initialUserMsg, initialAiMsg]);
-    setActiveStepIdx(0);
+    // 6. Classical Ayurvedic Dashavidha Pariksha Flow
+    ayurveda: [
+      {
+        question: "🙏 Pranam! [आहारशक्ति & अग्नि] How is your food intake and digestive power (Aharashakti & Agni)?",
+        field: 'ayushAgni',
+        options: [
+          { text: "Good hunger & smooth digestion (Sama Agni)", icon: Leaf },
+          { text: "Low appetite & heavy indigestion (Manda Agni)", icon: StomachIcon },
+          { text: "High burning acidity & fast hunger (Tikshna Agni)", icon: FlameIcon },
+          { text: "Irregular digestion with bloating (Vishama Agni)", icon: WindIcon },
+          { text: "Hard dry stool / constipation (Krura Kostha)", icon: BackSpineIcon }
+        ]
+      },
+      {
+        question: "[प्रकृति & विकृति] Which Doshic symptoms best describe your current imbalance (Prakriti & Vikriti)?",
+        field: 'ayushPrakriti',
+        options: [
+          { text: "Vata: Dryness, gas, stiffness, body aches", icon: WindIcon },
+          { text: "Pitta: Body heat, burning, acidity, sweating", icon: FlameIcon },
+          { text: "Kapha: Heaviness, lethargy, cold, excess mucus", icon: MoonIcon },
+          { text: "Vata-Pitta: Sharp pain with burning sensation", icon: ChestRadiateIcon },
+          { text: "Kapha-Vata: Dull ache with stiffness & coldness", icon: BodyPainIcon }
+        ]
+      },
+      {
+        question: "[सत्त्व & मानस] How is your mental fortitude, sleep (Nidra), and emotional tranquility (Sattva)?",
+        field: 'ayushSatva',
+        options: [
+          { text: "Pravara: Calm mind & sound peaceful sleep", icon: MoonIcon },
+          { text: "Madhyama: Moderate stress with okay sleep", icon: ClockIcon },
+          { text: "Avara: High anxiety, racing thoughts & insomnia", icon: WindIcon },
+          { text: "Disturbed sleep / waking frequently", icon: ClockIcon },
+          { text: "Excessive sleepiness & low mental energy", icon: MoonIcon }
+        ]
+      },
+      {
+        question: "[व्यायाम शक्ति & बल] How is your physical strength and daily work/exercise endurance (Vyayama Shakti)?",
+        field: 'ayushBala',
+        options: [
+          { text: "Pravara Bala: High stamina, easily active", icon: TargetIcon },
+          { text: "Madhyama Bala: Moderate daily endurance", icon: ClockIcon },
+          { text: "Avara Bala: Fatigue quickly with light work", icon: ShoulderJointIcon },
+          { text: "Severe muscle weakness & need frequent rest", icon: MoonIcon },
+          { text: "Reduced stamina specifically due to current pain", icon: BodyPainIcon }
+        ]
+      },
+      {
+        question: "[सात्म्य & संहनन] What dietary habits and climate conditions suit your body (Satmya & Samhanana)?",
+        field: 'ayushSatmya',
+        options: [
+          { text: "Suits warm, freshly cooked foods", icon: FlameIcon },
+          { text: "Aggravated by cold, dry, or windy climate", icon: WindIcon },
+          { text: "Aggravated by spicy, oily, or sour items", icon: FlameIcon },
+          { text: "Firm, compact body build (Samhanana)", icon: TargetIcon },
+          { text: "Lean frame, easily sensitive to diet changes", icon: Leaf }
+        ]
+      }
+    ]
   };
 
-  // Handle user response (from clicked pill OR typed text)
-  const handleUserResponse = (text) => {
-    if (!text.trim()) return;
+  // ── DYNAMIC AI QUESTION & OPTION GENERATOR (GEMINI + CLINICAL GRAPH) ──
+  const fetchNextAiStep = async (disease, history, latestInput) => {
+    try {
+      const parsed = await voiceAIService.anamnesis({
+        disease, history, latestInput, language,
+        doctorSpecialty: doctor?.specialty || doctor?.speciality || 'General Medicine',
+        isAyurvedic, questionNumber: history.filter(item => item.sender === 'user').length,
+      });
+      if (parsed?.question && Array.isArray(parsed.options) && parsed.options.length === 5) {
+        return {
+          question: parsed.question,
+          options: parsed.options.map(option => ({ text: option.text, icon: getIconFromType(option.iconType) })),
+          isFinished: Boolean(parsed.isFinished),
+          completionMessage: parsed.completionMessage,
+          caseSummaryUpdate: parsed.caseSummaryUpdate || {},
+        };
+      }
+    } catch (err) {
+      console.warn('Protected clinical AI unavailable; using local clinical flow.', err);
+    }
+    return null;
+  };
 
-    const currentStep = activeFlow[activeStepIdx];
-    const userMsg = { sender: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+  const getIconFromType = (iconType) => {
+    switch (iconType) {
+      case 'target': return TargetIcon;
+      case 'chest': return ChestRadiateIcon;
+      case 'back': return BackSpineIcon;
+      case 'shoulder': return ShoulderJointIcon;
+      case 'clock': return ClockIcon;
+      case 'flame': return FlameIcon;
+      case 'pill': return PillIcon;
+      case 'moon': return MoonIcon;
+      case 'wind': return WindIcon;
+      case 'thermometer': return ThermometerIcon;
+      case 'stomach': return StomachIcon;
+      case 'headache': return HeadacheIcon;
+      case 'cough': return CoughIcon;
+      case 'bodypain': return BodyPainIcon;
+      case 'leaf': return Leaf;
+      default: return QuestionPersonIcon;
+    }
+  };
+
+  // Start the interactive chat
+  const startConsultationChat = async (symptomList, customText = '') => {
+    setChatStarted(true);
+    const diseaseName = customText ? customText.trim() : (Array.isArray(symptomList) && symptomList.length ? symptomList[symptomList.length - 1] : 'General Discomfort');
+    const symptoms = [diseaseName];
+    setSelectedCards([diseaseName]);
+
+    const primaryLower = diseaseName.toLowerCase();
+    const localizedProblemId = INITIAL_PROBLEMS.find(problem =>
+      Object.values(CHAT_COPY).some(copy => String(copy[problem.id] || '').toLowerCase() === primaryLower)
+    )?.id;
+
+    // Fallback flow if AI is temporarily unreachable
+    let flowKey = 'stomach';
+    if (localizedProblemId) flowKey = localizedProblemId;
+    else if (primaryLower.includes('fever') || primaryLower.includes('बुखार') || primaryLower.includes('temp')) flowKey = 'fever';
+    else if (primaryLower.includes('head') || primaryLower.includes('सिरदर्द') || primaryLower.includes('migraine')) flowKey = 'headache';
+    else if (primaryLower.includes('cough') || primaryLower.includes('cold') || primaryLower.includes('खांसी') || primaryLower.includes('throat')) flowKey = 'cough';
+    else if (primaryLower.includes('body') || primaryLower.includes('joint') || primaryLower.includes('back') || primaryLower.includes('दर्द') || primaryLower.includes('bone')) flowKey = 'bodypain';
+    else if (isAyurvedic) flowKey = 'ayurveda';
+
+    const chosenFlow = isAyurvedic ? CLINICAL_FLOWS.ayurveda : (CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach);
+    const fallbackStep = chosenFlow[0];
+
+    const updatedSummary = {
+      ...caseSummary,
+      chiefComplaints: symptoms,
+      notes: customText || caseSummary.notes
+    };
+    setCaseSummary(updatedSummary);
+    syncToParent(updatedSummary);
+
+    // Initial message history
+    const initialMsgs = [
+      { sender: 'ai', text: c.firstQuestion },
+      { sender: 'user', text: customText ? customText : c.patientHas.replace('{disease}', diseaseName) }
+    ];
+
+    setIsTyping(true);
+    setMessages(initialMsgs);
+
+    // Dynamically generate question #1 via Gemini for this specific disease!
+    const aiFirstStep = await fetchNextAiStep(diseaseName, initialMsgs, diseaseName);
+
+    setIsTyping(false);
+    const stepToUse = aiFirstStep || fallbackStep;
+
+    const firstAiMsg = {
+      sender: 'ai',
+      text: stepToUse.question,
+      stepIndex: 0,
+      flowKey
+    };
+
+    setMessages([...initialMsgs, firstAiMsg]);
+    setCurrentStepData({
+      flowKey,
+      stepIndex: 0,
+      step: stepToUse,
+      flow: chosenFlow,
+      disease: diseaseName,
+      isAiDriven: true
+    });
+  };
+
+  // Handle user selecting an option card or typing text
+  const handleUserChoice = async (optionText) => {
+    if (!optionText.trim()) return;
+
+    const userMsg = { sender: 'user', text: optionText };
+    const nextMsgs = [...messages, userMsg];
+    setMessages(nextMsgs);
     setInputVal('');
 
     // Update case summary field
-    if (currentStep) {
-      setCaseSummary(prev => {
-        const next = { ...prev };
-        if (currentStep.id === 'duration') next.duration = text;
-        if (currentStep.id === 'severity') next.severity = text;
-        if (currentStep.id === 'nature') next.nature = text;
-        if (currentStep.id === 'ayushAgni') next.ayushAgni = text;
-        if (currentStep.id === 'ayushPrakriti') next.ayushPrakriti = text;
-        if (currentStep.id === 'medications') next.medications = text;
-        syncToParent(next);
-        return next;
-      });
+    if (currentStepData && currentStepData.step) {
+      const field = currentStepData.step.field || 'notes';
+      const updated = { ...caseSummary, [field]: optionText };
+      setCaseSummary(updated);
+      syncToParent(updated);
     }
 
-    const nextIdx = activeStepIdx + 1;
     setIsTyping(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
-      if (nextIdx < activeFlow.length) {
-        const nextStep = activeFlow[nextIdx];
-        const aiReply = {
-          sender: 'ai',
-          text: nextStep.question(caseSummary.chiefComplaints),
-          options: nextStep.options,
-          stepId: nextStep.id
-        };
-        setMessages(prev => [...prev, aiReply]);
-        setActiveStepIdx(nextIdx);
-      } else {
-        // Complete the clinical triage summary
-        const finalAiReply = {
-          sender: 'ai',
-          text: `✅ **Clinical Case Brief Recorded!**\nI have summarized your symptoms and prep notes for **${doctor?.name}**. You can proceed to upload existing prescriptions/reports or confirm your consultation.`,
-          options: ['Proceed to Next Step ➔', 'Add more symptoms / notes'],
-          isFinal: true
-        };
-        setMessages(prev => [...prev, finalAiReply]);
+    const nextIdx = currentStepData ? currentStepData.stepIndex + 1 : 0;
+    const flow = currentStepData?.flow || [];
+    const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ');
+
+    // Call Gemini AI for the next disease-specific question + 5 option cards!
+    let nextStepObj = null;
+    let isFinished = false;
+
+    // AI dynamically decides when enough clinical info is gathered (up to 7 thorough questions)
+    if (nextIdx < 7) {
+      const dynamicAi = await fetchNextAiStep(disease, nextMsgs, optionText);
+      if (dynamicAi) {
+        nextStepObj = dynamicAi;
+        isFinished = Boolean(dynamicAi.isFinished);
+        if (dynamicAi.caseSummaryUpdate && Object.keys(dynamicAi.caseSummaryUpdate).length) {
+          const updated = { ...caseSummary, ...dynamicAi.caseSummaryUpdate };
+          setCaseSummary(updated);
+          syncToParent(updated);
+        }
       }
-    }, 700);
+    }
+
+    if (!nextStepObj && nextIdx < flow.length) {
+      nextStepObj = flow[nextIdx];
+      isFinished = nextIdx >= flow.length - 1;
+    }
+
+    setIsTyping(false);
+
+    if (nextStepObj && !isFinished) {
+      const nextAiMsg = {
+        sender: 'ai',
+        text: nextStepObj.question,
+        stepIndex: nextIdx,
+        flowKey: currentStepData?.flowKey
+      };
+      setMessages([...nextMsgs, nextAiMsg]);
+      setCurrentStepData({
+        flowKey: currentStepData?.flowKey,
+        stepIndex: nextIdx,
+        step: nextStepObj,
+        flow,
+        disease,
+        isAiDriven: true
+      });
+    } else {
+      // Complete the triage flow
+      const finalAiMsg = {
+        sender: 'ai',
+        text: nextStepObj?.completionMessage || c.complete.replace('{doctor}', doctor?.name || 'the doctor'),
+        isFinal: true
+      };
+      setMessages([...nextMsgs, finalAiMsg]);
+      setCurrentStepData(null);
+    }
   };
 
+  useEffect(() => {
+    setOnTranscript?.((spokenText) => {
+      const value = String(spokenText || '').trim();
+      if (!value) return;
+      if (chatStarted) handleUserChoice(value);
+      else startConsultationChat(selectedCards, value);
+    });
+    return () => clearOnTranscript?.();
+  }, [chatStarted, selectedCards, language, currentStepData, messages]);
+
   return (
-    <div style={{
-      backgroundColor: '#ffffff',
-      borderRadius: '24px',
-      border: '1px solid #e2e8f0',
-      padding: '2.25rem 2.5rem',
-      boxShadow: '0 8px 30px rgba(0,0,0,0.03)',
-      position: 'relative'
-    }}>
-      {/* ── TOP HEADER WITH SPECIALTY BADGE ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '14px',
-            backgroundColor: isAyurvedic ? '#fef3c7' : '#f0fdf9',
-            border: isAyurvedic ? '1px solid #fde68a' : '1px solid #ccfbf1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: isAyurvedic ? '#92400e' : '#0c4e47',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
-          }}>
-            {isAyurvedic ? <Leaf size={22} /> : <FileText size={22} />}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}>
-                Step 3: Reason for Visit & Case Details
-              </h3>
-              <span style={{
-                fontSize: '0.72rem',
-                fontWeight: '800',
-                padding: '3px 10px',
-                borderRadius: '12px',
-                backgroundColor: isAyurvedic ? '#fef3c7' : '#f0fdf9',
-                color: isAyurvedic ? '#92400e' : '#0f766e',
-                border: isAyurvedic ? '1px solid #fde68a' : '1px solid #ccfbf1',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
-                <Sparkles size={11} />
-                {isAyurvedic ? 'Ayurvedic Dashavidha AI' : 'Smart Clinical AI Anamnesis'}
-              </span>
-            </div>
-            <p style={{ margin: '3px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-              Preparing case file for {doctor?.name} ({doctor?.specialty || 'Physician'})
-            </p>
-          </div>
-        </div>
-
-        {chatStarted && (
-          <button
-            onClick={() => {
-              setChatStarted(false);
-              setMessages([]);
-              setActiveStepIdx(0);
-            }}
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              color: '#64748b',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <RotateCcw size={13} />
-            <span>Reset Symptoms</span>
-          </button>
-        )}
-      </div>
-
-      {/* ── INITIAL SCREEN: MATCHING THE USER'S PROVIDED SCREENSHOT ── */}
+    <div style={{ width: '100%' }}>
+      {/* ─────────────────────────────────────────────────────────────────
+          INITIAL SCREEN: 5 CARDS IN A ROW + FULL-WIDTH INPUT BAR
+          ───────────────────────────────────────────────────────────────── */}
       {!chatStarted ? (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Main Card Container */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '20px',
-            border: '1.5px solid #eef2f6',
-            padding: '2.25rem 2rem',
+            border: '1px solid #eef2f6',
+            padding: '2.5rem 2.25rem 2.25rem 2.25rem',
             textAlign: 'center',
-            marginBottom: '1.75rem',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
+            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
           }}>
             <h2 style={{
-              margin: '0 0 6px 0',
+              margin: '0 0 8px 0',
               fontSize: '1.5rem',
               fontWeight: '800',
-              color: '#1e293b',
+              color: '#0f172a',
               letterSpacing: '-0.3px'
             }}>
-              What Problem are you having?
+              {c.title}
             </h2>
-            <p style={{ margin: '0 0 2rem 0', fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>
-              Please select all that apply
+            <p style={{ margin: '0 0 2.25rem 0', fontSize: '0.925rem', color: '#64748b', fontWeight: '500' }}>
+              {c.subtitle}
             </p>
 
             {/* 5 Clean Problem Tiles Row */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '1.25rem',
-              marginBottom: '2rem'
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: '1.25rem'
             }}>
               {INITIAL_PROBLEMS.map((prob) => {
                 const IconComponent = prob.icon;
-                const isSelected = selectedCards.includes(prob.label);
+                const problemLabel = c[prob.id];
+                const isSelected = selectedCards.includes(problemLabel);
 
                 return (
                   <button
                     key={prob.id}
                     type="button"
+                    data-voice-option
+                    aria-label={problemLabel}
                     onClick={() => {
                       let updated;
                       if (isSelected) {
-                        updated = selectedCards.filter(c => c !== prob.label);
+                        updated = selectedCards.filter(item => item !== problemLabel);
                       } else {
-                        updated = [...selectedCards, prob.label];
+                        updated = [...selectedCards, problemLabel];
                       }
                       setSelectedCards(updated);
                       // Start chat right away when selected
@@ -423,124 +826,112 @@ export default function ClinicalAnamnesisChat({
                     }}
                     style={{
                       backgroundColor: isSelected ? '#f0fdf9' : '#ffffff',
-                      border: isSelected ? '2px solid #059669' : '1.5px solid #e2e8f0',
-                      borderRadius: '18px',
-                      padding: '1.6rem 0.75rem 1.4rem 0.75rem',
+                      border: isSelected ? '1.5px solid #059669' : '1px solid #e2e8f0',
+                      borderRadius: '16px',
+                      padding: '2.25rem 1rem 1.75rem 1rem',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '12px',
+                      gap: '18px',
                       cursor: 'pointer',
                       transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                       boxShadow: isSelected
-                        ? '0 10px 25px rgba(5, 150, 105, 0.15), 0 0 0 1px #059669'
-                        : '0 2px 8px rgba(0,0,0,0.02)',
-                      transform: isSelected ? 'translateY(-3px)' : 'translateY(0)'
+                        ? '0 6px 18px rgba(5, 150, 105, 0.12)'
+                        : '0 1px 4px rgba(0,0,0,0.01)',
+                      transform: isSelected ? 'translateY(-2px)' : 'translateY(0)'
                     }}
                     onMouseEnter={e => {
                       if (!isSelected) {
                         e.currentTarget.style.borderColor = '#059669';
                         e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.1)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.08)';
                       }
                     }}
                     onMouseLeave={e => {
                       if (!isSelected) {
                         e.currentTarget.style.borderColor = '#e2e8f0';
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
+                        e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.01)';
                       }
                     }}
                   >
                     <div style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '50%',
-                      backgroundColor: isSelected ? '#ccfbf1' : '#f8fafc',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease'
+                      justifyContent: 'center'
                     }}>
-                      <IconComponent size={30} color="#059669" />
+                      <IconComponent size={52} color="#059669" />
                     </div>
 
-                    <div>
-                      <div style={{
-                        fontSize: '0.95rem',
-                        fontWeight: '800',
-                        color: isSelected ? '#065f46' : '#1e293b',
-                        letterSpacing: '-0.2px'
-                      }}>
-                        {prob.label}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px', fontWeight: '500' }}>
-                        {prob.sublabel}
-                      </div>
+                    <div style={{
+                      fontSize: '0.95rem',
+                      fontWeight: '700',
+                      color: isSelected ? '#065f46' : '#0f172a',
+                      letterSpacing: '-0.2px'
+                    }}>
+                      {problemLabel}
                     </div>
                   </button>
                 );
               })}
             </div>
+          </div>
 
-            {/* Custom Input bar at bottom */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (inputVal.trim()) {
-                  startConsultationChat(selectedCards, inputVal.trim());
-                }
-              }}
+          {/* Full-width Custom Input bar at bottom matching screenshot */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (inputVal.trim()) {
+                startConsultationChat(selectedCards, inputVal.trim());
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+              transition: 'border-color 0.2s ease'
+            }}
+          >
+            <input
+              type="text"
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              placeholder={c.symptomPlaceholder}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                border: '1.5px solid #cbd5e1',
-                borderRadius: '16px',
-                padding: '8px 14px',
-                backgroundColor: '#ffffff',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
-                transition: 'border-color 0.2s ease'
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '0.95rem',
+                color: '#0f172a',
+                padding: '0',
+                backgroundColor: 'transparent'
               }}
-            >
-              <input
-                type="text"
-                value={inputVal}
-                onChange={e => setInputVal(e.target.value)}
-                placeholder="Type your symptoms or details (optional)..."
-                style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  fontSize: '0.925rem',
-                  color: '#0f172a',
-                  padding: '8px 4px'
-                }}
-              />
+            />
 
-              {/* Voice Input Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Voice Mic Button */}
               <button
                 type="button"
-                onClick={() => {
-                  toggleListening();
-                }}
+                onClick={() => toggleListening()}
                 style={{
-                  backgroundColor: isListening ? '#fee2e2' : '#f1f5f9',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '12px',
-                  width: '38px',
-                  height: '38px',
+                  cursor: 'pointer',
+                  color: isListening ? '#ef4444' : '#94a3b8',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: isListening ? '#ef4444' : '#64748b',
-                  transition: 'all 0.2s ease'
+                  padding: '4px'
                 }}
-                title="Speak your symptoms"
+                title={c.speakSymptoms}
+                aria-label={c.speakSymptoms}
               >
-                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
               </button>
 
               {/* Send Button */}
@@ -548,358 +939,347 @@ export default function ClinicalAnamnesisChat({
                 type="submit"
                 disabled={!inputVal.trim() && selectedCards.length === 0}
                 style={{
-                  backgroundColor: (inputVal.trim() || selectedCards.length > 0) ? '#0c4e47' : '#94a3b8',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '12px',
-                  width: '42px',
-                  height: '42px',
+                  cursor: (inputVal.trim() || selectedCards.length > 0) ? 'pointer' : 'default',
+                  color: (inputVal.trim() || selectedCards.length > 0) ? '#059669' : '#cbd5e1',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: (inputVal.trim() || selectedCards.length > 0) ? 'pointer' : 'not-allowed',
-                  color: '#ffffff',
-                  boxShadow: (inputVal.trim() || selectedCards.length > 0) ? '0 4px 12px rgba(12, 78, 71, 0.25)' : 'none',
-                  transition: 'all 0.2s ease'
+                  padding: '4px',
+                  transition: 'color 0.2s ease'
                 }}
               >
-                <Send size={18} />
+                <Send size={22} color={inputVal.trim() ? '#059669' : '#10b981'} />
               </button>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       ) : (
-        /* ── INTERACTIVE AI ANAMNESIS CHAT VIEW ── */
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.8fr) minmax(280px, 1fr)', gap: '1.75rem', alignItems: 'start' }}>
-          
-          {/* Left Column: The Interactive Chat */}
+        /* ─────────────────────────────────────────────────────────────────
+           INTERACTIVE AI CHAT VIEW (MATCHING USER SCREENSHOT 2)
+           ───────────────────────────────────────────────────────────────── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Chat Container Card */}
           <div style={{
-            backgroundColor: '#f8fafc',
+            backgroundColor: '#ffffff',
             borderRadius: '20px',
-            border: '1px solid #e2e8f0',
+            border: '1px solid #eef2f6',
+            padding: '2.5rem 2.25rem 2rem 2.25rem',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+            minHeight: '480px',
             display: 'flex',
-            flexDirection: 'column',
-            height: '460px',
-            overflow: 'hidden',
-            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.02)'
+            flexDirection: 'column'
           }}>
-            {/* Chat Top Banner */}
-            <div style={{
-              padding: '12px 18px',
-              backgroundColor: '#ffffff',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: isAyurvedic ? '#fef3c7' : '#f0fdf9',
-                  color: isAyurvedic ? '#b45309' : '#0c4e47',
+            {/* Header reset button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatStarted(false);
+                  setMessages([]);
+                  setCurrentStepData(null);
+                }}
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  color: '#64748b',
+                  backgroundColor: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Bot size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.875rem', fontWeight: '800', color: '#0f172a' }}>
-                    Swasthya Setu Clinical Scribe
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: '700' }}>
-                    ● Interactive AI Anamnesis Active
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress pill */}
-              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b', backgroundColor: '#f1f5f9', padding: '4px 10px', borderRadius: '12px' }}>
-                Question {Math.min(activeStepIdx + 1, activeFlow.length)} of {activeFlow.length}
-              </div>
+                  gap: '6px'
+                }}
+              >
+                <RotateCcw size={13} />
+                <span>{c.change}</span>
+              </button>
             </div>
 
             {/* Chat Messages Feed */}
             <div style={{
-              flex: 1,
-              padding: '1.25rem 1.5rem',
-              overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1rem'
+              gap: '1.5rem',
+              flex: 1
             }}>
               {messages.map((m, idx) => {
                 const isAi = m.sender === 'ai';
 
+                if (isAi) {
+                  return (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+                      {/* Cute Green AI Robot Avatar */}
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        backgroundColor: '#e6f7ee',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        border: '1px solid #bbf7d0'
+                      }}>
+                        <Bot size={22} color="#059669" />
+                      </div>
+
+                      {/* AI Chat Bubble */}
+                      <div style={{
+                        backgroundColor: '#eaf7ee',
+                        color: '#1e293b',
+                        padding: '16px 22px',
+                        borderRadius: '18px',
+                        fontSize: '1.025rem',
+                        lineHeight: '1.5',
+                        maxWidth: '82%',
+                        whiteSpace: 'pre-line',
+                        fontWeight: '500'
+                      }}>
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // User Bubble (Light Soft Blue on the right)
                 return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isAi ? 'flex-start' : 'flex-end',
-                      animation: 'fadeIn 0.25s ease'
-                    }}
-                  >
-                    {/* Bubble */}
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: '14px' }}>
+                    {/* User Chat Bubble */}
                     <div style={{
-                      maxWidth: '85%',
-                      padding: '12px 16px',
-                      borderRadius: isAi ? '18px 18px 18px 4px' : '18px 18px 4px 18px',
-                      backgroundColor: isAi ? '#ffffff' : '#0c4e47',
-                      color: isAi ? '#0f172a' : '#ffffff',
-                      fontSize: '0.9rem',
-                      lineHeight: '1.45',
-                      boxShadow: isAi ? '0 2px 8px rgba(0,0,0,0.04)' : '0 4px 12px rgba(12, 78, 71, 0.2)',
-                      border: isAi ? '1px solid #e2e8f0' : 'none',
-                      whiteSpace: 'pre-line'
+                      backgroundColor: '#e0edff',
+                      color: '#1e293b',
+                      padding: '16px 22px',
+                      borderRadius: '18px',
+                      fontSize: '1.025rem',
+                      lineHeight: '1.5',
+                      maxWidth: '82%',
+                      fontWeight: '500'
                     }}>
                       {m.text}
                     </div>
 
-                    {/* Option Pills attached to this message */}
-                    {isAi && m.options && m.options.length > 0 && idx === messages.length - 1 && (
-                      <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '8px',
-                        marginTop: '10px',
-                        maxWidth: '95%'
-                      }}>
-                        {m.options.map((opt, oIdx) => (
-                          <button
-                            key={oIdx}
-                            onClick={() => {
-                              if (m.isFinal && opt.includes('Proceed')) {
-                                onNext?.();
-                              } else {
-                                handleUserResponse(opt);
-                              }
-                            }}
-                            style={{
-                              backgroundColor: '#ffffff',
-                              border: '1.5px solid #0c4e47',
-                              color: '#0c4e47',
-                              borderRadius: '18px',
-                              padding: '7px 14px',
-                              fontSize: '0.825rem',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              boxShadow: '0 2px 6px rgba(12, 78, 71, 0.08)',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.backgroundColor = '#0c4e47';
-                              e.currentTarget.style.color = '#ffffff';
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.backgroundColor = '#ffffff';
-                              e.currentTarget.style.color = '#0c4e47';
-                              e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                          >
-                            <span>{opt}</span>
-                            <ChevronRight size={13} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {/* Blue User Avatar */}
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      backgroundColor: '#3b82f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      color: '#ffffff'
+                    }}>
+                      <User size={20} />
+                    </div>
                   </div>
                 );
               })}
 
-              {/* Typing indicator */}
+              {/* Typing Indicator */}
               {isTyping && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#ffffff', borderRadius: '14px', width: 'fit-content', border: '1px solid #e2e8f0' }}>
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0c4e47', animation: 'pulse 1s infinite' }} />
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0c4e47', animation: 'pulse 1s infinite 0.2s' }} />
-                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0c4e47', animation: 'pulse 1s infinite 0.4s' }} />
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '4px', fontWeight: '600' }}>AI is thinking…</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    backgroundColor: '#e6f7ee',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    border: '1px solid #bbf7d0'
+                  }}>
+                    <Bot size={22} color="#059669" />
+                  </div>
+                  <div style={{
+                    backgroundColor: '#eaf7ee',
+                    padding: '14px 20px',
+                    borderRadius: '18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669', animation: 'pulse 1s infinite' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669', animation: 'pulse 1s infinite 0.2s' }} />
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669', animation: 'pulse 1s infinite 0.4s' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* ── 5 INTERACTIVE OPTION CARDS (SHOWN BELOW CURRENT AI QUESTION) ── */}
+              {!isTyping && currentStepData && currentStepData.step && currentStepData.step.options && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gap: '1.15rem',
+                  marginTop: '0.75rem'
+                }}>
+                  {currentStepData.step.options.map((opt, oIdx) => {
+                    const IconComp = opt.icon || TargetIcon;
+
+                    return (
+                      <button
+                        key={oIdx}
+                        type="button"
+                        data-voice-option
+                        aria-label={opt.text}
+                        onClick={() => handleUserChoice(opt.text)}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '16px',
+                          padding: '1.75rem 0.85rem 1.4rem 0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '14px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: '0 1px 4px rgba(0,0,0,0.02)'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.borderColor = '#059669';
+                          e.currentTarget.style.backgroundColor = '#f0fdf9';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(5, 150, 105, 0.1)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                          e.currentTarget.style.backgroundColor = '#ffffff';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.02)';
+                        }}
+                      >
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <IconComp size={44} color="#059669" />
+                        </div>
+
+                        <div style={{
+                          fontSize: '0.875rem',
+                          fontWeight: '700',
+                          color: '#1e293b',
+                          textAlign: 'center',
+                          lineHeight: '1.3'
+                        }}>
+                          {opt.text}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Proceed Action Pill when completed */}
+              {!isTyping && !currentStepData && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => onNext?.()}
+                    style={{
+                      background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '14px',
+                      padding: '14px 32px',
+                      fontSize: '1rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      boxShadow: '0 6px 20px rgba(12, 78, 71, 0.25)'
+                    }}
+                  >
+                    <span>{c.proceed}</span>
+                    <ArrowRight size={18} />
+                  </button>
                 </div>
               )}
 
               <div ref={chatBottomRef} />
             </div>
+          </div>
 
-            {/* Chat Bottom Input Bar */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (inputVal.trim()) {
-                  handleUserResponse(inputVal.trim());
-                }
-              }}
+          {/* Full-width Sleek Input bar at bottom matching screenshot */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (inputVal.trim()) {
+                handleUserChoice(inputVal.trim());
+              }
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              border: '1.5px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '14px 20px',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+            }}
+          >
+            <input
+              type="text"
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              placeholder={c.answerPlaceholder}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 14px',
-                backgroundColor: '#ffffff',
-                borderTop: '1px solid #e2e8f0'
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                fontSize: '0.95rem',
+                color: '#0f172a',
+                padding: '0',
+                backgroundColor: 'transparent'
               }}
-            >
-              <input
-                type="text"
-                value={inputVal}
-                onChange={e => setInputVal(e.target.value)}
-                placeholder="Type or speak additional details..."
-                style={{
-                  flex: 1,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '12px',
-                  padding: '9px 12px',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  color: '#0f172a'
-                }}
-              />
+            />
 
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
                 onClick={() => toggleListening()}
                 style={{
-                  backgroundColor: isListening ? '#fee2e2' : '#f1f5f9',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '10px',
-                  width: '36px',
-                  height: '36px',
+                  cursor: 'pointer',
+                  color: isListening ? '#ef4444' : '#94a3b8',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: isListening ? '#ef4444' : '#64748b'
+                  padding: '4px'
                 }}
+                title={c.speakAnswer}
+                aria-label={c.speakAnswer}
               >
-                {isListening ? <MicOff size={16} /> : <Mic size={16} />}
+                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
               </button>
 
               <button
                 type="submit"
                 disabled={!inputVal.trim()}
                 style={{
-                  backgroundColor: inputVal.trim() ? '#0c4e47' : '#cbd5e1',
+                  background: 'none',
                   border: 'none',
-                  borderRadius: '10px',
-                  width: '36px',
-                  height: '36px',
+                  cursor: inputVal.trim() ? 'pointer' : 'default',
+                  color: inputVal.trim() ? '#059669' : '#cbd5e1',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: inputVal.trim() ? 'pointer' : 'not-allowed',
-                  color: '#ffffff'
+                  padding: '4px'
                 }}
               >
-                <Send size={16} />
+                <Send size={22} color={inputVal.trim() ? '#059669' : '#cbd5e1'} />
               </button>
-            </form>
-          </div>
-
-          {/* Right Column: Live Clinical Case File Preview */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '20px',
-            border: '1.5px solid #e2e8f0',
-            padding: '1.5rem',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-              <Stethoscope size={18} color="#0c4e47" />
-              <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>
-                Live Doctor Case Brief
-              </h4>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.825rem' }}>
-              <div>
-                <span style={{ fontWeight: '700', color: '#64748b', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                  Chief Complaints:
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '4px' }}>
-                  {caseSummary.chiefComplaints.map((c, i) => (
-                    <span key={i} style={{ backgroundColor: '#f0fdf9', color: '#0c4e47', border: '1px solid #ccfbf1', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', fontSize: '0.75rem' }}>
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {caseSummary.duration && (
-                <div>
-                  <span style={{ fontWeight: '700', color: '#64748b', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                    Duration:
-                  </span>
-                  <div style={{ fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
-                    {caseSummary.duration}
-                  </div>
-                </div>
-              )}
-
-              {caseSummary.severity && (
-                <div>
-                  <span style={{ fontWeight: '700', color: '#64748b', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                    Severity:
-                  </span>
-                  <div style={{ fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
-                    {caseSummary.severity}
-                  </div>
-                </div>
-              )}
-
-              {isAyurvedic && caseSummary.ayushAgni && (
-                <div>
-                  <span style={{ fontWeight: '700', color: '#92400e', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                    Agni & Kostha Pariksha:
-                  </span>
-                  <div style={{ fontWeight: '700', color: '#78350f', marginTop: '2px' }}>
-                    {caseSummary.ayushAgni}
-                  </div>
-                </div>
-              )}
-
-              {isAyurvedic && caseSummary.ayushPrakriti && (
-                <div>
-                  <span style={{ fontWeight: '700', color: '#92400e', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                    Doshic Manifestation:
-                  </span>
-                  <div style={{ fontWeight: '700', color: '#78350f', marginTop: '2px' }}>
-                    {caseSummary.ayushPrakriti}
-                  </div>
-                </div>
-              )}
-
-              {caseSummary.medications && (
-                <div>
-                  <span style={{ fontWeight: '700', color: '#64748b', textTransform: 'uppercase', fontSize: '0.7rem' }}>
-                    Prior Meds / History:
-                  </span>
-                  <div style={{ fontWeight: '700', color: '#0f172a', marginTop: '2px' }}>
-                    {caseSummary.medications}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={{
-              marginTop: '1.25rem',
-              padding: '10px 12px',
-              borderRadius: '12px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.75rem',
-              color: '#64748b'
-            }}>
-              <ShieldCheck size={16} color="#059669" />
-              <span>Prepared for {doctor?.name} consultation</span>
-            </div>
-          </div>
+          </form>
         </div>
       )}
 
@@ -931,7 +1311,7 @@ export default function ClinicalAnamnesisChat({
           }}
         >
           <ArrowLeft size={16} />
-          <span>Previous: Select Time</span>
+          <span>{c.previous}</span>
         </button>
 
         <button
@@ -961,7 +1341,7 @@ export default function ClinicalAnamnesisChat({
             e.currentTarget.style.boxShadow = '0 4px 14px rgba(12, 78, 71, 0.25)';
           }}
         >
-          <span>Next: Upload Reports</span>
+          <span>{c.next}</span>
           <ArrowRight size={18} />
         </button>
       </div>

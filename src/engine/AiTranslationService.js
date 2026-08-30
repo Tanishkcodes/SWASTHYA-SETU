@@ -9,10 +9,12 @@ import voiceAIService from '../voicenav/VoiceAIService';
 
 class AiTranslationService {
   constructor() {
-    this.isAiAvailable = voiceAIService.available;
+    this.isAiAvailable = Boolean(import.meta.env.VITE_GEMINI_API_KEY);
     this._cache = new Map(); // Fast in-memory cache for instant reactive rendering
     this._pending = new Map();
     this.listeners = new Set();
+    this._batch = new Map();
+    this._batchTimeout = null;
   }
 
   subscribe(listener) {
@@ -47,8 +49,12 @@ class AiTranslationService {
     // Immediately trigger asynchronous background fetch
     this.fetchAiTranslation(cleanText, targetLang, contextType);
 
-    // Provide immediate phonetic fallback while AI resolves in background (typically ~100ms)
-    return this._phoneticFallback(cleanText, targetLang);
+    // Names benefit from phonetic rendering. General UI/clinical text must not
+    // be shown as meaningless letter-by-letter transliteration while the real
+    // translation is loading, so keep the source text until the server reply.
+    return contextType === 'name' || contextType === 'doctor'
+      ? this._phoneticFallback(cleanText, targetLang)
+      : cleanText;
   }
 
   async fetchAiTranslation(text, targetLang, contextType) {
@@ -59,35 +65,75 @@ class AiTranslationService {
 
     this._pending.set(cacheKey, true);
 
-    const langNames = {
-      hi: 'Hindi',
-      mr: 'Marathi',
-      gu: 'Gujarati',
-      ta: 'Tamil',
-      te: 'Telugu',
-      kn: 'Kannada',
-      bn: 'Bengali',
-      pa: 'Punjabi',
-      ml: 'Malayalam',
-      or: 'Odia',
-      en: 'English'
-    };
-    if (this.isAiAvailable) {
+    if (!this._batch.has(targetLang)) {
+      this._batch.set(targetLang, new Map());
+    }
+    this._batch.get(targetLang).set(text, contextType);
+
+    if (this._batchTimeout) clearTimeout(this._batchTimeout);
+    this._batchTimeout = setTimeout(() => this._processBatch(), 1000);
+  }
+
+  async _processBatch() {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) return;
+
+    const currentBatch = new Map(this._batch);
+    this._batch.clear();
+
+    for (const [targetLang, items] of currentBatch.entries()) {
+      const textsToTranslate = Array.from(items.keys());
+      if (textsToTranslate.length === 0) continue;
+
+      const langNames = { hi: 'Hindi', mr: 'Marathi', gu: 'Gujarati', ta: 'Tamil', te: 'Telugu', kn: 'Kannada', bn: 'Bengali', pa: 'Punjabi', ml: 'Malayalam', or: 'Odia', en: 'English' };
+      const langName = langNames[targetLang] || targetLang;
+
       try {
-        const response = await voiceAIService.translate(text, targetLang, contextType);
-        const result = response.text?.trim();
-        if (result) {
-          this._cache.set(cacheKey, result);
-          this._pending.delete(cacheKey);
-          this._notify();
-          return result;
+        const prompt = `Translate this JSON array of text into ${langName}. Keep formatting, variables, and punctuation intact. Only return the JSON array of translated strings.
+Input: ${JSON.stringify(textsToTranslate)}`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+          const translatedArray = JSON.parse(rawJson);
+
+          if (Array.isArray(translatedArray) && translatedArray.length === textsToTranslate.length) {
+            textsToTranslate.forEach((originalStr, index) => {
+              const translatedStr = translatedArray[index];
+              const contextType = items.get(originalStr);
+              const cacheKey = `${targetLang}_${contextType}_${originalStr.toLowerCase()}`;
+              this._cache.set(cacheKey, translatedStr);
+              this._pending.delete(cacheKey);
+            });
+            this._notify();
+          }
+        } else if (response.status === 429) {
+          console.warn("AiTranslationService hit rate limit. Retrying in 5s...");
+          if (!this._batch.has(targetLang)) this._batch.set(targetLang, new Map());
+          const batchLangMap = this._batch.get(targetLang);
+          textsToTranslate.forEach(str => batchLangMap.set(str, items.get(str)));
+          if (this._batchTimeout) clearTimeout(this._batchTimeout);
+          this._batchTimeout = setTimeout(() => this._processBatch(), 5000);
         }
-      } catch (geminiErr) {
-        console.warn('Gemini translation fallback error:', geminiErr);
+      } catch (err) {
+        console.warn('Gemini batch translation error:', err);
+      } finally {
+        textsToTranslate.forEach(originalStr => {
+          const cacheKey = `${targetLang}_${items.get(originalStr)}_${originalStr.toLowerCase()}`;
+          this._pending.delete(cacheKey);
+        });
       }
     }
-
-    this._pending.delete(cacheKey);
   }
 
   // Instant Indic Brahmic Phonetic Transliteration Fallback

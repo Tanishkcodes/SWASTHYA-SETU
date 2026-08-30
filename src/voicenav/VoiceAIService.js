@@ -21,10 +21,10 @@ class VoiceAIService {
     return this.available && Date.now() >= this.ttsDisabledUntil;
   }
 
-  async _request(payload, accept = 'application/json') {
+  async _request(payload, accept = 'application/json', timeoutMs = 5000) {
     if (!this.available) throw new Error('Voice service is not configured');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     let response;
     try {
       response = await fetch(this.baseUrl, {
@@ -83,6 +83,14 @@ class VoiceAIService {
 
   async translate(text, targetLanguage, contextType = 'general') {
     const response = await this._request({ action: 'translate', text, targetLanguage, contextType });
+    return response.json();
+  }
+
+  async anamnesis({ disease, history, latestInput, language, doctorSpecialty, isAyurvedic, questionNumber }) {
+    const response = await this._request({
+      action: 'anamnesis', disease, history, latestInput, language,
+      doctorSpecialty, isAyurvedic, questionNumber,
+    }, 'application/json', 15000);
     return response.json();
   }
 }

@@ -28,7 +28,7 @@ export default function CompletionPage() {
     registerPage('completion', {
       home: () => {
         // Just navigate to dashboard, don't reset session entirely so they can see their token!
-        navigate('/patient-dashboard');
+        navigate('/patient-dashboard', { replace: true });
       }
     });
 
@@ -37,7 +37,7 @@ export default function CompletionPage() {
 
   const handleFinish = () => {
     // Navigate to dashboard
-    navigate('/patient-dashboard');
+    navigate('/patient-dashboard', { replace: true });
   };
 
   return (

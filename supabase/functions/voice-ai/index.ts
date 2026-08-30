@@ -1,11 +1,7 @@
-// Setup type definitions for Supabase Edge Runtime / Deno
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-// @ts-ignore Fallback declaration for IDEs without Deno LSP
 declare const Deno: {
-  env: {
-    get(key: string): string | undefined;
-  };
+  env: { get(key: string): string | undefined };
   serve(handler: (request: Request) => Promise<Response> | Response): void;
 };
 
@@ -14,11 +10,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 });
+const parseModelJson = (body: any) => {
+  const raw = String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+  return JSON.parse(raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim());
+};
+
+async function generate(key: string, model: string, prompt: string, schema?: unknown, temperature = 0.05) {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: schema
+        ? { responseMimeType: 'application/json', responseJsonSchema: schema, temperature }
+        : { temperature },
+    }),
+  });
+  if (!response.ok) {
+    console.error('Gemini error', response.status, await response.text());
+    throw new Error(`AI request failed (${response.status})`);
+  }
+  return response.json();
+}
 
 Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -26,148 +42,102 @@ Deno.serve(async (request: Request) => {
 
   try {
     const payload = await request.json();
-    const geminiModel = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+    const action = String(payload.action || '');
 
-    if (payload.action === 'tts') {
+    if (action === 'tts') {
       const key = Deno.env.get('ELEVENLABS_API_KEY');
-      const defaultVoice = Deno.env.get('ELEVENLABS_VOICE_ID');
       if (!key) return json({ error: 'ElevenLabs is not configured on the server' }, 503);
       const text = String(payload.text || '').trim().slice(0, 5000);
       if (!text) return json({ error: 'Text is required' }, 400);
-      const voiceId = payload.voiceId || defaultVoice || 'EXAVITQu4vr4xnSDxMaL';
+      const voiceId = payload.voiceId || Deno.env.get('ELEVENLABS_VOICE_ID') || 'EXAVITQu4vr4xnSDxMaL';
       const requestedSpeed = Number(payload.speed);
       const speed = Number.isFinite(requestedSpeed) ? Math.min(1.1, Math.max(0.85, requestedSpeed)) : 0.98;
       const result = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'xi-api-key': key },
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: { stability: 0.55, similarity_boost: 0.80, style: 0.10, use_speaker_boost: true, speed },
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'xi-api-key': key },
+        body: JSON.stringify({ text, model_id: 'eleven_turbo_v2_5', voice_settings: {
+          stability: 0.50, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true, speed,
+        }}),
       });
       if (!result.ok) {
-        const detail = await result.text();
-        console.error('ElevenLabs error', result.status, detail);
+        console.error('ElevenLabs error', result.status, await result.text());
         return json({ error: result.status === 401 ? 'ElevenLabs credentials were rejected' : 'Speech quota or synthesis failed' }, result.status);
       }
-      return new Response(result.body, {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': result.headers.get('content-type') || 'audio/mpeg', 'Cache-Control': 'private, max-age=3600' },
-      });
+      return new Response(result.body, { status: 200, headers: {
+        ...corsHeaders, 'Content-Type': result.headers.get('content-type') || 'audio/mpeg', 'Cache-Control': 'private, max-age=3600',
+      }});
     }
 
-    if (payload.action === 'intent' || payload.action === 'extract_registration' || payload.action === 'translate') {
-      const key = Deno.env.get('GEMINI_API_KEY');
-      if (!key) return json({ error: 'Intent AI is not configured on the server' }, 503);
+    if (!['intent','extract_registration','translate','anamnesis'].includes(action)) return json({ error: 'Unknown action' }, 400);
+    const key = Deno.env.get('GEMINI_API_KEY');
+    if (!key) return json({ error: 'Gemini AI is not configured on the server' }, 503);
+    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.5-flash-lite';
 
-      if (payload.action === 'translate') {
-        const prompt = payload.contextType === 'name' || payload.contextType === 'doctor'
-          ? `Transliterate this name phonetically into language ${payload.targetLanguage}. Return only the name: ${JSON.stringify(String(payload.text || '').slice(0, 1000))}`
-          : `Translate this healthcare UI text naturally into language ${payload.targetLanguage}. Preserve medical meaning and return only the translation: ${JSON.stringify(String(payload.text || '').slice(0, 1000))}`;
-        const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.1 } }),
-        });
-        if (!result.ok) return json({ error: 'Translation failed' }, 502);
-        const body = await result.json();
-        return json({ text: String(body.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["'`]|["'`]$/g, '') });
-      }
+    if (action === 'translate') {
+      const text = String(payload.text || '').trim().slice(0, 1500);
+      if (!text) return json({ text: '' });
+      const prompt = payload.contextType === 'name' || payload.contextType === 'doctor'
+        ? `Transliterate this name phonetically into ${payload.targetLanguage}. Return only the name: ${JSON.stringify(text)}`
+        : `Translate this healthcare interface text naturally into ${payload.targetLanguage}. Preserve medical meaning, numbers and names. Return only the translation: ${JSON.stringify(text)}`;
+      const body = await generate(key, model, prompt, undefined, 0.1);
+      return json({ text: String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["'`]|["'`]$/g, '') });
+    }
 
-      if (payload.action === 'extract_registration') {
-        const schema = {
-          type: 'object',
-          properties: {
-            name: { type: 'string' },
-            age: { type: 'string' },
-            phone: { type: 'string' },
-            gender: { type: 'string', enum: ['', 'Male', 'Female', 'Other'] },
-          },
-          required: ['name', 'age', 'phone', 'gender'],
-          additionalProperties: false,
-        };
-        const prompt = `You are an intelligent clinical registration entity extraction engine for Indian healthcare kiosks.
-The user may speak in ANY Indian language (Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia), English, or code-mixed dialects (Hinglish/Tanglish/etc.), in ANY arbitrary word order, with conversational padding, spoken digits, or self-corrections (e.g., "age 30 no 35", "my name is Rajesh sorry Ramesh Kumar", "phone number 9876543210").
-
-Task: Extract patient registration fields accurately from the transcript:
-- name: The patient's clean personal name in Title Case (strip honorifics and phrases like 'mera naam', 'my name is', 'likhiye', 'myself'). If absent, return empty string.
-- age: Only numerical age digits (e.g., '32'). Respect self-corrections (e.g., '30 nahi 35' -> '35'). If absent, return empty string.
-- phone: 10-digit mobile number digits (e.g., '9876543210'). Convert any spoken number words into digits. If absent, return empty string.
-- gender: Exactly 'Male', 'Female', 'Other', or empty string if not mentioned (e.g., 'purush'/'aadmi'/'man' -> 'Male', 'mahila'/'aurat'/'woman' -> 'Female').
-
+    if (action === 'extract_registration') {
+      const schema = { type: 'object', properties: {
+        name: { type: 'string' }, age: { type: 'string' }, phone: { type: 'string' },
+        gender: { type: 'string', enum: ['', 'Male', 'Female', 'Other'] },
+      }, required: ['name','age','phone','gender'], additionalProperties: false };
+      const prompt = `Extract Indian patient registration data from speech in English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam or any code-mixed form. Fields may be in any order with filler words and self-corrections; the last correction wins.
+- name: clean patient name in Title Case, without honorifics or framing phrases; empty if absent.
+- age: digits only; empty if absent.
+- phone: exactly the spoken 10 mobile digits, converting number words; empty if absent.
+- gender: exactly Male, Female, Other, or empty.
 Transcript: ${JSON.stringify(String(payload.transcript || '').slice(0, 2000))}`;
-        const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, temperature: 0 },
-          }),
-        });
-        if (!result.ok) return json({ error: 'Registration extraction failed' }, 502);
-        const body = await result.json();
-        let extracted = {};
-        try {
-          const rawText = body.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-          const cleanText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-          extracted = JSON.parse(cleanText);
-        } catch (e) {
-          console.error('Error parsing registration JSON:', e);
-        }
-        return json(extracted);
-      }
+      return json(parseModelJson(await generate(key, model, prompt, schema, 0)));
+    }
 
-      const actions = Array.isArray(payload.actions) ? payload.actions.slice(0, 100) : [];
-      const routes = Array.isArray(payload.routes) ? payload.routes.slice(0, 50) : [];
-      const actionIntents = actions.map((a: any) => (typeof a === 'string' ? a : a?.intent || a?.id || '')).filter(Boolean);
-      const allowed: string[] = Array.from(new Set([...actionIntents, 'navigate', 'free_text', 'out_of_context']));
+    if (action === 'anamnesis') {
+      const schema = { type: 'object', properties: {
+        question: { type: 'string' },
+        options: { type: 'array', minItems: 5, maxItems: 5, items: { type: 'object', properties: {
+          text: { type: 'string' }, iconType: { type: 'string', enum: ['target','chest','back','shoulder','question','clock','flame','pill','moon','wind','thermometer','stomach','headache','cough','bodypain','leaf'] },
+        }, required: ['text','iconType'], additionalProperties: false }},
+        isFinished: { type: 'boolean' }, completionMessage: { type: 'string' },
+        caseSummaryUpdate: { type: 'object', properties: {
+          location: { type: 'string' }, nature: { type: 'string' }, severity: { type: 'string' },
+          duration: { type: 'string' }, triggers: { type: 'string' }, medications: { type: 'string' },
+        }, additionalProperties: false },
+      }, required: ['question','options','isFinished','completionMessage','caseSummaryUpdate'], additionalProperties: false };
+      const prompt = `You are a careful clinical intake assistant for an Indian healthcare kiosk. You collect history; you do not diagnose or promise treatment.
+Output language code: ${payload.language || 'en'}. Write the question, all five option texts and completionMessage naturally in that language. Understand code-mixed or out-of-order answers.
+Doctor specialty: ${payload.doctorSpecialty || 'General Medicine'}; care system: ${payload.isAyurvedic ? 'AYUSH/Ayurveda' : 'Allopathy'}.
+Chief complaint: ${JSON.stringify(payload.disease || 'General discomfort')}
+Question number: ${Number(payload.questionNumber || 1)}
+Conversation: ${JSON.stringify((payload.history || []).slice(-12))}
+Latest response: ${JSON.stringify(String(payload.latestInput || '').slice(0, 1500))}
+Ask the next single clinically useful, empathetic question without repeating information already given. Supply exactly five plain-language useful options. Set isFinished after 3-5 questions once location/nature, severity, duration and important associated symptoms or red flags are sufficiently covered. If there may be an emergency warning sign, completionMessage must advise immediate emergency care. Keep summary values concise and preserve previous information.`;
+      return json(parseModelJson(await generate(key, model, prompt, schema, 0.15)));
+    }
 
-      const prompt = `You control a healthcare kiosk. Understand the user's meaning even with accent, code-mixing, politeness, indirect phrasing, or grammatical errors.
-Language hint: ${payload.language || 'unknown'}; current page: ${payload.pageId || 'unknown'}; page expects an answer: ${Boolean(payload.expectsFreeText)}.
+    const actions = Array.isArray(payload.actions) ? payload.actions.slice(0, 100) : [];
+    const routes = Array.isArray(payload.routes) ? payload.routes.slice(0, 50) : [];
+    const actionIntents = actions.map((item: any) => typeof item === 'string' ? item : item?.intent || item?.id || '').filter(Boolean);
+    const allowed: string[] = Array.from(new Set([...actionIntents, 'navigate', 'free_text', 'out_of_context']));
+    const schema = { type: 'object', properties: {
+      intent: { type: 'string', enum: allowed }, confidence: { type: 'number', minimum: 0, maximum: 1 },
+      target: { type: 'string' }, value: { type: 'string' }, message: { type: 'string' },
+    }, required: ['intent','confidence','target','value','message'], additionalProperties: false };
+    const prompt = `Interpret a voice command for a healthcare website safely. Understand accents, indirect requests, arbitrary word order, and code-mixing across English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada and Malayalam.
+Language hint: ${payload.language || 'unknown'}; page: ${payload.pageId || 'unknown'}; page accepts a free answer: ${Boolean(payload.expectsFreeText)}.
 Available actions: ${JSON.stringify(actions)}
 Available destinations: ${JSON.stringify(routes)}
-User said: ${JSON.stringify(String(payload.transcript || '').slice(0, 2000))}
-Return one safe action. Never invent an action or destination. Use free_text for an answer to a page question. Use navigate with target equal to an available route id. Use out_of_context only when no available action reasonably matches. Reply message, if needed, must use the user's language.`;
-
-      const schema = {
-        type: 'object',
-        properties: {
-          intent: { type: 'string', enum: allowed },
-          confidence: { type: 'number', minimum: 0, maximum: 1 },
-          target: { type: 'string', description: 'Available route id, or empty string' },
-          value: { type: 'string', description: 'Optional extracted value, or empty string' },
-          message: { type: 'string', description: 'Localized clarification, or empty string' },
-        },
-        required: ['intent', 'confidence', 'target', 'message'],
-        additionalProperties: false,
-      };
-
-      const result = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', responseJsonSchema: schema, temperature: 0.05 },
-        }),
-      });
-      if (!result.ok) return json({ error: 'Intent understanding failed' }, 502);
-      const body = await result.json();
-      let parsed: any = {};
-      try {
-        const rawText = body.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const cleanText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-        parsed = JSON.parse(cleanText);
-      } catch (e) {
-        console.error('Error parsing intent JSON:', e);
-      }
-      if (!allowed.includes(parsed?.intent)) return json({ intent: 'out_of_context', confidence: 0, target: null, message: null });
-      return json(parsed);
-    }
-
-    return json({ error: 'Unknown action' }, 400);
+User speech: ${JSON.stringify(String(payload.transcript || '').slice(0, 2000))}
+Choose only an available action. For an answer to the current form/question, choose free_text. For navigation choose navigate and an available route id. Choose out_of_context only if no action reasonably matches. Any clarification message must be in the selected/user language.`;
+    const parsed = parseModelJson(await generate(key, model, prompt, schema, 0.05));
+    if (!allowed.includes(parsed?.intent)) return json({ intent: 'out_of_context', confidence: 0, target: '', value: '', message: '' });
+    return json(parsed);
   } catch (error) {
     console.error(error);
-    return json({ error: 'Voice service request failed' }, 500);
+    return json({ error: error instanceof Error ? error.message : 'Voice service request failed' }, 500);
   }
 });

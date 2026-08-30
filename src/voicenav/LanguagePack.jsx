@@ -6,6 +6,9 @@
 
 const LANGUAGES = {
   en: {
+
+
+
     code: 'en',
     name: 'English',
     nativeName: 'English',
@@ -14,6 +17,9 @@ const LANGUAGES = {
     script: 'Hello! Welcome',
   },
   hi: {
+
+
+
     code: 'hi',
     name: 'Hindi',
     nativeName: 'हिन्दी',
@@ -22,6 +28,9 @@ const LANGUAGES = {
     script: 'नमस्ते! स्वागत है',
   },
   ta: {
+
+
+
     code: 'ta',
     name: 'Tamil',
     nativeName: 'தமிழ்',
@@ -30,6 +39,9 @@ const LANGUAGES = {
     script: 'வணக்கம்! நல்வரவு',
   },
   te: {
+
+
+
     code: 'te',
     name: 'Telugu',
     nativeName: 'తెలుగు',
@@ -38,6 +50,9 @@ const LANGUAGES = {
     script: 'నమస్కారం! స్వాగతం',
   },
   bn: {
+
+
+
     code: 'bn',
     name: 'Bengali',
     nativeName: 'বাংলা',
@@ -46,6 +61,9 @@ const LANGUAGES = {
     script: 'নমস্কার! স্বাগতম',
   },
   mr: {
+
+
+
     code: 'mr',
     name: 'Marathi',
     nativeName: 'मराठी',
@@ -54,6 +72,9 @@ const LANGUAGES = {
     script: 'नमस्ते! स्वागत आहे',
   },
   gu: {
+
+
+
     code: 'gu',
     name: 'Gujarati',
     nativeName: 'ગુજરાતી',
@@ -62,6 +83,9 @@ const LANGUAGES = {
     script: 'નમસ્તે! સ્વાગત છે',
   },
   kn: {
+
+
+
     code: 'kn',
     name: 'Kannada',
     nativeName: 'ಕನ್ನಡ',
@@ -70,6 +94,9 @@ const LANGUAGES = {
     script: 'ನಮಸ್ಕಾರ! ಸುಸ್ವಾಗತ',
   },
   ml: {
+
+
+
     code: 'ml',
     name: 'Malayalam',
     nativeName: 'മലയാളം',
@@ -82,6 +109,7 @@ const LANGUAGES = {
 /* ── UI Translations ── */
 const UI_STRINGS = {
   en: {
+
     // Global
     appName: 'Swasthya Setu',
     tagline: 'Connecting Every Step of Care',
@@ -353,6 +381,7 @@ const UI_STRINGS = {
   },
 
   hi: {
+
     appName: 'स्वास्थ्य सेतु',
     tagline: 'देखभाल के हर कदम को जोड़ना',
     loading: 'लोड हो रहा है...',
@@ -554,7 +583,7 @@ const UI_STRINGS = {
     alerts: 'महत्वपूर्ण अलर्ट',
     completeness: 'पूर्णता',
 
-    completionTitle: 'सब हो गया!',
+    completionTitle: 'सभी चरण पूरे हैं!',
     completionSubtitle: 'आपका चिकित्सा इतिहास सफलतापूर्वक जमा हो गया है।',
     tokenNumber: 'आपका टोकन नंबर',
     doctorWillSee: 'आपके डॉक्टर अपनी स्क्रीन पर आपका पूरा इतिहास देखेंगे।',
@@ -606,6 +635,7 @@ const UI_STRINGS = {
   },
   // Simplified entries for other languages (core strings)
   ta: {
+
     "appName": "ஸ்வஸ்திய சேது",
     "tagline": "பராமரிப்பின் ஒவ்வொரு படியையும் இணைக்கிறது",
     "loading": "ஏற்றுகிறது...",
@@ -833,6 +863,7 @@ const UI_STRINGS = {
     "footerTagline": "AI-இயக்கப்படும் மருத்துவ வரலாறு சேகரிப்பு மூலம் சுகாதார அணுகலை மாற்றியமைத்தல். எழுத்தறிவு தேவையில்லை."
 },
   te: {
+
     "appName": "స్వాస్థ్య సేతు",
     "tagline": "వైద్య సంరక్షణ యొక్క ప్రతి అడుగునూ అనుసంధానిస్తోంది",
     "loading": "లోడ్ అవుతోంది...",
@@ -1066,6 +1097,7 @@ const UI_STRINGS = {
     "footerTagline": "AI-ఆధారిత క్లినికల్ హిస్టరీ సేకరణ ద్వారా ఆరోగ్య సంరక్షణ అందుబాటును మార్చడం. అక్షరాస్యత అవసరం లేదు."
 },
   bn: {
+
     "appName": "স্বাস্থ্য সেতু",
     "tagline": "চিকিৎসা সেবার প্রতিটি পদক্ষেপের সংযোগস্থল",
     "loading": "লোড হচ্ছে...",
@@ -1177,6 +1209,7 @@ const UI_STRINGS = {
     "howSevere": "এটি কতটা গুরুতর?",
     "whatMakesItWorse": "কিসে এটি আরও খারাপ হয়?",
   en: {
+
     welcomeLanding: 'Namaste! Welcome to Swasthya Setu. Tap the green button to start your health session, or say Start.',
     welcomePatientDashboard: 'Welcome to your patient health dashboard.',
     welcomeAuth: 'Please identify yourself. Enter your ABHA number, Aadhaar number, or register as a new patient. You can also speak your details.',
@@ -1192,6 +1225,7 @@ const UI_STRINGS = {
     sectionDone: 'Great! This section is complete. Moving to the next section.',
   },
   hi: {
+
     welcomeLanding: 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।',
     welcomePatientDashboard: 'स्वास्थ्य सेतु रोगी पोर्टल में आपका स्वागत है। यहां आप अपनी अपॉइंटमेंट देख सकते हैं।',
     welcomeAuth: 'कृपया अपनी पहचान बताएं। अपना ABHA नंबर, आधार नंबर दर्ज करें, या नए मरीज़ के रूप में पंजीकरण करें।',
@@ -1207,6 +1241,7 @@ const UI_STRINGS = {
     sectionDone: 'बहुत अच्छे! यह अनुभाग पूरा हुआ। अगले अनुभाग पर जा रहे हैं।',
   },
   ta: {
+
     welcomeLanding: 'வணக்கம்! ஸ்வஸ்திய சேதுவுக்கு உங்களை வரவேற்கிறோம்.',
     welcomePatientDashboard: 'உங்கள் நோயாளி சுகாதார மையத்திற்கு நல்வரவு.',
     welcomeAuth: 'தயவுசெய்து உங்கள் அடையாளத்தை உள்ளிடவும். உங்கள் ABHA எண், ஆதார் எண் உள்ளிடவும் அல்லது புதிய நோயாளியாக பதிவு செய்யவும்.',
@@ -1222,6 +1257,7 @@ const UI_STRINGS = {
     sectionDone: 'சிறப்பு! இந்த பகுதி முடிந்தது.',
   },
   te: {
+
     welcomeLanding: 'నమస్కారం! స్వాస్థ్య సేతుకి స్వాగతం.',
     welcomePatientDashboard: 'మీ పేషెంట్ హెల్త్ డ్యాష్‌బోర్డ్‌కు స్వాగతం.',
     welcomeAuth: 'దయచేసి మీ గుర్తింపును నమోదు చేయండి. ABHA లేదా ఆధార్ లేదా కొత్త రోగిగా నమోదు చేసుకోండి.',
@@ -1237,6 +1273,7 @@ const UI_STRINGS = {
     sectionDone: 'ఈ విభాగం పూర్తయింది.',
   },
   bn: {
+
     welcomeLanding: 'নমস্কার! স্বাস্থ্য সেতুতে আপনাকে স্বাগতম।',
     welcomePatientDashboard: 'আপনার পেশেন্ট হেলথ ড্যাশবোর্ডে আপনাকে স্বাগতম।',
     welcomeAuth: 'অনুগ্রহ করে আপনার পরিচয় দিন। ABHA বা আধার নম্বর দিন বা নতুন রোগী হিসেবে নিবন্ধন করুন।',
@@ -1252,6 +1289,7 @@ const UI_STRINGS = {
     sectionDone: 'এই বিভাগটি সম্পন্ন হয়েছে।',
   },
   mr: {
+
     welcomeLanding: 'नमस्ते! स्वास्थ्य सेतू मध्ये आपले स्वागत आहे.',
     welcomePatientDashboard: 'तुमच्या रुग्ण आरोग्य डॅशबोर्डवर आपले स्वागत आहे.',
     welcomeAuth: 'कृपया तुमची ओळख सांगा. ABHA किंवा आधार क्रमांक प्रविष्ट करा.',
@@ -1295,6 +1333,7 @@ const UI_STRINGS = {
     "footerTagline": "এআই-চালিত চিকিৎসার ইতিহাস সংগ্রহের মাধ্যমে স্বাস্থ্যসেবার সহজলভ্যতা পরিবর্তন করা হচ্ছে। সাক্ষরতার প্রয়োজন নেই।"
 },
   mr: {
+
     "appName": "स्वास्थ्य सेतु",
     "tagline": "आरोग्य सेवेचा प्रत्येक टप्पा जोडणारा",
     "loading": "लोड होत आहे...",
@@ -1526,8 +1565,10 @@ const UI_STRINGS = {
     "footerFeedbackPlaceholder": "तुमची प्रतिक्रिया...",
     "footerFeedbackSubmit": "प्रतिक्रिया सबमिट करा",
     "footerTagline": "AI-आधारित क्लिनिकल इतिहास नोंदीद्वारे आरोग्यसेवेची सुलभता बदलणे. साक्षरतेची अजिबात गरज नाही."
-},
+}
+,
   gu: {
+
     "appName": "સ્વાસ્થ્ય સેતુ",
     "tagline": "સંભાળના દરેક પગલાને જોડતું",
     "loading": "લોડ થઈ રહ્યું છે...",
@@ -1761,6 +1802,7 @@ const UI_STRINGS = {
     "footerTagline": "AI-સંચાલિત ક્લિનિકલ હિસ્ટ્રી લેવા દ્વારા આરોગ્યસંભાળની સુલભતામાં પરિવર્તન. કોઈ સાક્ષરતાની જરૂર નથી."
 },
   kn: {
+
     "appName": "ಸ್ವಾಸ್ಥ್ಯ ಸೇತು",
     "tagline": "ಆರೋಗ್ಯ ರಕ್ಷಣೆಯ ಪ್ರತಿಯೊಂದು ಹಂತವನ್ನೂ ಜೋಡಿಸುತ್ತಿದೆ",
     "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ...",
@@ -1994,6 +2036,7 @@ const UI_STRINGS = {
     "footerTagline": "AI-ಚಾಲಿತ ಕ್ಲಿನಿಕಲ್ ಇತಿಹಾಸ ಸಂಗ್ರಹಣೆಯ ಮೂಲಕ ಆರೋಗ್ಯ ರಕ್ಷಣೆಯ ಲಭ್ಯತೆಯನ್ನು ಬದಲಾಯಿಸುವುದು. ಅಕ್ಷರಸ್ಥರಾಗಿರಬೇಕಾದ ಅಗತ್ಯವಿಲ್ಲ."
 },
   ml: {
+
     "appName": "സ്വാസ്ഥ്യ സേതു",
     "tagline": "ആരോഗ്യ സംരക്ഷണത്തിന്റെ ഓരോ ഘട്ടത്തെയും ബന്ധിപ്പിക്കുന്നു",
     "loading": "ലോഡ് ചെയ്യുന്നു...",
@@ -2340,6 +2383,14 @@ const VOICE_COMMANDS = {
 /* ── Audio Prompt Scripts ── */
 const AUDIO_PROMPTS = {
   en: {
+
+    welcomeAppointments: 'Welcome to your Patient Dashboard. Here you can book new hospital appointments.',
+    welcomeHistory: 'Here is your appointment history and past doctor visits.',
+    welcomeReports: 'Here are your uploaded medical reports and AI-extracted summaries.',
+    welcomeDonations: 'Support underprivileged emergency patients and rural clinics across India.',
+    welcomeCommunities: 'Connect with peer groups and share wellness routines.',
+    welcomeHelp: 'Get support through our National Health Helpline and FAQ.',
+
     welcomeLanding: 'Namaste! Welcome to Swasthya Setu. Tap the green button to start your health session, or say Start.',
     welcomePatientDashboard: 'Welcome to your patient health dashboard.',
     welcomeAuth: 'Please identify yourself. Enter your ABHA number, Aadhaar number, or register as a new patient. You can also speak your details.',
@@ -2355,6 +2406,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'Great! This section is complete. Moving to the next section.',
   },
   hi: {
+
+    welcomeAppointments: 'आपके रोगी डैशबोर्ड में आपका स्वागत है। यहाँ आप नए अस्पताल अपॉइंटमेंट बुक कर सकते हैं।',
+    welcomeHistory: 'यह आपका अपॉइंटमेंट इतिहास और पिछली डॉक्टर यात्राओं का विवरण है।',
+    welcomeReports: 'यहाँ आपकी अपलोड की गई मेडिकल रिपोर्ट और एआई सारांश उपलब्ध हैं।',
+    welcomeDonations: 'भारत भर में आपातकालीन रोगियों और ग्रामीण क्लीनिकों का समर्थन करें।',
+    welcomeCommunities: 'सहकर्मी समूहों से जुड़ें और अपनी स्वास्थ्य दिनचर्या साझा करें।',
+    welcomeHelp: 'हमारे राष्ट्रीय स्वास्थ्य हेल्पलाइन और सामान्य प्रश्नों के माध्यम से सहायता प्राप्त करें।',
+
     welcomeLanding: 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।',
     welcomePatientDashboard: 'स्वास्थ्य सेतु रोगी पोर्टल में आपका स्वागत है। यहां आप अपनी अपॉइंटमेंट देख सकते हैं।',
     welcomeAuth: 'कृपया अपनी पहचान बताएं। अपना ABHA नंबर, आधार नंबर दर्ज करें, या नए मरीज़ के रूप में पंजीकरण करें। आप अपनी जानकारी बोलकर भी दे सकते हैं।',
@@ -2370,6 +2429,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'बहुत अच्छे! यह अनुभाग पूरा हुआ। अगले अनुभाग पर जा रहे हैं।',
   },
   ta: {
+
+    welcomeAppointments: 'உங்கள் நோயாளி டாஷ்போர்டுக்கு வரவேற்கிறோம். இங்கே நீங்கள் புதிய மருத்துவமனை சந்திப்புகளை முன்பதிவு செய்யலாம்.',
+    welcomeHistory: 'உங்கள் சந்திப்பு வரலாறு மற்றும் கடந்த கால மருத்துவர் வருகைகள் இங்கே உள்ளன.',
+    welcomeReports: 'உங்கள் பதிவேற்றப்பட்ட மருத்துவ அறிக்கைகள் மற்றும் AI சுருக்கங்கள் இங்கே உள்ளன.',
+    welcomeDonations: 'இந்தியா முழுவதும் உள்ள அவசர நோயாளிகள் மற்றும் கிராமப்புற கிளினிக்குகளை ஆதரிக்கவும்.',
+    welcomeCommunities: 'குழுக்களுடன் இணைந்து உங்கள் ஆரோக்கிய நடைமுறைகளைப் பகிரவும்.',
+    welcomeHelp: 'எங்கள் தேசிய சுகாதார உதவி எண் மற்றும் FAQ மூலம் ஆதரவைப் பெறுங்கள்.',
+
     welcomeLanding: 'வணக்கம்! ஸ்வஸ்திய சேதுவுக்கு உங்களை வரவேற்கிறோம்.',
     welcomePatientDashboard: 'உங்கள் நோயாளி சுகாதார மையத்திற்கு நல்வரவு.',
     welcomeAuth: 'தயவுசெய்து உங்கள் அடையாளத்தை உள்ளிடவும். உங்கள் ABHA எண், ஆதார் எண் உள்ளிடவும் அல்லது புதிய நோயாளியாக பதிவு செய்யவும்.',
@@ -2385,6 +2452,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'சிறப்பு! இந்த பகுதி முடிந்தது.',
   },
   te: {
+
+    welcomeAppointments: 'మీ పేషెంట్ డాష్‌బోర్డ్‌కు స్వాగతం. ఇక్కడ మీరు కొత్త ఆసుపత్రి అపాయింట్‌మెంట్‌లను బుక్ చేసుకోవచ్చు.',
+    welcomeHistory: 'మీ అపాయింట్‌మెంట్ చరిత్ర మరియు గత డాక్టర్ సందర్శనల వివరాలు ఇక్కడ ఉన్నాయి.',
+    welcomeReports: 'మీ అప్‌లోడ్ చేసిన వైద్య నివేదికలు మరియు AI సారాంశాలు ఇక్కడ ఉన్నాయి.',
+    welcomeDonations: 'భారతదేశం అంతటా అత్యవసర రోగులు మరియు గ్రామీణ క్లినిక్‌లకు మద్దతు ఇవ్వండి.',
+    welcomeCommunities: 'సమూహాలతో కనెక్ట్ అవ్వండి మరియు ఆరోగ్య దినచర్యలను పంచుకోండి.',
+    welcomeHelp: 'మా జాతీయ ఆరోగ్య హెల్ప్‌లైన్ మరియు తరచుగా అడిగే ప్రశ్నల ద్వారా మద్దతు పొందండి.',
+
     welcomeLanding: 'నమస్కారం! స్వాస్థ్య సేతుకి స్వాగతం.',
     welcomePatientDashboard: 'మీ పేషెంట్ హెల్త్ డ్యాష్‌బోర్డ్‌కు స్వాగతం.',
     welcomeAuth: 'దయచేసి మీ గుర్తింపును నమోదు చేయండి. ABHA లేదా ఆధార్ లేదా కొత్త రోగిగా నమోదు చేసుకోండి. మీరు మీ వివరాలను మాట్లాడవచ్చు.',
@@ -2400,6 +2475,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'ఈ విభాగం పూర్తయింది.',
   },
   bn: {
+
+    welcomeAppointments: 'আপনার পেশেন্ট ড্যাশবোর্ডে স্বাগতম। এখানে আপনি নতুন হাসপাতালের অ্যাপয়েন্টমেন্ট বুক করতে পারবেন।',
+    welcomeHistory: 'এখানে আপনার অ্যাপয়েন্টমেন্টের ইতিহাস এবং অতীতের ডাক্তার পরিদর্শনের বিবরণ রয়েছে।',
+    welcomeReports: 'এখানে আপনার আপলোড করা মেডিকেল রিপোর্ট এবং এআই সারাংশ রয়েছে।',
+    welcomeDonations: 'সারা ভারতে জরুরি রোগী এবং গ্রামীণ ক্লিনিকগুলোকে সহায়তা করুন।',
+    welcomeCommunities: 'সম্প্রদায়ের সাথে যুক্ত হোন এবং আপনার স্বাস্থ্যের রুটিন শেয়ার করুন।',
+    welcomeHelp: 'আমাদের জাতীয় স্বাস্থ্য হেল্পলাইন এবং সাধারণ প্রশ্নাবলীর মাধ্যমে সহায়তা পান।',
+
     welcomeLanding: 'নমস্কার! স্বাস্থ্য সেতুতে আপনাকে স্বাগতম।',
     welcomePatientDashboard: 'আপনার পেশেন্ট হেলথ ড্যাশবোর্ডে আপনাকে স্বাগতম।',
     welcomeAuth: 'অনুগ্রহ করে আপনার পরিচয় দিন। ABHA বা আধার নম্বর দিন বা নতুন রোগী হিসেবে নিবন্ধন করুন। আপনি আপনার বিবরণ বলতে পারেন।',
@@ -2415,6 +2498,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'এই বিভাগটি সম্পন্ন হয়েছে।',
   },
   mr: {
+
+    welcomeAppointments: 'तुमच्या पेशंट डॅशबोर्डवर स्वागत आहे. येथे तुम्ही नवीन हॉस्पिटल अपॉइंटमेंट बुक करू शकता.',
+    welcomeHistory: 'येथे तुमचा अपॉइंटमेंट इतिहास आणि मागील डॉक्टरांच्या भेटींचा तपशील आहे.',
+    welcomeReports: 'येथे तुमचे अपलोड केलेले वैद्यकीय अहवाल आणि AI सारांश आहेत.',
+    welcomeDonations: 'भारतभरातील आपत्कालीन रुग्ण आणि ग्रामीण क्लिनिकला समर्थन द्या.',
+    welcomeCommunities: 'समुदायांशी कनेक्ट व्हा आणि तुमच्या आरोग्याच्या दिनचर्या शेअर करा.',
+    welcomeHelp: 'आमच्या राष्ट्रीय आरोग्य हेल्पलाइन आणि FAQ द्वारे समर्थन मिळवा.',
+
     welcomeLanding: 'नमस्ते! स्वास्थ्य सेतू मध्ये आपले स्वागत आहे.',
     welcomePatientDashboard: 'तुमच्या रुग्ण आरोग्य डॅशबोर्डवर आपले स्वागत आहे.',
     welcomeAuth: 'कृपया तुमची ओळख सांगा. ABHA किंवा आधार क्रमांक प्रविष्ट करा किंवा नवीन रुग्ण म्हणून नोंदणी करा. तुम्ही बोलू शकता.',
@@ -2430,6 +2521,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'हा विभाग पूर्ण झाला.',
   },
   gu: {
+
+    welcomeAppointments: 'તમારા પેશન્ટ ડેશબોર્ડમાં સ્વાગત છે. અહીં તમે નવી હોસ્પિટલ એપોઇન્ટમેન્ટ બુક કરી શકો છો.',
+    welcomeHistory: 'અહીં તમારો એપોઇન્ટમેન્ટ ઇતિહાસ અને અગાઉની ડૉક્ટર મુલાકાતોની વિગતો છે.',
+    welcomeReports: 'અહીં તમારા અપલોડ કરેલા મેડિકલ રિપોર્ટ અને AI સારાંશ છે.',
+    welcomeDonations: 'સમગ્ર ભારતમાં ઇમરજન્સી દર્દીઓ અને ગ્રામીણ ક્લિનિક્સને સમર્થન આપો.',
+    welcomeCommunities: 'સમુદાયો સાથે જોડાઓ અને તમારી આરોગ્ય દિનચર્યા શેર કરો.',
+    welcomeHelp: 'અમારી રાષ્ટ્રીય આરોગ્ય હેલ્પલાઇન અને FAQ દ્વારા સમર્થન મેળવો.',
+
     welcomeLanding: 'નમસ્તે! સ્વાસ્થ્ય સેતુમાં આપનું સ્વાગત છે.',
     welcomePatientDashboard: 'તમારા દર્દી આરોગ્ય ડેશબોર્ડ પર આપનું સ્વાગત છે.',
     welcomeAuth: 'કૃપા કરીને તમારી ઓળખ આપો. તમારો ABHA નંબર, આધાર નંબર દાખલ કરો, અથવા નવા દર્દી તરીકે નોંધણી કરો. તમે તમારી વિગતો બોલી પણ શકો છો.',
@@ -2445,6 +2544,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'સરસ! આ વિભાગ પૂર્ણ થયો છે.',
   },
   kn: {
+
+    welcomeAppointments: 'ನಿಮ್ಮ ರೋಗಿಯ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಸ್ವಾಗತ. ಇಲ್ಲಿ ನೀವು ಹೊಸ ಆಸ್ಪತ್ರೆ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್‌ಗಳನ್ನು ಬುಕ್ ಮಾಡಬಹುದು.',
+    welcomeHistory: 'ನಿಮ್ಮ ಅಪಾಯಿಂಟ್‌ಮೆಂಟ್ ಇತಿಹಾಸ ಮತ್ತು ಹಿಂದಿನ ವೈದ್ಯರ ಭೇಟಿಗಳ ವಿವರಗಳು ಇಲ್ಲಿವೆ.',
+    welcomeReports: 'ನಿಮ್ಮ ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ವೈದ್ಯಕೀಯ ವರದಿಗಳು ಮತ್ತು AI ಸಾರಾಂಶಗಳು ಇಲ್ಲಿವೆ.',
+    welcomeDonations: 'ಭಾರತದಾದ್ಯಂತ ತುರ್ತು ರೋಗಿಗಳು ಮತ್ತು ಗ್ರಾಮೀಣ ಚಿಕಿತ್ಸಾಲಯಗಳನ್ನು ಬೆಂಬಲಿಸಿ.',
+    welcomeCommunities: 'ಸಮುದಾಯಗಳೊಂದಿಗೆ ಸಂಪರ್ಕ ಸಾಧಿಸಿ ಮತ್ತು ನಿಮ್ಮ ಆರೋಗ್ಯ ದಿನಚರಿಗಳನ್ನು ಹಂಚಿಕೊಳ್ಳಿ.',
+    welcomeHelp: 'ನಮ್ಮ ರಾಷ್ಟ್ರೀಯ ಆರೋಗ್ಯ ಸಹಾಯವಾಣಿ ಮತ್ತು FAQ ಮೂಲಕ ಬೆಂಬಲ ಪಡೆಯಿರಿ.',
+
     welcomeLanding: 'ನಮಸ್ಕಾರ! ಸ್ವಾಸ್ಥ್ಯ ಸೇತುಗೆ ಸುಸ್ವಾಗತ.',
     welcomePatientDashboard: 'ನಿಮ್ಮ ರೋಗಿ ಆರೋಗ್ಯ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್‌ಗೆ ಸುಸ್ವಾಗತ.',
     welcomeAuth: 'ದಯವಿಟ್ಟು ನಿಮ್ಮ ಗುರುತನ್ನು ದೃಢೀಕರಿಸಿ. ನಿಮ್ಮ ABHA ಸಂಖ್ಯೆ, ಆಧಾರ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ, ಅಥವಾ ಹೊಸ ರೋಗಿಯಾಗಿ ನೋಂದಾಯಿಸಿ. ನೀವು ನಿಮ್ಮ ವಿವರಗಳನ್ನು ಮಾತನಾಡಬಹುದು.',
@@ -2460,6 +2567,14 @@ const AUDIO_PROMPTS = {
     sectionDone: 'ಉತ್ತಮ! ಈ ವಿಭಾಗ ಪೂರ್ಣಗೊಂಡಿದೆ.',
   },
   ml: {
+
+    welcomeAppointments: 'നിങ്ങളുടെ പേഷ്യന്റ് ഡാഷ്‌ബോർഡിലേക്ക് സ്വാഗതം. നിങ്ങൾക്ക് പുതിയ ആശുപത്രി അപ്പോയിന്റ്‌മെന്റുകൾ ബുക്ക് ചെയ്യാം.',
+    welcomeHistory: 'നിങ്ങളുടെ അപ്പോയിന്റ്മെന്റ് ചരിത്രവും കഴിഞ്ഞ ഡോക്ടർ സന്ദർശനങ്ങളും ഇവിടെയുണ്ട്.',
+    welcomeReports: 'നിങ്ങൾ അപ്‌ലോഡ് ചെയ്ത മെഡിക്കൽ റിപ്പോർട്ടുകളും AI സംഗ്രഹങ്ങളും ഇവിടെയുണ്ട്.',
+    welcomeDonations: 'ഇന്ത്യയിലുടനീളമുള്ള അടിയന്തര രോഗികളെയും ഗ്രാമീണ ക്ലിനിക്കുകളെയും പിന്തുണയ്ക്കുക.',
+    welcomeCommunities: 'കൂട്ടായ്മകളുമായി ബന്ധിപ്പിക്കുകയും നിങ്ങളുടെ ആരോഗ്യ ദിനചര്യകൾ പങ്കിടുകയും ചെയ്യുക.',
+    welcomeHelp: 'ഞങ്ങളുടെ ദേശീയ ആരോഗ്യ ഹെൽപ്പ് ലൈൻ, FAQ എന്നിവയിലൂടെ പിന്തുണ നേടുക.',
+
     welcomeLanding: 'നമസ്കാരം! സ്വാസ്ഥ്യ സേതുവിലേക്ക് സ്വാഗതം.',
     welcomePatientDashboard: 'നിങ്ങളുടെ രോഗി ആരോഗ്യ ഡാഷ്‌ബോർഡിലേക്ക് സ്വാഗതം.',
     welcomeAuth: 'ദയവായി നിങ്ങളുടെ വ്യക്തിത്വം സ്ഥിരീകരിക്കുക. നിങ്ങളുടെ ABHA നമ്പർ, ആധാർ നമ്പർ നൽകുക, അല്ലെങ്കിൽ പുതിയ രോഗിയായി രജിസ്റ്റർ ചെയ്യുക. നിങ്ങൾക്ക് വിവരങ്ങൾ സംസാരിക്കാം.',

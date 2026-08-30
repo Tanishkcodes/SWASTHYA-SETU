@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { useLanguage } from '../context/LanguageContext';
 import { db } from '../lib/db';
+import AdminDonationRequests from '../components/AdminDonationRequests';
 import { 
   Users, Activity, Settings, TrendingUp, Shield, LogOut, Plus, 
-  CheckCircle, AlertCircle, Cpu, Download, Globe, Clock, Sparkles
+  CheckCircle, AlertCircle, Cpu, Download, Globe, Clock, Sparkles, HeartHandshake
 } from 'lucide-react';
 import '../styles/physician.css';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { logout } = useSession();
+  const { logout, session } = useSession();
   const { t } = useLanguage();
 
   const [activeTab, setActiveTab] = useState('overview');
@@ -90,7 +91,7 @@ export default function AdminDashboard() {
         </div>
         
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button 
+          <button
             onClick={() => setActiveTab('overview')}
             style={{
               display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px',
@@ -115,6 +116,18 @@ export default function AdminDashboard() {
           </button>
 
           <button 
+            onClick={() => setActiveTab('donations')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px',
+              border: 'none', cursor: 'pointer', textAlign: 'left', fontWeight: '700', fontSize: '0.9rem',
+              background: activeTab === 'donations' ? 'var(--teal-600)' : 'transparent',
+              color: activeTab === 'donations' ? 'white' : 'var(--gray-400)'
+            }}
+          >
+            <HeartHandshake size={18} /> Donation Requests
+          </button>
+
+          <button
             onClick={() => setActiveTab('analytics')}
             style={{
               display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', borderRadius: '12px',
@@ -281,6 +294,10 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+        )}
+
+        {activeTab === 'donations' && (
+          <AdminDonationRequests staffId={session.staff?.id} />
         )}
 
         {/* TAB 3: AI TRIAGE ANALYTICS */}
