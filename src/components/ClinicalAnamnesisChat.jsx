@@ -250,8 +250,19 @@ export default function ClinicalAnamnesisChat({
     severity: '',
     nature: '',
     triggers: '',
-    ayushAgni: '',
-    ayushPrakriti: '',
+    associatedSymptoms: '',
+    redFlags: '',
+    // ── Complete Classical Dashavidha Pariksha (दशविध परीक्षा) ──
+    prakriti: '',       // 1. Doshic Constitution
+    vikriti: '',        // 2. Pathological Imbalance
+    sara: '',           // 3. Tissue / Dhatu Excellence
+    samhanana: '',      // 4. Body Compactness & Symmetry
+    pramana: '',        // 5. Anthropometric Proportions
+    satmya: '',         // 6. Habituation & Diet Compatibility
+    satva: '',          // 7. Mental Fortitude & Sleep (Nidra)
+    aharaShakti: '',    // 8. Food Intake Capacity & Agni
+    vyayamaShakti: '',  // 9. Physical Capacity & Energy
+    vaya: '',           // 10. Age Stage & Chronological Status
     medications: '',
     notes: safeNotes
   });
@@ -280,17 +291,35 @@ export default function ClinicalAnamnesisChat({
   const syncToParent = (updatedSummary) => {
     const s = updatedSummary || caseSummary;
     const complaints = Array.isArray(s.chiefComplaints) ? s.chiefComplaints : [];
-    const formattedNotes = [
+    
+    // Formatting Doctor Case Sheet (Ayurvedic Dashavidha vs Allopathic SOCRATES)
+    const formattedNotes = isAyurvedic ? [
+      complaints.length ? `• मुख्य लक्षण (Chief Complaints): ${complaints.join(', ')}` : '',
+      s.vikriti ? `• १. विकृति (Current Imbalance): ${s.vikriti}` : '',
+      s.prakriti ? `• २. प्रकृति (Natural Doshic Type): ${s.prakriti}` : '',
+      s.aharaShakti ? `• ३. आहार शक्ति एवं अग्नि (Intake & Agni): ${s.aharaShakti}` : '',
+      s.satva ? `• ४. सत्त्व एवं मानस (Mental Strength & Sleep): ${s.satva}` : '',
+      s.vyayamaShakti ? `• ५. व्यायाम शक्ति एवं बल (Physical Capacity): ${s.vyayamaShakti}` : '',
+      s.sara ? `• ६. धातु सार (Tissue Excellence): ${s.sara}` : '',
+      s.samhanana ? `• ७. संहनन (Body Compactness): ${s.samhanana}` : '',
+      s.satmya ? `• ८. सात्म्य एवं देश (Dietary Habituation): ${s.satmya}` : '',
+      s.pramana ? `• ९. प्रमाण (Body Proportions): ${s.pramana}` : '',
+      s.vaya ? `• १०. वय (Age Stage): ${s.vaya}` : '',
+      s.location ? `• स्थान (Location): ${s.location}` : '',
+      s.duration ? `• काल (Duration): ${s.duration}` : '',
+      s.medications ? `• पूर्व औषधि (Prior Medications): ${s.medications}` : '',
+      s.notes ? `• रोगी कथन (Patient Notes): ${s.notes}` : ''
+    ].filter(Boolean).join('\n') : [
       complaints.length ? `• Chief Complaints: ${complaints.join(', ')}` : '',
       s.location ? `• Location / Site: ${s.location}` : '',
       s.spread ? `• Radiation / Spread: ${s.spread}` : '',
-      s.duration ? `• Duration: ${s.duration}` : '',
+      s.duration ? `• Duration / Onset: ${s.duration}` : '',
       s.severity ? `• Severity: ${s.severity}` : '',
-      s.nature ? `• Nature: ${s.nature}` : '',
-      s.triggers ? `• Triggers: ${s.triggers}` : '',
-      isAyurvedic && s.ayushAgni ? `• Ayurvedic Agni/Kostha: ${s.ayushAgni}` : '',
-      isAyurvedic && s.ayushPrakriti ? `• Doshic Manifestation: ${s.ayushPrakriti}` : '',
-      s.medications ? `• Prior Medication/History: ${s.medications}` : '',
+      s.nature ? `• Nature / Character: ${s.nature}` : '',
+      s.triggers ? `• Exacerbating / Relieving Factors: ${s.triggers}` : '',
+      s.associatedSymptoms ? `• Associated Symptoms: ${s.associatedSymptoms}` : '',
+      s.redFlags ? `• Red Flags / Warning Signs: ${s.redFlags}` : '',
+      s.medications ? `• Prior Medication / History: ${s.medications}` : '',
       s.notes ? `• Patient Statement: ${s.notes}` : ''
     ].filter(Boolean).join('\n');
 
@@ -300,217 +329,375 @@ export default function ClinicalAnamnesisChat({
     });
   };
 
-  // ── CLINICAL DECISION FLOWS WITH 5 CARDS EACH ──
-
+  // ── COMPREHENSIVE CLINICAL DECISION FLOWS (SOCRATES METHODOLOGY) ──
   const CLINICAL_FLOWS = {
-    // 1. Stomach Pain (Matches screenshot)
+    // 1. Stomach & GI Pain
     stomach: [
       {
-        question: "I understand. You are having stomach pain.\nWhere exactly does it hurt?",
+        question: "I understand. You are experiencing stomach / abdominal discomfort.\nWhere exactly is the pain located?",
         field: 'location',
         options: [
-          { text: "In the upper part of my stomach", icon: TargetIcon },
-          { text: "Lower right side (appendix)", icon: StomachIcon },
-          { text: "Around my belly button", icon: TargetIcon },
-          { text: "Lower abdomen / pelvic area", icon: StomachIcon },
-          { text: "All over my entire stomach", icon: QuestionPersonIcon }
+          { text: "Upper abdomen / epigastric (near ribs)", icon: TargetIcon },
+          { text: "Lower right abdomen (appendix area)", icon: StomachIcon },
+          { text: "Around the navel / belly button", icon: TargetIcon },
+          { text: "Lower pelvic / lower belly region", icon: StomachIcon },
+          { text: "Diffuse / all across the entire stomach", icon: QuestionPersonIcon }
         ]
       },
       {
-        question: "Where does the pain spread?",
+        question: "Does the pain radiate or spread to any other area?",
         field: 'spread',
         options: [
-          { text: "It stays in one place", icon: TargetIcon },
-          { text: "To my chest", icon: ChestRadiateIcon },
-          { text: "To my back", icon: BackSpineIcon },
-          { text: "To my shoulder", icon: ShoulderJointIcon },
-          { text: "I am not sure", icon: QuestionPersonIcon }
+          { text: "Stays localized in one spot", icon: TargetIcon },
+          { text: "Radiates upwards into chest / throat", icon: ChestRadiateIcon },
+          { text: "Radiates through to my lower/mid back", icon: BackSpineIcon },
+          { text: "Radiates to right shoulder / shoulder blade", icon: ShoulderJointIcon },
+          { text: "Spreads down into groin or thighs", icon: BodyPainIcon }
         ]
       },
       {
-        question: "How would you describe the feeling of pain?",
+        question: "How would you describe the character of the pain?",
         field: 'nature',
         options: [
-          { text: "Burning / Acidity sensation", icon: FlameIcon },
-          { text: "Sharp / Cramping spasms", icon: StomachIcon },
-          { text: "Heavy bloating & full feeling", icon: WindIcon },
-          { text: "Constant dull ache", icon: ClockIcon },
-          { text: "Sudden sharp throbbing", icon: ChestRadiateIcon }
+          { text: "Burning sensation with sour acid reflux", icon: FlameIcon },
+          { text: "Colicky / sharp intermittent cramping", icon: StomachIcon },
+          { text: "Heavy bloating, gas & distension", icon: WindIcon },
+          { text: "Constant persistent dull ache", icon: ClockIcon },
+          { text: "Sudden sharp piercing / stabbing pain", icon: ChestRadiateIcon }
         ]
       },
       {
-        question: "When does it feel worse or happen mostly?",
+        question: "What triggers or worsens the discomfort?",
         field: 'triggers',
         options: [
-          { text: "After eating food", icon: FlameIcon },
-          { text: "On an empty stomach", icon: ClockIcon },
-          { text: "While walking or moving", icon: ShoulderJointIcon },
-          { text: "Late at night while sleeping", icon: MoonIcon },
-          { text: "Continuous throughout the day", icon: TargetIcon }
+          { text: "Worse right after eating heavy/spicy meals", icon: FlameIcon },
+          { text: "Worse when fasting / on an empty stomach", icon: ClockIcon },
+          { text: "Worse with physical exertion or bending", icon: ShoulderJointIcon },
+          { text: "Worse late at night while lying flat", icon: MoonIcon },
+          { text: "Constant with nausea or vomiting", icon: StomachIcon }
         ]
       }
     ],
 
-    // 2. Fever
+    // 2. Chest Pain & Cardiac Discomfort
+    chestpain: [
+      {
+        question: "I see you have chest discomfort. This is important.\nWhat does the chest sensation feel like?",
+        field: 'nature',
+        options: [
+          { text: "Heavy pressure, crushing or tight squeezing", icon: ChestRadiateIcon },
+          { text: "Sharp stabbing pain when taking deep breaths", icon: FlameIcon },
+          { text: "Burning sensation in center of chest (acidity)", icon: FlameIcon },
+          { text: "Rapid pounding / fluttering heartbeat", icon: TargetIcon },
+          { text: "Mild dull tightness across chest", icon: ClockIcon }
+        ]
+      },
+      {
+        question: "Does this pain spread anywhere else?",
+        field: 'spread',
+        options: [
+          { text: "Radiates to left arm, shoulder or hand", icon: ShoulderJointIcon },
+          { text: "Radiates to jaw, neck or throat", icon: ChestRadiateIcon },
+          { text: "Radiates between the shoulder blades / back", icon: BackSpineIcon },
+          { text: "Radiates downward into upper stomach", icon: StomachIcon },
+          { text: "Remains strictly confined to one spot", icon: TargetIcon }
+        ]
+      },
+      {
+        question: "When does it occur or feel most intense?",
+        field: 'triggers',
+        options: [
+          { text: "During walking, climbing stairs or exertion", icon: ShoulderJointIcon },
+          { text: "During emotional stress or anxiety", icon: MoonIcon },
+          { text: "Right after meals or when lying down", icon: FlameIcon },
+          { text: "When pressing on chest wall / changing posture", icon: TargetIcon },
+          { text: "Happens suddenly even while resting in bed", icon: ClockIcon }
+        ]
+      },
+      {
+        question: "Are you having any of these associated symptoms?",
+        field: 'associatedSymptoms',
+        options: [
+          { text: "Cold sweats, dizziness or lightheadedness", icon: MoonIcon },
+          { text: "Shortness of breath / difficulty breathing", icon: WindIcon },
+          { text: "Nausea, vomiting or extreme weakness", icon: StomachIcon },
+          { text: "Cough with throat tickle", icon: CoughIcon },
+          { text: "No other symptoms present", icon: TargetIcon }
+        ]
+      }
+    ],
+
+    // 3. Fever & Systemic Infections
     fever: [
       {
-        question: "I understand you have a fever.\nHow many days have you had the fever?",
+        question: "I understand you have a fever.\nHow many days has the fever lasted?",
         field: 'duration',
         options: [
-          { text: "Just started today (<24 hrs)", icon: ClockIcon },
+          { text: "Just started today (<24 hours)", icon: ClockIcon },
           { text: "2 to 3 days", icon: ClockIcon },
-          { text: "About 1 week", icon: ClockIcon },
+          { text: "4 to 7 days (about 1 week)", icon: ClockIcon },
           { text: "More than 10 days", icon: ClockIcon },
-          { text: "Comes and goes on & off", icon: FlameIcon }
+          { text: "Intermittent / comes and goes every few hours", icon: FlameIcon }
         ]
       },
       {
-        question: "How high does the fever feel, and do you feel chills?",
+        question: "How high does the fever feel, and do you have chills?",
         field: 'severity',
         options: [
-          { text: "Mild warmth (around 99°F)", icon: ThermometerIcon },
-          { text: "Moderate fever (100°-102°F)", icon: ThermometerIcon },
-          { text: "High fever (>102°F) with shivering", icon: FlameIcon },
-          { text: "Sweating and chills at night", icon: MoonIcon },
-          { text: "Have not measured temperature", icon: QuestionPersonIcon }
+          { text: "Mild warmth (around 99°F - 100°F)", icon: ThermometerIcon },
+          { text: "Moderate fever (100°F - 102°F)", icon: ThermometerIcon },
+          { text: "High fever (>102°F) with shivering & teeth chattering", icon: FlameIcon },
+          { text: "Profuse sweating and night chills", icon: MoonIcon },
+          { text: "Have not checked with thermometer", icon: QuestionPersonIcon }
         ]
       },
       {
-        question: "Do you have any other symptoms accompanying the fever?",
+        question: "Which of these accompanying symptoms are you experiencing?",
         field: 'nature',
         options: [
-          { text: "Severe body ache & weakness", icon: BodyPainIcon },
-          { text: "Headache & eye socket pain", icon: HeadacheIcon },
-          { text: "Cold, cough & sore throat", icon: CoughIcon },
-          { text: "Nausea or vomiting", icon: StomachIcon },
-          { text: "No other symptoms", icon: TargetIcon }
+          { text: "Severe retro-orbital eye pain & body aches", icon: HeadacheIcon },
+          { text: "Dry cough, sore throat & runny nose", icon: CoughIcon },
+          { text: "Nausea, vomiting or loose motions", icon: StomachIcon },
+          { text: "Skin rash, red spots or bleeding gums", icon: FlameIcon },
+          { text: "Extreme weakness and loss of appetite", icon: BodyPainIcon }
         ]
       },
       {
-        question: "Have you taken any medicines or home remedies?",
+        question: "Have you taken any medication or undergone tests?",
         field: 'medications',
         options: [
-          { text: "Taken Paracetamol / Dolo", icon: PillIcon },
-          { text: "Taken Ayurvedic Kadha / Tulsi", icon: Leaf },
-          { text: "Taken antibiotics", icon: PillIcon },
-          { text: "Cold water compress only", icon: ThermometerIcon },
-          { text: "No medicines taken yet", icon: QuestionPersonIcon }
+          { text: "Took Paracetamol (Dolo/Crocin) with temporary relief", icon: PillIcon },
+          { text: "Took Ayurvedic Kadha / herbal remedies", icon: Leaf },
+          { text: "Took antibiotics prescribed earlier", icon: PillIcon },
+          { text: "Done CBC / Dengue / Malaria blood tests", icon: TargetIcon },
+          { text: "No medications taken yet", icon: QuestionPersonIcon }
         ]
       }
     ],
 
-    // 3. Headache
+    // 4. Headache, Migraine & Neurological
     headache: [
       {
-        question: "I see you are suffering from a headache.\nWhere is the pain centered?",
+        question: "I see you are suffering from a headache.\nWhere is the pain predominantly centered?",
         field: 'location',
         options: [
-          { text: "One side only (Left or Right)", icon: HeadacheIcon },
-          { text: "Forehead and temples", icon: TargetIcon },
-          { text: "Back of head and neck", icon: BackSpineIcon },
-          { text: "Top of my head", icon: TargetIcon },
-          { text: "All over my head", icon: QuestionPersonIcon }
+          { text: "One side only (Left or Right hemicranial)", icon: HeadacheIcon },
+          { text: "Forehead and temples bilaterally", icon: TargetIcon },
+          { text: "Back of head (occiput) and upper neck", icon: BackSpineIcon },
+          { text: "Deep behind the eyes / sinus bridge", icon: TargetIcon },
+          { text: "Tight squeezing band around entire head", icon: QuestionPersonIcon }
         ]
       },
       {
-        question: "How does the headache feel?",
+        question: "How would you describe the sensation of this headache?",
         field: 'nature',
         options: [
-          { text: "Throbbing / Pulsating heartbeat", icon: ChestRadiateIcon },
-          { text: "Tight band squeezing forehead", icon: TargetIcon },
-          { text: "Sharp shooting stabbing pain", icon: FlameIcon },
-          { text: "Heavy dull continuous pressure", icon: ClockIcon },
-          { text: "Lightheadedness & dizziness", icon: QuestionPersonIcon }
+          { text: "Throbbing / pulsating rhythmic heartbeat", icon: ChestRadiateIcon },
+          { text: "Constant heavy dull pressing pressure", icon: ClockIcon },
+          { text: "Sharp shooting electric / stabbing shocks", icon: FlameIcon },
+          { text: "Head heaviness with dizziness & spinning vertigo", icon: WindIcon },
+          { text: "Sudden explosive 'thunderclap' severe pain", icon: FlameIcon }
         ]
       },
       {
-        question: "Does light, sound or screen exposure make it worse?",
+        question: "What triggers or worsens the headache?",
         field: 'triggers',
         options: [
-          { text: "Yes, sensitive to light & sound", icon: FlameIcon },
-          { text: "Worse after mobile / computer screen", icon: ClockIcon },
-          { text: "Worse due to stress / lack of sleep", icon: MoonIcon },
-          { text: "Worse when skipping meals / acidity", icon: StomachIcon },
-          { text: "No specific trigger noticed", icon: QuestionPersonIcon }
+          { text: "Bright sunlight, loud noise or screen glare", icon: FlameIcon },
+          { text: "Lack of sleep, stress or mental fatigue", icon: MoonIcon },
+          { text: "Skipping meals / gas & acidity in stomach", icon: StomachIcon },
+          { text: "Neck bending, prolonged computer posture", icon: BackSpineIcon },
+          { text: "No clear trigger identified", icon: QuestionPersonIcon }
         ]
       }
     ],
 
-    // 4. Cough / Cold
+    // 5. Cough, Cold & Respiratory (Pulmonology)
     cough: [
       {
-        question: "I understand you have cough & cold.\nWhat type of cough are you experiencing?",
+        question: "I understand you have cough & respiratory symptoms.\nWhat type of cough are you experiencing?",
         field: 'nature',
         options: [
-          { text: "Dry irritating cough", icon: CoughIcon },
-          { text: "Wet cough with mucus / phlegm", icon: CoughIcon },
-          { text: "Blocked / runny nose & sneezing", icon: WindIcon },
-          { text: "Severe sore throat & irritation", icon: FlameIcon },
-          { text: "Chest congestion with whistling", icon: ChestRadiateIcon }
+          { text: "Dry hacking ticklish cough (no phlegm)", icon: CoughIcon },
+          { text: "Productive wet cough with yellow/green phlegm", icon: CoughIcon },
+          { text: "Chest congestion with wheezing / whistling sound", icon: WindIcon },
+          { text: "Severe throat pain, burning & difficulty swallowing", icon: FlameIcon },
+          { text: "Nasal blockage, sneezing & watery discharge", icon: WindIcon }
         ]
       },
       {
-        question: "How many days has this been going on?",
+        question: "How many days has this cough been persisting?",
         field: 'duration',
         options: [
-          { text: "Started today (<24 hours)", icon: ClockIcon },
-          { text: "2 to 3 days", icon: ClockIcon },
-          { text: "About 1 week", icon: ClockIcon },
-          { text: "More than 2 weeks", icon: ClockIcon },
-          { text: "Recurring frequent problem", icon: QuestionPersonIcon }
+          { text: "Started recently (1 to 3 days)", icon: ClockIcon },
+          { text: "About 1 to 2 weeks", icon: ClockIcon },
+          { text: "Chronic cough for over 3 to 4 weeks", icon: ClockIcon },
+          { text: "Worse specifically at night when sleeping", icon: MoonIcon },
+          { text: "Seasonal recurrent allergic episodes", icon: Leaf }
         ]
       },
       {
-        question: "Are you feeling any breathing tightness?",
+        question: "How is your breathing effort and stamina?",
         field: 'severity',
         options: [
-          { text: "Normal comfortable breathing", icon: TargetIcon },
-          { text: "Mild tightness when coughing", icon: ChestRadiateIcon },
-          { text: "Shortness of breath on walking", icon: FlameIcon },
-          { text: "Wheezing whistling chest sound", icon: WindIcon },
-          { text: "Breathing is fine", icon: TargetIcon }
+          { text: "Breathing is comfortable and unlabored", icon: TargetIcon },
+          { text: "Mild breathlessness when climbing stairs/walking", icon: ChestRadiateIcon },
+          { text: "Breathlessness even while resting or talking", icon: FlameIcon },
+          { text: "Chest tightness with whistling asthma sound", icon: WindIcon },
+          { text: "Occasional cough-induced chest soreness", icon: TargetIcon }
         ]
       }
     ],
 
-    // 5. Body Pain
+    // 6. Joint Pain, Spine & Orthopedics
     bodypain: [
       {
-        question: "I see you are having body pain.\nWhere is the pain located mostly?",
+        question: "I see you are suffering from body or musculoskeletal pain.\nWhich specific area is most affected?",
         field: 'location',
         options: [
-          { text: "Joints (Knees, Wrists, Ankles)", icon: BodyPainIcon },
-          { text: "Lower back & spine", icon: BackSpineIcon },
-          { text: "Neck & shoulder muscles", icon: ShoulderJointIcon },
-          { text: "Legs and calf muscles", icon: BodyPainIcon },
-          { text: "Whole body tiredness & fatigue", icon: QuestionPersonIcon }
+          { text: "Knee joints (single or both knees)", icon: BodyPainIcon },
+          { text: "Lower back (lumbar spine) & hips", icon: BackSpineIcon },
+          { text: "Neck (cervical spine) & upper shoulders", icon: ShoulderJointIcon },
+          { text: "Small hand/wrist/ankle joints", icon: BodyPainIcon },
+          { text: "Generalized muscle soreness & body exhaustion", icon: QuestionPersonIcon }
         ]
       },
       {
-        question: "How does the pain feel?",
-        field: 'nature',
-        options: [
-          { text: "Morning stiffness in joints", icon: ClockIcon },
-          { text: "Continuous dull muscular ache", icon: BodyPainIcon },
-          { text: "Sudden sharp sprain / pull", icon: FlameIcon },
-          { text: "Burning or tingling sensation", icon: ChestRadiateIcon },
-          { text: "Heavy physical exhaustion", icon: MoonIcon }
-        ]
-      },
-      {
-        question: "How does movement affect your pain?",
+        question: "How does movement and posture affect the pain?",
         field: 'triggers',
         options: [
-          { text: "Worse when moving or walking", icon: ShoulderJointIcon },
-          { text: "Better after light walking", icon: TargetIcon },
-          { text: "Pain even while resting in bed", icon: MoonIcon },
-          { text: "Worse after sitting long hours", icon: ClockIcon },
-          { text: "Same throughout the day", icon: TargetIcon }
+          { text: "Severe morning stiffness lasting >30 mins", icon: ClockIcon },
+          { text: "Worse with weight bearing, walking & standing", icon: ShoulderJointIcon },
+          { text: "Worse after prolonged sitting at desk / vehicle", icon: BackSpineIcon },
+          { text: "Pain even at rest and disturbs night sleep", icon: MoonIcon },
+          { text: "Relieved after gentle warm-up movements", icon: TargetIcon }
+        ]
+      },
+      {
+        question: "Are you noticing any of these joint or muscle signs?",
+        field: 'nature',
+        options: [
+          { text: "Visible joint swelling, warmth or redness", icon: FlameIcon },
+          { text: "Crepitus (clicking/grinding sound on movement)", icon: ClockIcon },
+          { text: "Numbness, tingling or electric sensation down leg/arm", icon: ChestRadiateIcon },
+          { text: "Muscle spasms, tightness & knotting", icon: BodyPainIcon },
+          { text: "No swelling, only deep aching pain", icon: TargetIcon }
         ]
       }
     ],
 
-    // 6. Classical Ayurvedic Dashavidha Pariksha Flow
+    // 7. Dermatology & Skin Issues
+    skin: [
+      {
+        question: "I see you have skin or dermatological issues.\nWhat type of skin change are you noticing?",
+        field: 'nature',
+        options: [
+          { text: "Red itchy rash / hives / allergic patches", icon: FlameIcon },
+          { text: "Dry, flaky, scaling or peeling skin", icon: Leaf },
+          { text: "Pimples, cystic acne or boils with pus", icon: TargetIcon },
+          { text: "Ring-shaped fungal rash with intense itching", icon: WindIcon },
+          { text: "Darkening, hyperpigmentation or discoloration", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Where on the body is the skin issue located?",
+        field: 'location',
+        options: [
+          { text: "Face, forehead, cheeks or neck", icon: TargetIcon },
+          { text: "Arms, hands, wrists or underarms", icon: ShoulderJointIcon },
+          { text: "Legs, feet, groin or skin folds", icon: BodyPainIcon },
+          { text: "Back, chest or abdomen area", icon: BackSpineIcon },
+          { text: "Widespread all over the body", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "How long has it been present and is it spreading?",
+        field: 'duration',
+        options: [
+          { text: "Sudden onset in last 24 to 48 hours", icon: ClockIcon },
+          { text: "Present for 1 to 2 weeks and slowly spreading", icon: FlameIcon },
+          { text: "Chronic recurring problem for months", icon: MoonIcon },
+          { text: "Triggered after specific food, soap or medicine", icon: PillIcon },
+          { text: "Triggered by sweat, heat or moisture", icon: WindIcon }
+        ]
+      }
+    ],
+
+    // 8. ENT (Ear, Nose, Throat) & Sinus
+    ent: [
+      {
+        question: "I see you have an ear, nose or throat concern.\nWhat is the primary symptom?",
+        field: 'nature',
+        options: [
+          { text: "Earache / sharp stabbing pain in ear", icon: FlameIcon },
+          { text: "Ear discharge, blockage or hearing muffling", icon: WindIcon },
+          { text: "Severe sore throat & difficulty swallowing food", icon: CoughIcon },
+          { text: "Facial sinus pressure & forehead heaviness", icon: HeadacheIcon },
+          { text: "Hoarseness / loss of voice / throat irritation", icon: TargetIcon }
+        ]
+      },
+      {
+        question: "How many days has this issue been going on?",
+        field: 'duration',
+        options: [
+          { text: "1 to 2 days (acute onset)", icon: ClockIcon },
+          { text: "About 4 to 7 days", icon: ClockIcon },
+          { text: "More than 2 weeks", icon: ClockIcon },
+          { text: "Recurring with cold weather changes", icon: WindIcon },
+          { text: "Frequent chronic problem", icon: MoonIcon }
+        ]
+      },
+      {
+        question: "Do you have any associated fever or dizziness?",
+        field: 'associatedSymptoms',
+        options: [
+          { text: "Fever and body chills", icon: ThermometerIcon },
+          { text: "Ringing in ear (tinnitus) or room spinning vertigo", icon: WindIcon },
+          { text: "Swollen tender neck lymph glands", icon: TargetIcon },
+          { text: "Yellow/green nasal phlegm", icon: CoughIcon },
+          { text: "No other symptoms", icon: TargetIcon }
+        ]
+      }
+    ],
+
+    // 9. Kidney, Urology & Urinary Symptoms
+    urinary: [
+      {
+        question: "I see you have urinary or kidney-related symptoms.\nWhat are you experiencing primarily?",
+        field: 'nature',
+        options: [
+          { text: "Burning sensation / pain during urination", icon: FlameIcon },
+          { text: "Severe sharp flank / side back pain (kidney stone)", icon: BackSpineIcon },
+          { text: "Urgent & very frequent need to pass urine", icon: ClockIcon },
+          { text: "Dark / reddish tinted or cloudy urine", icon: TargetIcon },
+          { text: "Difficulty passing urine / weak interrupted flow", icon: QuestionPersonIcon }
+        ]
+      },
+      {
+        question: "Does the pain radiate anywhere?",
+        field: 'spread',
+        options: [
+          { text: "Radiates from back flank down towards groin", icon: BodyPainIcon },
+          { text: "Centered in lower bladder / pubic area", icon: StomachIcon },
+          { text: "Confined strictly to mid-back", icon: BackSpineIcon },
+          { text: "Burning only at the tip while voiding", icon: FlameIcon },
+          { text: "No pain, only frequency & urgency changes", icon: TargetIcon }
+        ]
+      },
+      {
+        question: "Do you have any fever or vomiting accompanying this?",
+        field: 'associatedSymptoms',
+        options: [
+          { text: "Fever with shivering & chills (possible infection)", icon: ThermometerIcon },
+          { text: "Nausea, vomiting & severe restlessness", icon: StomachIcon },
+          { text: "Feeling of incomplete bladder emptying", icon: ClockIcon },
+          { text: "Low fluid / water intake in hot climate", icon: WindIcon },
+          { text: "History of kidney stones in the past", icon: PillIcon }
+        ]
+      }
+    ],
+
+    // 10. Classical Ayurvedic Dashavidha Pariksha Flow
     ayurveda: [
       {
         question: "🙏 Pranam! [आहारशक्ति & अग्नि] How is your food intake and digestive power (Aharashakti & Agni)?",
@@ -570,13 +757,34 @@ export default function ClinicalAnamnesisChat({
     ]
   };
 
+  // ── INTELLIGENT DISEASE ROUTER ──
+  const resolveClinicalFlowKey = (diseaseName) => {
+    const raw = String(diseaseName || '').toLowerCase().trim();
+    if (isAyurvedic) return 'ayurveda';
+    if (/(chest|heart|angina|palpitation|coronary|cardio|धड़कन|सीने)/i.test(raw)) return 'chestpain';
+    if (/(stomach|abdomen|belly|digest|liver|gas|acidity|vomit|diarrhea|loose|constipat|अपच|पेट)/i.test(raw)) return 'stomach';
+    if (/(fever|temp|chills|shiver|malaria|dengue|typhoid|बुखार|ताप)/i.test(raw)) return 'fever';
+    if (/(head|migraine|dizzy|vertigo|neuro|चक्कर|सिर)/i.test(raw)) return 'headache';
+    if (/(cough|cold|throat|asthma|breath|phlegm|sputum|bronch|खांसी|कफ|दमा)/i.test(raw)) return 'cough';
+    if (/(skin|rash|itch|allergy|fungal|pimple|acne|eczema|खुजली|दाद|त्वचा)/i.test(raw)) return 'skin';
+    if (/(ear|nose|sinus|ent|tonsil|voice|कान|नाक|गला)/i.test(raw)) return 'ent';
+    if (/(urine|urinary|kidney|stone|bladder|burning urine|पेशाब|गुर्दे)/i.test(raw)) return 'urinary';
+    if (/(joint|knee|back|spine|bone|muscle|shoulder|neck|ortho|घुटने|कमर|जोड़)/i.test(raw)) return 'bodypain';
+    return 'stomach';
+  };
+
   // ── DYNAMIC AI QUESTION & OPTION GENERATOR (GEMINI + CLINICAL GRAPH) ──
   const fetchNextAiStep = async (disease, history, latestInput) => {
     try {
       const parsed = await voiceAIService.anamnesis({
-        disease, history, latestInput, language,
+        disease,
+        history,
+        latestInput,
+        language,
+        doctorName: doctor?.name || 'Attending Physician',
         doctorSpecialty: doctor?.specialty || doctor?.speciality || 'General Medicine',
-        isAyurvedic, questionNumber: history.filter(item => item.sender === 'user').length,
+        isAyurvedic,
+        questionNumber: history.filter(item => item.sender === 'user').length,
       });
       if (parsed?.question && Array.isArray(parsed.options) && parsed.options.length === 5) {
         return {
@@ -588,7 +796,7 @@ export default function ClinicalAnamnesisChat({
         };
       }
     } catch (err) {
-      console.warn('Protected clinical AI unavailable; using local clinical flow.', err);
+      console.warn('Protected clinical AI dynamic query error; switching to smart clinical graph.', err);
     }
     return null;
   };
@@ -626,16 +834,9 @@ export default function ClinicalAnamnesisChat({
       Object.values(CHAT_COPY).some(copy => String(copy[problem.id] || '').toLowerCase() === primaryLower)
     )?.id;
 
-    // Fallback flow if AI is temporarily unreachable
-    let flowKey = 'stomach';
-    if (localizedProblemId) flowKey = localizedProblemId;
-    else if (primaryLower.includes('fever') || primaryLower.includes('बुखार') || primaryLower.includes('temp')) flowKey = 'fever';
-    else if (primaryLower.includes('head') || primaryLower.includes('सिरदर्द') || primaryLower.includes('migraine')) flowKey = 'headache';
-    else if (primaryLower.includes('cough') || primaryLower.includes('cold') || primaryLower.includes('खांसी') || primaryLower.includes('throat')) flowKey = 'cough';
-    else if (primaryLower.includes('body') || primaryLower.includes('joint') || primaryLower.includes('back') || primaryLower.includes('दर्द') || primaryLower.includes('bone')) flowKey = 'bodypain';
-    else if (isAyurvedic) flowKey = 'ayurveda';
-
-    const chosenFlow = isAyurvedic ? CLINICAL_FLOWS.ayurveda : (CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach);
+    // Intelligent multi-specialty clinical flow
+    const flowKey = localizedProblemId || resolveClinicalFlowKey(diseaseName);
+    const chosenFlow = CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach;
     const fallbackStep = chosenFlow[0];
 
     const updatedSummary = {

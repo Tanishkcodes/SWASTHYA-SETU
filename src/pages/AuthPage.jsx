@@ -83,6 +83,19 @@ export default function AuthPage() {
     audioFeedback.stop();
   }, []);
 
+  // If user is already authenticated with the matching role, redirect to their dashboard
+  useEffect(() => {
+    if (session?.isAuthenticated && session?.userRole === role) {
+      if (role === 'doctor') {
+        navigate('/physician', { replace: true });
+      } else if (role === 'admin') {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (role === 'patient') {
+        navigate('/patient-dashboard', { replace: true });
+      }
+    }
+  }, [session?.isAuthenticated, session?.userRole, role, navigate]);
+
   // Store latest action in ref
   const handleNextRef = useRef();
 
@@ -174,17 +187,35 @@ export default function AuthPage() {
     if (staff?.role === 'doctor' && role === 'doctor') {
       setStaff(staff);
       setAuth(true, 'doctor');
-      navigate('/physician');
+      navigate('/physician', { replace: true });
     } else if (staff?.role === 'admin' && role === 'admin') {
       setStaff(staff);
       setAuth(true, 'admin');
-      navigate('/admin-dashboard');
+      navigate('/admin-dashboard', { replace: true });
     } else {
       setAuthError('Invalid username, password, or portal role.');
     }
   };
 
   handleNextRef.current = handleNext;
+
+  const handleInputFocus = (name, value) => {
+    setActiveInput({ name, value: value || '' });
+  };
+
+  const handleKeyboardChange = (e) => {
+    const val = (e && e.target) ? e.target.value : (typeof e === 'string' ? e : '');
+    const name = activeInput?.name;
+    if (!name) return;
+    if (name === 'staffUsername') setStaffUsername(val);
+    else if (name === 'staffPassword') setStaffPassword(val);
+    else if (name === 'abhaId') setAbhaId(val);
+    else if (name === 'aadhaar') setAadhaar(val);
+    else {
+      setFormData(prev => ({ ...prev, [name]: val }));
+    }
+    setActiveInput(prev => ({ ...prev, value: val }));
+  };
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;

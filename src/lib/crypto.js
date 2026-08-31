@@ -144,3 +144,22 @@ function hexToUint8Array(hexString) {
   const matches = hexString.match(/.{1,2}/g) || [];
   return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
 }
+
+/**
+ * Validate password strength policy: min 8 characters with letters and numbers
+ */
+export function validatePasswordStrength(password) {
+  if (!password || typeof password !== 'string') {
+    return { isValid: false, message: 'Password cannot be empty.' };
+  }
+  if (password.length < 8) {
+    return { isValid: false, message: 'Password must be at least 8 characters long.' };
+  }
+  if (!/[a-zA-Z]/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one letter.' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one number.' };
+  }
+  return { isValid: true, message: '' };
+}

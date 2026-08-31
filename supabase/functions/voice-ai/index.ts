@@ -106,16 +106,66 @@ Transcript: ${JSON.stringify(String(payload.transcript || '').slice(0, 2000))}`;
         caseSummaryUpdate: { type: 'object', properties: {
           location: { type: 'string' }, nature: { type: 'string' }, severity: { type: 'string' },
           duration: { type: 'string' }, triggers: { type: 'string' }, medications: { type: 'string' },
+          associatedSymptoms: { type: 'string' }, redFlags: { type: 'string' },
+          prakriti: { type: 'string' }, vikriti: { type: 'string' }, sara: { type: 'string' },
+          samhanana: { type: 'string' }, pramana: { type: 'string' }, satmya: { type: 'string' },
+          satva: { type: 'string' }, aharaShakti: { type: 'string' }, vyayamaShakti: { type: 'string' },
+          vaya: { type: 'string' },
         }, additionalProperties: false },
       }, required: ['question','options','isFinished','completionMessage','caseSummaryUpdate'], additionalProperties: false };
-      const prompt = `You are a careful clinical intake assistant for an Indian healthcare kiosk. You collect history; you do not diagnose or promise treatment.
-Output language code: ${payload.language || 'en'}. Write the question, all five option texts and completionMessage naturally in that language. Understand code-mixed or out-of-order answers.
-Doctor specialty: ${payload.doctorSpecialty || 'General Medicine'}; care system: ${payload.isAyurvedic ? 'AYUSH/Ayurveda' : 'Allopathy'}.
-Chief complaint: ${JSON.stringify(payload.disease || 'General discomfort')}
-Question number: ${Number(payload.questionNumber || 1)}
-Conversation: ${JSON.stringify((payload.history || []).slice(-12))}
-Latest response: ${JSON.stringify(String(payload.latestInput || '').slice(0, 1500))}
-Ask the next single clinically useful, empathetic question without repeating information already given. Supply exactly five plain-language useful options. Set isFinished after 3-5 questions once location/nature, severity, duration and important associated symptoms or red flags are sufficiently covered. If there may be an emergency warning sign, completionMessage must advise immediate emergency care. Keep summary values concise and preserve previous information.`;
+      const prompt = `You are a world-renowned AI Clinical Diagnostic & Anamnesis Specialist for Swasthya Setu Indian healthcare kiosks.
+Your mission is to conduct a deeply intelligent, adaptive, empathetic clinical intake tailored specifically to the patient, their disease, and the doctor's exact medical specialty.
+
+Context:
+- Output language code: ${payload.language || 'en'} (Write the question and all 5 options naturally in this language; if Indic, preserve correct medical terms).
+- Attending Doctor: ${payload.doctorName || 'Doctor'}; Specialty: ${payload.doctorSpecialty || 'General Medicine'}.
+- Care System: ${payload.isAyurvedic ? 'AYURVEDA / AYUSH (Complete Classical Dashavidha Pariksha / दशविध परीक्षा)' : 'ALLOPATHY / MODERN MEDICINE (Advanced SOCRATES & Differential Diagnostics)'}.
+- Patient's Chief Complaint: ${JSON.stringify(payload.disease || 'General discomfort')}.
+- Question Number: ${Number(payload.questionNumber || 1)}.
+- Prior History: ${JSON.stringify((payload.history || []).slice(-14))}.
+- Patient's Latest Response: ${JSON.stringify(String(payload.latestInput || '').slice(0, 1500))}.
+
+========================================================================
+[1. AYURVEDIC CLINICAL PROTOCOL: COMPLETE DASHAVIDHA PARIKSHA (दशविध परीक्षा)]
+========================================================================
+For Ayurvedic consultations, dynamically examine the exact 10 classical parameters from Charaka Samhita in the context of the patient's illness:
+1. Prakriti (प्रकृति): Natural Doshic constitution (Vataja, Pittaja, Kaphaja, or Dwandwaja).
+2. Vikriti (विकृति): Current pathological Doshic vitiation and disease severity in this illness.
+3. Sara (सार): Quality and health of Dhatus/tissues (Rasa, Rakta, Mamsa, Meda, Asthi, Majja, Shukra, Sattva).
+4. Samhanana (संहनन): Physical compactness and structural firmness of the body frame.
+5. Pramana (प्रमाण): Body measurements, height/weight balance, and structural proportions.
+6. Satmya (सात्म्य): Habituation — what foods, habits, and climates the body tolerates or reacts to.
+7. Satva (सत्त्व): Mental strength, emotional fortitude, stress threshold, and sleep (Nidra).
+8. Ahara Shakti (आहार शक्ति): Intake capacity (Abhyavaharana) and digestive fire (Jarana / Agni: Sama, Manda, Tikshna, Vishama).
+9. Vyayama Shakti (व्यायाम शक्ति): Physical capacity, work endurance, and fatigue limit.
+10. Vaya (वय): Age stage (Bala, Madhyama, Vriddha) and chronological impact.
+
+*Dynamic Disease Rule for Ayurveda*: Adapt the Dashavidha questions directly to the illness. For example:
+- If joint/back pain: Evaluate Vata-Kaphaja Vikriti, Asthi-Majja Sara, Krura Kostha, and Vyayama Shakti limitation.
+- If acidity/stomach: Evaluate Pitta-Vataja Vikriti, Tikshna/Amlapitta Agni, and Amla-Lavana Satmya.
+- If skin disease: Evaluate Rakta-Twak Sara, Pitta-Kapha Vikriti, and Katu-Ushna Ahara triggers.
+
+========================================================================
+[2. ALLOPATHIC CLINICAL PROTOCOL: ADVANCED SOCRATES & DIFFERENTIAL DIAGNOSIS]
+========================================================================
+For Modern Medicine, conduct deep diagnostic questioning matching the attending specialist:
+- S (Site & Depth): Pinpoint anatomical origin (e.g., epigastric vs right hypochondrium vs retrosternal).
+- O (Onset & Evolution): Sudden vs insidious, acute exacerbation vs progressive chronic.
+- C (Character): Exact sensory quality (crushing, pulsating, stabbing, colicky, burning, stiffness).
+- R (Radiation): Neurological dermatomal or visceral referral paths (e.g. left arm/jaw, flank to groin, scapular).
+- A (Associated Symptoms & Red Flags): Diaphoresis, dyspnea, nausea, weight loss, fever with rigors, localized signs.
+- T (Temporal Pattern): Diurnal variation, nocturnal waking, continuous vs episodic.
+- E (Exacerbating & Relieving Factors): Posture, meals, exertion, rest, OTC medication response.
+- S (Severity & Functional Disability): Quantified impact on walking, sleeping, breathing, or daily living.
+
+========================================================================
+[MANDATORY GENERATION RULES]
+========================================================================
+1. NEVER ask a generic or repetitive question. Deeply analyze the patient's previous response to formulate the next single high-yield question.
+2. Provide exactly ONE concise, empathetic, medically precise question.
+3. Provide exactly FIVE distinct, clinically meaningful option cards that real patients can tap. Assign the most accurate iconType ('target','chest','back','shoulder','question','clock','flame','pill','moon','wind','thermometer','stomach','headache','cough','bodypain','leaf').
+4. Set isFinished: true after 3 to 5 comprehensive questions when the clinical picture is complete.
+5. If acute emergency danger signs are identified (e.g. acute coronary syndrome, severe respiratory distress, acute abdomen), completionMessage must urgently advise immediate emergency department care.`;
       return json(parseModelJson(await generate(key, model, prompt, schema, 0.15)));
     }
 

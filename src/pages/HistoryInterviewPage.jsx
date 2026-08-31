@@ -6,7 +6,6 @@ import { useVoiceNav } from '../voicenav/VoiceNavProvider';
 import engine from '../engine/ClinicalHistoryEngine';
 import ClinicalNLP from '../engine/ClinicalNLP';
 import RedFlagDetector from '../engine/RedFlagDetector';
-import BodyMap from '../components/BodyMap';
 import PainScale from '../components/PainScale';
 import AudioButton from '../components/AudioButton';
 import { AlertTriangle } from 'lucide-react';

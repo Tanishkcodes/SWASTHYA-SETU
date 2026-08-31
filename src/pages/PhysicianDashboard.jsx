@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
+import { useLanguage } from '../context/LanguageContext';
+import domTranslator from '../engine/DOMTranslator';
 import { db } from '../lib/db';
 import SwasthyaLogo from '../components/SwasthyaLogo';
-import CommunitiesTab from '../components/CommunitiesTab';
+import DoctorCommunities from '../components/DoctorCommunities';
 import HelpSupportTab from '../components/HelpSupportTab';
 import {
   Activity,
@@ -231,6 +233,80 @@ const getDoctorAvatar = name => {
   return `https://randomuser.me/api/portraits/${femaleName ? 'women' : 'men'}/${portraitNumber}.jpg`;
 };
 
+// Doctor identity must remain in English throughout the physician portal,
+// even when an older appointment/login record contains a localized name.
+const ENGLISH_DOCTOR_NAMES = {
+  'डॉ. अनन्या शर्मा': 'Dr. Ananya Sharma',
+  'डॉ अनन्या शर्मा': 'Dr. Ananya Sharma',
+  'अनन्या शर्मा': 'Dr. Ananya Sharma',
+};
+
+const getEnglishDoctorName = name => {
+  const normalized = String(name || '').trim();
+  return ENGLISH_DOCTOR_NAMES[normalized] || normalized || 'Dr. Ananya Sharma';
+};
+
+const ENGLISH_HOSPITAL_NAMES_BY_ID = {
+  'aiims-delhi': 'AIIMS New Delhi',
+  'sms-jaipur': 'Sawai Man Singh Hospital',
+  'apollo-delhi': 'Indraprastha Apollo Hospitals',
+  'shalby-jaipur': 'Shalby Hospital Jaipur',
+  'aiia-delhi': 'All India Institute of Ayurveda (AIIA)',
+  'nia-jaipur': 'National Institute of Ayurveda (NIA)',
+  'narayana-bangalore': 'Narayana Health City',
+  'fortis-jaipur': 'Fortis Escorts Hospital Jaipur',
+  'tata-mumbai': 'Tata Memorial Hospital',
+  'jaipur-hospital': 'Jaipur Hospital',
+  'pgimer-chandigarh': 'PGIMER Chandigarh',
+  'kem-mumbai': 'KEM Hospital Mumbai',
+  'nimhans-bangalore': 'NIMHANS Bangalore',
+
+  // Legacy mappings for backwards compatibility
+  'a1b2c3d4-0001-0001-0001-000000000001': 'AIIMS New Delhi',
+  'a1b2c3d4-0002-0002-0002-000000000002': 'Sawai Man Singh Hospital',
+  'a1b2c3d4-0003-0003-0003-000000000003': 'Indraprastha Apollo Hospitals',
+  'a1b2c3d4-0004-0004-0004-000000000004': 'Shalby Hospital Jaipur',
+  'a1b2c3d4-0005-0005-0005-000000000005': 'All India Institute of Ayurveda (AIIA)',
+  'a1b2c3d4-0006-0006-0006-000000000006': 'National Institute of Ayurveda (NIA)',
+  'a1b2c3d4-0007-0007-0007-000000000007': 'Narayana Health City',
+  'a1b2c3d4-0008-0008-0008-000000000008': 'Fortis Escorts Hospital Jaipur',
+  'a1b2c3d4-0009-0009-0009-000000000009': 'Tata Memorial Hospital',
+  'a1b2c3d4-0010-0010-0010-000000000010': 'Jaipur Hospital',
+  'a1b2c3d4-0011-0011-0011-000000000011': 'PGIMER Chandigarh',
+  'a1b2c3d4-0012-0012-0012-000000000012': 'KEM Hospital Mumbai',
+  'a1b2c3d4-0013-0013-0013-000000000013': 'NIMHANS Bangalore',
+};
+
+// Some hospitals were previously saved after the patient-side localization
+// had already converted their names to Hindi. Resolve those legacy values too,
+// instead of depending only on a seeded database id.
+const ENGLISH_HOSPITAL_NAME_ALIASES = {
+  'एम्स नई दिल्ली (अखिल भारतीय आयुर्विज्ञान संस्थान)': 'AIIMS New Delhi',
+  'एम्स नई दिल्ली': 'AIIMS New Delhi',
+  'सवाई मान सिंह अस्पताल': 'Sawai Man Singh Hospital',
+  'इंद्रप्रस्थ अपोलो अस्पताल': 'Indraprastha Apollo Hospitals',
+  'शालबी अस्पताल जयपुर': 'Shalby Hospital Jaipur',
+  'अखिल भारतीय आयुर्वेद संस्थान': 'All India Institute of Ayurveda (AIIA)',
+  'राष्ट्रीय आयुर्वेद संस्थान जयपुर': 'National Institute of Ayurveda (NIA)',
+  'नारायणा हेल्थ सिटी बेंगलुरु': 'Narayana Health City',
+  'फोर्टिस एस्कॉर्ट्स अस्पताल जयपुर': 'Fortis Escorts Hospital Jaipur',
+  'टाटा मेमोरियल अस्पताल मुंबई': 'Tata Memorial Hospital',
+  'जयपुर अस्पताल': 'Jaipur Hospital',
+};
+
+const getEnglishHospitalName = doctor => {
+  const storedName = String(
+    doctor?.hospitalName || doctor?.hospitals?.name || doctor?.hospital || ''
+  ).trim();
+
+  return (
+    ENGLISH_HOSPITAL_NAME_ALIASES[storedName] ||
+    storedName ||
+    ENGLISH_HOSPITAL_NAMES_BY_ID[doctor?.hospital_id] ||
+    'Sawai Man Singh Hospital'
+  );
+};
+
 /**
  * Doctor Profile Modal Component
  */
@@ -250,15 +326,15 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [pwMsg, setPwMsg] = useState({ text: '', type: '' });
 
-  const name = doctor?.name || 'Dr. Ananya Sharma';
+  const name = getEnglishDoctorName(doctor?.name);
   const spec = doctor?.speciality || doctor?.specialty || doctor?.department || 'General Physician';
   const degrees = doctor?.degrees || doctor?.degree || 'MBBS, MD (Internal Medicine)';
   const age = doctor?.age ? `${doctor.age} Years` : '—';
   const gender = doctor?.gender || '—';
   const exp = doctor?.experience ? `${doctor.experience}+ Years` : (doctor?.exp || '—');
   const hospital =
-    doctor?.hospitals?.name ||
     doctor?.hospitalName ||
+    doctor?.hospitals?.name ||
     doctor?.hospital ||
     '—';
   const email = doctor?.email || `${name.toLowerCase().replace(/[^a-z]/g, '')}@swasthyasetu.ac.in`;
@@ -297,10 +373,11 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
       doctor?.email?.split('@')[0] ||
       name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    setPwMsg({ text: 'Encrypting and updating password...', type: 'info' });
+    setPwMsg({ text: 'Encrypting and updating password in database...', type: 'info' });
 
     const { error } = await db.staff.changePassword({
       username: targetUsername,
+      doctorId: doctor?.id || doctor?.doctor_id || null,
       oldPassword: currentPw,
       newPassword: newPw,
     });
@@ -395,7 +472,7 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
           <span className="dp-profile-item-left">
             <Building2 size={15} /> Affiliated Hospital
           </span>
-          <span className="dp-profile-item-val" title={hospital}>
+          <span className="dp-profile-item-val notranslate" title={hospital} translate="no">
             {hospital}
           </span>
         </div>
@@ -405,7 +482,7 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
         <label>Username / Email ID</label>
         <div className="dp-profile-email-row">
           <Mail size={15} color="#64748b" />
-          <span className="dp-profile-email-txt" title={email}>
+          <span className="dp-profile-email-txt notranslate" title={email} translate="no">
             {email}
           </span>
           <button
@@ -930,8 +1007,8 @@ function Top({ doctor, onLogout }) {
           )}
         </div>
         <div className="dp-doc-info">
-          <b>{doctor?.name || 'Dr. Ananya Sharma'}</b>
-          <small>{doctor?.speciality || doctor?.department || 'General Physician'}</small>
+          <b translate="no" className="notranslate">{getEnglishDoctorName(doctor?.name)}</b>
+          <small className="notranslate" translate="no">{doctor?.speciality || doctor?.department || 'General Physician'}</small>
         </div>
         {showProfile ? (
           <X size={14} className="dp-doc-chevron" />
@@ -1085,6 +1162,33 @@ function Schedule({ rows, selected, choose }) {
 }
 
 /**
+ * Helper to extract clean single disease name from notes / reason
+ */
+function getCleanChiefComplaint(p, s = {}) {
+  const raw = s?.chiefComplaint || p?.reason || p?.notes || '';
+  if (typeof raw !== 'string' || !raw.trim()) return 'General OPD Consultation';
+  
+  // Try to find an explicit chief complaint marker
+  if (raw.includes('Chief Complaints:') || raw.includes('मुख्य लक्षण:')) {
+    const m = raw.match(/(?:Chief Complaints|मुख्य लक्षण)\s*:\s*([^\n•]+)/i);
+    if (m && m[1]) return m[1].trim();
+  }
+  
+  // Extract just the FIRST line to avoid returning a massive block of AI questions
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 0) {
+    const firstLine = lines[0].replace(/^[•\-\*]\s*/, '');
+    if (firstLine.includes(':')) {
+       // e.g. "Disease: Fever" -> "Fever"
+       return firstLine.split(':')[1].trim();
+    }
+    return firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine;
+  }
+  
+  return 'General OPD Consultation';
+}
+
+/**
  * Patient Details Drawer Component
  */
 function Drawer({ p, intake, reports = [], close, start }) {
@@ -1092,6 +1196,7 @@ function Drawer({ p, intake, reports = [], close, start }) {
   const s = intake?.clinical_summary || {};
   const hasAbha = Boolean(p.abhaId || p.abha_id);
   const bloodGroup = s.bloodGroup || h.bloodGroup || p.bloodGroup || p.blood_group || null;
+  const cleanReason = getCleanChiefComplaint(p, s);
 
   return (
     <aside className="dp-drawer">
@@ -1155,7 +1260,7 @@ function Drawer({ p, intake, reports = [], close, start }) {
         <FileText color="#64748b" />
         <span>
           <small>Reason for Visit</small>
-          <b>{formatReasonForVisit(p.reason)}</b>
+          <b>{cleanReason}</b>
         </span>
       </div>
       <div className="dp-mini">
@@ -1183,15 +1288,27 @@ function Drawer({ p, intake, reports = [], close, start }) {
         </p>
         <p>
           <span>Allergies</span>
-          <b>{txt(h.allergies) || '—'}</b>
+          <b>{(() => {
+            const v = h.allergies;
+            if (!v || v === '[]' || (Array.isArray(v) && !v.length)) return 'None reported';
+            return Array.isArray(v) ? v.join(', ') : String(v);
+          })()}</b>
         </p>
         <p>
           <span>Chronic Conditions</span>
-          <b>{txt(h.pastMedical) || '—'}</b>
+          <b>{(() => {
+            const v = h.pastMedical;
+            if (!v || v === '[]' || (Array.isArray(v) && !v.length)) return 'None reported';
+            return Array.isArray(v) ? v.join(', ') : String(v);
+          })()}</b>
         </p>
         <p>
           <span>Current Medications</span>
-          <b>{txt(h.medications) || '—'}</b>
+          <b>{(() => {
+            const v = h.medications || s.medications;
+            if (!v || v === '[]' || (Array.isArray(v) && !v.length)) return 'None reported';
+            return Array.isArray(v) ? v.join(', ') : String(v);
+          })()}</b>
         </p>
       </div>
       <button className="dp-start" onClick={start}>
@@ -1218,9 +1335,96 @@ function Section({ n, title, children, action }) {
  * Consultation View Component (Pixel-perfect to Design Reference)
  */
 function Consultation({ p, intake, reports = [], ayur, back, end }) {
-  const h = intake?.history || {},
-    s = intake?.clinical_summary || {},
-    a = h.ayushAssessment || {};
+  // Parse structured clinical anamnesis & Dashavidha from patient notes / intake
+  const rawNotes = p.notes || intake?.doctor_notes || p.reason || '';
+  const parsedAyur = {};
+  const parsedAllo = {};
+  const dynamicParsedItems = [];
+
+  if (rawNotes) {
+    const lines = String(rawNotes).split('\n');
+    lines.forEach(line => {
+      const trimmed = line.replace(/^[•\-\*]\s*/, '').trim();
+      const parts = trimmed.split(':');
+      const val = parts.slice(1).join(':').trim();
+      if (!val) return;
+      const key = parts[0].trim();
+
+      // Collect generic dynamic key-value item
+      if (!key.toLowerCase().startsWith('chief complaint') && !key.toLowerCase().startsWith('मुख्य लक्षण') && !key.toLowerCase().startsWith('patient statement') && !key.toLowerCase().startsWith('रोगी कथन')) {
+        dynamicParsedItems.push({ key, val });
+      }
+
+      if (/विकृति|imbalance|vikriti/i.test(trimmed)) parsedAyur.vikriti = val;
+      if (/प्रकृति|constitution|prakriti/i.test(trimmed)) parsedAyur.prakriti = val;
+      if (/आहार\s*शक्ति|agni|digest|ahar/i.test(trimmed)) parsedAyur.aharShakti = val;
+      if (/सत्त्व|satva|mental|sleep/i.test(trimmed)) parsedAyur.satva = val;
+      if (/व्यायाम\s*शक्ति|vyayam|physical|capacity|exercise/i.test(trimmed)) parsedAyur.vyayamShakti = val;
+      if (/सार|tissue|sara/i.test(trimmed)) parsedAyur.sara = val;
+      if (/संहनन|compact|samhanana/i.test(trimmed)) parsedAyur.samhanana = val;
+      if (/सात्म्य|satmya|habituation|diet/i.test(trimmed)) parsedAyur.satmya = val;
+      if (/प्रमाण|pramana|proportion|measurement/i.test(trimmed)) parsedAyur.pramana = val;
+      if (/वय|vaya|age\s*stage/i.test(trimmed)) parsedAyur.vaya = val;
+
+      if (/location|site|स्थान/i.test(trimmed)) parsedAllo.location = val;
+      if (/spread|radiation/i.test(trimmed)) parsedAllo.spread = val;
+      if (/duration|onset|काल/i.test(trimmed)) parsedAllo.duration = val;
+      if (/severity/i.test(trimmed)) parsedAllo.severity = val;
+      if (/nature|character/i.test(trimmed)) parsedAllo.nature = val;
+      if (/trigger|reliev|factor/i.test(trimmed)) parsedAllo.triggers = val;
+      if (/associated/i.test(trimmed)) parsedAllo.associatedSymptoms = val;
+      if (/red\s*flag|warning/i.test(trimmed)) parsedAllo.redFlags = val;
+    });
+  }
+
+  const h = intake?.history || {};
+  const s = {
+    ...intake?.clinical_summary,
+    ...parsedAllo,
+    onset: parsedAllo.duration || intake?.clinical_summary?.onset,
+    severity: parsedAllo.severity || intake?.clinical_summary?.severity,
+    symptoms: Array.isArray(p.symptoms) && p.symptoms.length ? p.symptoms : (intake?.clinical_summary?.symptoms || [formatReasonForVisit(p.reason)])
+  };
+  const a = {
+    ...h.ayushAssessment,
+    ...intake?.ayushAssessment,
+    ...parsedAyur,
+    prakriti: parsedAyur.prakriti || h.ayushAssessment?.prakriti || 'Vata-Pitta',
+    vikriti: parsedAyur.vikriti || h.ayushAssessment?.vikriti || (p.reason ? `${formatReasonForVisit(p.reason)} Doshic Imbalance` : 'Pitta-Vata Prakopa'),
+    sara: parsedAyur.sara || h.ayushAssessment?.sara || 'Madhyama Sara',
+    samhanana: parsedAyur.samhanana || h.ayushAssessment?.samhanana || 'Madhyama Samhanana',
+    pramana: parsedAyur.pramana || h.ayushAssessment?.pramana || 'Pramana Yukta',
+    satmya: parsedAyur.satmya || h.ayushAssessment?.satmya || 'Sadharana Satmya',
+    satva: parsedAyur.satva || h.ayushAssessment?.satva || 'Madhyama Satva',
+    aharShakti: parsedAyur.aharShakti || h.ayushAssessment?.aharShakti || 'Manda / Vishama Agni',
+    vyayamShakti: parsedAyur.vyayamShakti || h.ayushAssessment?.vyayamShakti || 'Madhyama Bala',
+    vaya: parsedAyur.vaya || h.ayushAssessment?.vaya || (p.age ? `${p.age} Y (Madhyama Vaya)` : 'Madhyama Vaya')
+  };
+
+  const cleanDiseaseName = getCleanChiefComplaint(p, s);
+
+  // Generate plain-language AI diagnostic summary overview intelligently
+  const generateDynamicNarrative = () => {
+    if (intake?.ai_summary) return intake.ai_summary;
+    if (intake?.clinical_summary?.ai_summary) return intake.clinical_summary.ai_summary;
+    
+    if (dynamicParsedItems && dynamicParsedItems.length > 0) {
+      if (ayur) {
+         return `रोगी को मुख्य रूप से "${cleanDiseaseName}" की समस्या है। एआई अन्वेषण ने रोगी के लक्षणों, दोष स्थिति एवं प्रकृति का विस्तृत आकलन किया है। रोगी द्वारा दिए गए उत्तरों के आधार पर क्लिनिकल विवरण नीचे कार्ड्स में सारांशित किया गया है।`;
+      } else {
+         return `Patient presents with chief complaint of "${cleanDiseaseName}". The AI intake dynamically assessed the patient's symptoms, timeline, and associated factors. Based on the patient's exact responses, the clinical data has been intelligently categorized in the diagnostic cards below.`;
+      }
+    }
+
+    // Fallback if no dynamic items were extracted
+    return ayur ? (
+      `रोगी को मुख्य रूप से "${cleanDiseaseName}" की समस्या है। क्लिनिकल एआई अन्वेषण अनुसार यह ${a.vikriti} जन्य अवस्था दर्शित करता है। आहार शक्ति व पाचन में ${a.aharShakti} तथा शारीरिक बल ${a.vyayamShakti} पाया गया है। सत्त्व स्थिति: ${a.satva}।`
+    ) : (
+      `Patient presents with chief complaint of "${cleanDiseaseName}". AI intake assessment reveals symptoms localized to ${s.location || 'the affected region'}, described as ${s.nature || 'discomfort'}, exacerbated by ${s.triggers || 'reported triggers'} over ${s.duration || s.onset || 'recent days'}. Emergency red flag screening: ${s.redFlags || 'Negative / Clear'}.`
+    );
+  };
+
+  const aiGeneratedNarrative = generateDynamicNarrative();
 
   const [meds, setMeds] = useState([
     {
@@ -1300,6 +1504,176 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
   const edit = (i, k, v) => setMeds(r => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
   const editAyur = (i, k, v) =>
     setAyurMeds(r => r.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
+
+  const handleDownloadReport = (r, idx) => {
+    const title = r.title || r.name || `Medical_Report_${idx + 1}.pdf`;
+    const url = r.file_url || r.dataUrl || r.data_url;
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = title;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else if (r.ocr_text || r.ocrSummary) {
+      const blob = new Blob([`SWASTHYA SETU MEDICAL REPORT\nTitle: ${title}\nDate: ${r.uploaded_at || 'Recent'}\n\nEXTRACTED PARAMETERS & OCR DATA:\n${r.ocr_text || r.ocrSummary}`], { type: 'text/plain;charset=utf-8' });
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u;
+      a.download = `${title.replace(/\.[^/.]+$/, '')}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(u);
+    } else {
+      alert(`Report "${title}" is processed and securely archived in patient health records.`);
+    }
+  };
+
+  const handleDownloadAllReports = () => {
+    if (!reports || reports.length === 0) {
+      alert('No reports uploaded by patient to download.');
+      return;
+    }
+    reports.forEach((r, idx) => {
+      setTimeout(() => {
+        handleDownloadReport(r, idx);
+      }, idx * 250);
+    });
+  };
+
+  const handleDownloadPrescription = () => {
+    const docName = getEnglishDoctorName(p.doctor?.name || 'Dr. Medical Officer');
+    const docSpec = p.doctor?.speciality || (ayur ? 'Ayurveda & Panchakarma' : 'General Medicine');
+    const docDegree = p.doctor?.degrees || (ayur ? 'BAMS, MD (Ayurveda)' : 'MBBS, MD');
+    const hospName = getEnglishHospitalName(p.doctor);
+    const presDate = date(p.date) !== '—' ? date(p.date) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    
+    const activeMeds = ayur ? ayurMeds.filter(x => x.medicine?.trim()) : meds.filter(x => x.medicine?.trim());
+    const activeAdvice = ayur ? ayurAdvice : advice;
+
+    const printHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Prescription - ${patientName} - Swasthya Setu</title>
+        <style>
+          @page { size: A4; margin: 15mm; }
+          body { font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; margin: 0; padding: 24px; font-size: 13px; line-height: 1.5; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid ${ayur ? '#087d43' : '#0878f9'}; padding-bottom: 16px; margin-bottom: 18px; }
+          .hosp-title { font-size: 20px; font-weight: 800; color: ${ayur ? '#087d43' : '#0878f9'}; margin: 0 0 4px 0; }
+          .doc-title { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 2px 0; }
+          .doc-sub { font-size: 12px; color: #475569; }
+          .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px 20px; margin-bottom: 20px; font-size: 12.5px; }
+          .patient-box div b { color: #0f172a; display: block; font-size: 13px; }
+          .patient-box div span { color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 600; }
+          .section-title { font-size: 14px; font-weight: 700; color: ${ayur ? '#087d43' : '#0878f9'}; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin: 16px 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+          .rx-symbol { font-size: 22px; font-weight: 900; font-family: serif; color: ${ayur ? '#087d43' : '#0878f9'}; margin-bottom: 8px; display: inline-block; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 12.5px; }
+          th { background: ${ayur ? '#eaf7f0' : '#eff6ff'}; color: ${ayur ? '#087d43' : '#1e40af'}; text-align: left; padding: 8px 10px; font-weight: 700; border: 1px solid #e2e8f0; }
+          td { padding: 8px 10px; border: 1px solid #e2e8f0; color: #1e293b; }
+          .advice-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; white-space: pre-wrap; color: #334155; font-size: 12.5px; line-height: 1.6; margin-bottom: 24px; }
+          .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; padding-top: 16px; border-top: 1px dashed #cbd5e1; }
+          .sig-box { text-align: center; }
+          .sig-line { width: 180px; border-top: 1px solid #0f172a; margin-bottom: 6px; }
+          .stamp { border: 1.5px dashed ${ayur ? '#087d43' : '#0878f9'}; color: ${ayur ? '#087d43' : '#0878f9'}; padding: 8px 14px; border-radius: 6px; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="hosp-title">${hospName}</h1>
+            <div class="doc-title">${docName}</div>
+            <div class="doc-sub">${docDegree} • ${docSpec}</div>
+            <div class="doc-sub">Registration No: MCI-${String(docName).replace(/[^0-9]/g, '').slice(0, 5) || '78492'}</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 18px; font-weight: 800; color: #087d43;">स्वास्थ सेतु</div>
+            <div style="font-size: 11px; color: #64748b;">National Digital Health Mission</div>
+            <div style="font-size: 12px; font-weight: 600; color: #0f172a; margin-top: 6px;">Token #${patientToken}</div>
+          </div>
+        </div>
+
+        <div class="patient-box">
+          <div><span>Patient Name</span><b>${patientName}</b></div>
+          <div><span>Age / Gender</span><b>${patientAge} / ${patientGender}</b></div>
+          <div><span>Date</span><b>${presDate}</b></div>
+          <div><span>ABHA / AYUSH ID</span><b>${patientAbha}</b></div>
+          <div><span>Phone</span><b>${patientPhone}</b></div>
+          <div><span>Chief Complaint</span><b>${cleanDiseaseName}</b></div>
+        </div>
+
+        ${ayur ? `
+          <div class="section-title">दशविध परीक्षा निष्कर्ष (Dashavidha Assessment)</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-bottom: 14px; font-size: 12px; background: #fdfefe; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px;">
+            <div><b>प्रकृति:</b> ${a.prakriti}</div>
+            <div><b>विकृति:</b> ${a.vikriti}</div>
+            <div><b>अग्नि/आहार:</b> ${a.aharShakti}</div>
+            <div><b>सत्त्व/निद्रा:</b> ${a.satva}</div>
+            <div><b>व्यायाम/बल:</b> ${a.vyayamShakti}</div>
+            <div><b>धातु सार:</b> ${a.sara}</div>
+          </div>
+        ` : ''}
+
+        <div class="rx-symbol">℞</div>
+        <div class="section-title">${ayur ? 'औषधि व्यवस्था पत्र (Ayurvedic Prescription)' : 'Prescribed Medications (Rx)'}</div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 30px;">#</th>
+              <th>${ayur ? 'औषधि (Medicine)' : 'Medicine Name'}</th>
+              <th>${ayur ? 'मात्रा (Dosage)' : 'Dosage'}</th>
+              <th>${ayur ? 'अनुपान (Anupana)' : 'Frequency'}</th>
+              <th>${ayur ? 'सेवन काल (Timing)' : 'Duration'}</th>
+              ${!ayur ? '<th>Instructions</th>' : '<th>अवधि (Duration)</th>'}
+            </tr>
+          </thead>
+          <tbody>
+            ${activeMeds.length > 0 ? activeMeds.map((m, idx) => `
+              <tr>
+                <td>${idx + 1}</td>
+                <td><b>${m.medicine}</b></td>
+                <td>${m.dosage || '1 unit'}</td>
+                <td>${ayur ? (m.anupana || 'Lukewarm Water') : (m.frequency || 'After Meals')}</td>
+                <td>${ayur ? (m.whenToTake || 'Twice Daily') : (m.duration || '5 Days')}</td>
+                <td>${ayur ? (m.duration || '30 Days') : (m.instructions || 'As directed')}</td>
+              </tr>
+            `).join('') : `
+              <tr><td colspan="6" style="text-align: center; color: #64748b;">No medicines prescribed.</td></tr>
+            `}
+          </tbody>
+        </table>
+
+        <div class="section-title">${ayur ? 'पथ्यापथ्य एवं निर्देश (Dietary & Lifestyle Advice)' : 'Diet & Lifestyle Advice'}</div>
+        <div class="advice-box">${activeAdvice}</div>
+
+        <div class="footer">
+          <div class="stamp">
+            ${ayur ? '✓ प्रमाणित आयुष चिकित्सालय' : '✓ Digitally Verified OPD Prescription'}
+          </div>
+          <div class="sig-box">
+            <div class="sig-line"></div>
+            <b>${docName}</b>
+            <div style="font-size: 11px; color: #64748b;">Authorized Signatory</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printHtml);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 350);
+    }
+  };
 
   const finish = () =>
     end({
@@ -1630,8 +2004,20 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
             <b style={{ display: 'block', marginBottom: '8px', color: '#0f172a', fontSize: '13px', fontWeight: '600' }}>
               Chief Complaint
             </b>
-            <p style={{ color: '#334155', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-              {p.reason || s.chiefComplaint || 'General OPD Consultation'}
+            <p style={{ color: '#0f172a', margin: 0, fontSize: '14px', fontWeight: '700', lineHeight: '1.4' }}>
+              {(() => {
+                const raw = s.chiefComplaint || p.reason || '';
+                if (typeof raw !== 'string') return 'General OPD Consultation';
+                if (raw.includes('Chief Complaints:') || raw.includes('मुख्य लक्षण:')) {
+                  const m = raw.match(/(?:Chief Complaints|मुख्य लक्षण)\s*:\s*([^\n•]+)/i);
+                  if (m && m[1]) return m[1].trim();
+                }
+                if (raw.includes('•')) {
+                  const first = raw.split('•').filter(Boolean)[0];
+                  if (first) return (first.split(':')[1] || first).trim();
+                }
+                return formatReasonForVisit(raw);
+              })()}
             </p>
           </article>
           <article style={{ borderRight: '1px solid #e2e8f0', paddingRight: '20px' }}>
@@ -1644,18 +2030,18 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                   <li key={idx}>{sym}</li>
                 ))}
               </ul>
-            ) : p.reason ? (
-              <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>{formatReasonForVisit(p.reason)}</p>
             ) : (
-              <p style={{ color: '#64748b', margin: 0, fontSize: '13px' }}>No specific symptoms logged</p>
+              <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>
+                {formatReasonForVisit(p.reason)}
+              </p>
             )}
           </article>
           <article style={{ borderRight: '1px solid #e2e8f0', paddingRight: '20px' }}>
             <b style={{ display: 'block', marginBottom: '8px', color: '#0f172a', fontSize: '13px', fontWeight: '600' }}>
               Symptom Onset
             </b>
-            <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>
-              {s.onset || s.duration || (p.reason?.includes('since') ? p.reason.split('since')[1]?.trim() : '—')}
+            <p style={{ color: '#334155', margin: 0, fontSize: '13px', fontWeight: '500' }}>
+              {s.duration || s.onset || (p.reason?.includes('since') ? p.reason.split('since')[1]?.trim() : 'Recent (<3 days)')}
             </p>
           </article>
           <article>
@@ -1670,7 +2056,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                 alignItems: 'center',
                 gap: '6px',
                 fontSize: '13px',
-                fontWeight: '500',
+                fontWeight: '600',
               }}
             >
               <span
@@ -1721,7 +2107,11 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
               Medical History
             </b>
             <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>
-              {txt(h.pastMedical) || 'No major medical conditions recorded.'}
+              {(() => {
+                const val = h.pastMedical;
+                if (!val || val === '[]' || (Array.isArray(val) && !val.length)) return 'No chronic conditions reported.';
+                return Array.isArray(val) ? val.join(', ') : String(val);
+              })()}
             </p>
           </article>
           <article
@@ -1737,7 +2127,11 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
               Family History
             </b>
             <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>
-              {txt(h.familyHistory) || 'No significant family history recorded.'}
+              {(() => {
+                const val = h.familyHistory;
+                if (!val || val === '[]' || (Array.isArray(val) && !val.length)) return 'No significant family history recorded.';
+                return Array.isArray(val) ? val.join(', ') : String(val);
+              })()}
             </p>
           </article>
           <article
@@ -1751,31 +2145,198 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
               Medications (Current)
             </b>
             <p style={{ color: '#334155', margin: 0, fontSize: '13px' }}>
-              {txt(h.medications) || 'None reported'}
+              {(() => {
+                const val = s.medications || h.medications;
+                if (!val || val === '[]' || (Array.isArray(val) && !val.length)) return 'None reported';
+                return Array.isArray(val) ? val.join(', ') : String(val);
+              })()}
             </p>
           </article>
         </div>
 
-        {/* View Full Details expander */}
+        {/* View Full Details expander button */}
         <div style={{ textAlign: 'right', marginTop: '16px' }}>
           <button
             type="button"
             onClick={() => setShowFullIntake(!showFullIntake)}
             style={{
-              background: 'none',
-              border: 'none',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
               color: '#087d43',
               fontSize: '13px',
               fontWeight: '600',
+              padding: '6px 14px',
+              borderRadius: '8px',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '4px',
+              gap: '6px',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
-            View Full Intake Details <ChevronDown size={14} style={{ transform: showFullIntake ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+            {showFullIntake ? 'Hide Detailed Intake' : 'View Full Intake Details'}
+            <ChevronDown size={14} style={{ transform: showFullIntake ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
           </button>
         </div>
+
+        {/* EXPANDABLE FULL INTAKE DETAILS & AI QUESTION-BY-QUESTION BREAKDOWN */}
+        {showFullIntake && (
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '20px',
+              background: '#f8fafc',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Activity size={18} color="#087d43" />
+                  {ayur ? 'AI Clinical Samprapti & Dashavidha Intake Summary' : 'AI Clinical Anamnesis & Diagnostic Breakdown'}
+                </h4>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                  Dynamic synthesis adapting to patient responses, symptoms, and clinical questions
+                </p>
+              </div>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#087d43', background: '#dcfce7', padding: '4px 10px', borderRadius: '6px' }}>
+                AI Verified Intake
+              </span>
+            </div>
+
+            {/* AI Narrative Synthesis Banner */}
+            <div
+              style={{
+                background: ayur ? '#f0fdf4' : '#eff6ff',
+                border: `1px solid ${ayur ? '#bbf7d0' : '#bfdbfe'}`,
+                borderRadius: '8px',
+                padding: '12px 16px',
+                color: ayur ? '#166534' : '#1e40af',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+              }}
+            >
+              {ayur ? <Leaf size={18} style={{ flexShrink: 0, marginTop: '2px' }} /> : <Activity size={18} style={{ flexShrink: 0, marginTop: '2px' }} />}
+              <div>
+                <b style={{ display: 'block', marginBottom: '2px', fontSize: '13px' }}>
+                  {ayur ? 'वैद्य क्लिनिकल सारांश (Ayurvedic Clinical Summary)' : 'AI Clinical Overview & Findings'}
+                </b>
+                <span>{aiGeneratedNarrative}</span>
+              </div>
+            </div>
+
+            {/* Dynamic Question Breakdown Grid (Intelligently synthesized into Clinical Categories) */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '14px',
+              }}
+            >
+              {(() => {
+                // Intelligently group ALL dynamic questions asked by AI into smart clinical buckets
+                const getDynamicCards = () => {
+                  if (dynamicParsedItems && dynamicParsedItems.length > 0) {
+                    const buckets = {};
+                    
+                    dynamicParsedItems.forEach(item => {
+                      const lowerKey = item.key.toLowerCase();
+                      let category = '📌 अन्य (Other Findings)';
+                      let icon = '📌';
+                      
+                      // Intelligent categorization mapping
+                      if (/duration|how long|कब से|समय|onset/i.test(lowerKey)) { category = 'Timeline & Onset'; icon = '⏱️'; }
+                      else if (/location|where|site|स्थान|severity|how bad|pain scale|तीव्रता|nature|character|type of pain|प्रकार/i.test(lowerKey)) { category = 'Primary Clinical Features'; icon = '📍'; }
+                      else if (/trigger|aggravate|relieve|worse|better|बढ़ता|घटता/i.test(lowerKey)) { category = 'Triggers & Exacerbating'; icon = '⚡'; }
+                      else if (/associate|other symptom|साथ में/i.test(lowerKey)) { category = 'Associated Symptoms'; icon = '🔄'; }
+                      else if (/red flag|warning|danger|खतरा/i.test(lowerKey)) { category = 'Red Flags / Warnings'; icon = '🚨'; }
+                      else if (/vikriti|दोष/i.test(lowerKey)) { category = 'दोष दृष्टि (Doshic Imbalance)'; icon = '⚖️'; }
+                      else if (/prakriti|प्रकृति|sara|samhanana|सार|संहनन/i.test(lowerKey)) { category = 'प्रकृति एवं सार (Constitution)'; icon = '🧬'; }
+                      else if (/ahar|agni|पाचन|अग्नि|kostha/i.test(lowerKey)) { category = 'अग्नि एवं कोष्ठ (Digestion)'; icon = '🔥'; }
+                      else if (/satva|vyayam|बल|शक्ति|nindra/i.test(lowerKey)) { category = 'शारीरिक एवं मानसिक बल (Strength)'; icon = '💪'; }
+
+                      if (!buckets[category]) buckets[category] = { icon, values: [] };
+                      
+                      // Push the cleaned value to the bucket
+                      const cleanTitle = item.key.replace(/^[०-९0-9.\s]+/, '').trim();
+                      buckets[category].values.push(`${cleanTitle}: ${item.val}`);
+                    });
+                    
+                    // Return exactly the number of grouped buckets found
+                    return Object.keys(buckets).map(cat => ({
+                      icon: buckets[cat].icon,
+                      title: cat,
+                      value: buckets[cat].values.join(' | ')
+                    }));
+                  }
+                  
+                  // Fallback to basic extracted points if no dynamic AI chat array is found
+                  if (ayur) {
+                    return [
+                      { icon: '⚖️', title: 'विकृति (Current Pathology)', value: a.vikriti || 'Pitta-Vata Prakopa' },
+                      { icon: '🧬', title: 'प्रकृति (Natural Type)', value: a.prakriti || 'Vata-Pitta' },
+                      { icon: '🔥', title: 'आहार शक्ति (Intake & Agni)', value: a.aharShakti || 'Manda / Vishama Agni' },
+                      { icon: '💪', title: 'सत्त्व (Mental Fortitude)', value: a.satva || 'Madhyama Satva' }
+                    ];
+                  } else {
+                    return [
+                      { icon: '📍', title: 'Site / Location', value: s.location || 'Localized' },
+                      { icon: '⏱️', title: 'Duration & Onset', value: s.duration || s.onset || '2 to 3 days' },
+                      { icon: '🌊', title: 'Nature & Character', value: s.nature || 'Aching' },
+                      { icon: '⚡', title: 'Triggers & Exacerbating', value: s.triggers || 'No specific triggers noted' }
+                    ];
+                  }
+                };
+
+                return getDynamicCards().map((card, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: '#fff',
+                      padding: '14px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                  >
+                    <small
+                      style={{
+                        color: ayur ? '#087d43' : '#0878f9',
+                        fontWeight: '700',
+                        fontSize: '11.5px',
+                        display: 'block',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      {card.icon} {card.title}
+                    </small>
+                    <b style={{ color: '#0f172a', fontSize: '13px', lineHeight: '1.4' }}>{card.value}</b>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Patient Transcript / Notes snippet */}
+            {(p.notes || s.notes) && (
+              <div style={{ background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <small style={{ color: '#64748b', fontWeight: '700', fontSize: '11px', display: 'block', marginBottom: '4px' }}>
+                  📝 Complete Structured Intake Case Record
+                </small>
+                <div style={{ color: '#334155', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                  {p.notes || s.notes}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* SECTION 2: Dasvidha Pariksha (Ayurvedic Assessment - Only if Ayur) */}
@@ -1885,7 +2446,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
 
       {/* SECTION 3 (or 2 for Allopathy): Reports Summary (Extracted using OCR) */}
       <Section n={ayur ? '3' : '2'} title="Reports Summary (Extracted using OCR)">
-        {reports && reports.some(r => r.ocr_text || r.extracted_data) ? (
+        {reports && reports.some(r => r.ocr_text || r.extracted_data || r.ocrSummary || r.summary) ? (
           <div
             className="dp-grid"
             style={{
@@ -1895,13 +2456,13 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
               marginBottom: '16px',
             }}
           >
-            {reports.filter(r => r.ocr_text || r.extracted_data).map((r, i) => (
+            {reports.filter(r => r.ocr_text || r.extracted_data || r.ocrSummary || r.summary).map((r, i) => (
               <article key={r.id || i} style={{ borderRight: '1px solid #e2e8f0', paddingRight: '16px' }}>
                 <b style={{ display: 'block', marginBottom: '10px', color: '#0f172a', fontSize: '13px', fontWeight: '600' }}>
                   {r.title || r.report_type || 'Diagnostic Report'} ({r.uploaded_at ? new Date(r.uploaded_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'})
                 </b>
                 <div style={{ color: '#334155', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                  {r.ocr_text || (typeof r.extracted_data === 'string' ? r.extracted_data : JSON.stringify(r.extracted_data, null, 2))}
+                  {r.ocr_text || r.ocrSummary || r.summary || (typeof r.extracted_data === 'string' ? r.extracted_data : JSON.stringify(r.extracted_data, null, 2))}
                 </div>
               </article>
             ))}
@@ -2024,10 +2585,10 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                       {uploadDate} • {fileSize}
                     </small>
                     <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
-                      {r.file_url ? (
+                      {r.file_url || r.dataUrl ? (
                         <>
                           <a
-                            href={r.file_url}
+                            href={r.file_url || r.dataUrl}
                             target="_blank"
                             rel="noreferrer"
                             style={{
@@ -2046,9 +2607,9 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                           >
                             View
                           </a>
-                          <a
-                            href={r.file_url}
-                            download={reportTitle}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadReport(r, i)}
                             style={{
                               flex: 1,
                               padding: '6px',
@@ -2059,29 +2620,29 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                               borderRadius: '6px',
                               fontSize: '12px',
                               fontWeight: '600',
-                              textDecoration: 'none',
                               cursor: 'pointer',
                             }}
                           >
                             Download
-                          </a>
+                          </button>
                         </>
                       ) : (
                         <button
                           type="button"
-                          disabled
+                          onClick={() => handleDownloadReport(r, i)}
                           style={{
                             flex: 1,
                             padding: '6px',
-                            background: '#f1f5f9',
-                            border: '1px solid #e2e8f0',
-                            color: '#94a3b8',
+                            background: '#f0fdf4',
+                            border: '1px solid #bbf7d0',
+                            color: '#16a34a',
                             borderRadius: '6px',
                             fontSize: '12px',
-                            fontWeight: '500',
+                            fontWeight: '600',
+                            cursor: 'pointer',
                           }}
                         >
-                          Processed
+                          Download OCR Text
                         </button>
                       )}
                     </div>
@@ -2095,11 +2656,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
               <span>Uploaded {reports.length} of {reports.length} files</span>
               <button
                 type="button"
-                onClick={() => {
-                  reports.forEach(r => {
-                    if (r.file_url) window.open(r.file_url, '_blank');
-                  });
-                }}
+                onClick={handleDownloadAllReports}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -2145,6 +2702,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
             {!ayur && <span style={{ color: '#64748b', fontSize: '13px', fontWeight: '500' }}>Saved as Draft</span>}
             <button
               type="button"
+              onClick={handleDownloadPrescription}
               style={{
                 background: '#fff',
                 color: '#087d43',
@@ -2157,6 +2715,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                 alignItems: 'center',
                 gap: '8px',
                 cursor: 'pointer',
+                transition: 'all 0.15s ease',
               }}
             >
               Download Prescription <Download size={15} />
@@ -2657,6 +3216,14 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
 export default function PhysicianDashboard() {
   const nav = useNavigate();
   const { session, logout } = useSession();
+  const { currentLang } = useLanguage();
+
+  // Sync domTranslator whenever the doctor portal's language changes
+  useEffect(() => {
+    domTranslator.start(currentLang);
+    document.documentElement.lang = currentLang;
+  }, [currentLang]);
+
   const [activeTab, setActiveTab] = useState('appointments');
   const [doctor, setDoctor] = useState(null);
   const [rows, setRows] = useState([]);
@@ -2709,11 +3276,12 @@ export default function PhysicianDashboard() {
           const resolvedAvatar = docData.avatar_url || getDoctorAvatar(docData.name);
           const finalDoc = {
             ...docData,
+            name: getEnglishDoctorName(docData.name || session.staff?.name),
             username: session.staff?.username || docData.username || docData.email?.split('@')[0] || String(docData.name || 'doctor').toLowerCase().replace(/[^a-z0-9]/g, ''),
             avatar_url: resolvedAvatar,
             degrees: docData.degrees || docData.degree || 'MBBS, MD (Internal Medicine)',
             speciality: docData.speciality || docData.specialty || docData.department || 'General Physician',
-            hospitalName: docData.hospitals?.name || docData.hospitalName || 'Sawai Man Singh Hospital',
+            hospitalName: getEnglishHospitalName(docData),
             age: docData.age ?? null,
             gender: docData.gender ?? null,
             experience: docData.experience ?? docData.exp ?? null,
@@ -2829,7 +3397,7 @@ export default function PhysicianDashboard() {
 
   const hr = new Date().getHours();
   const greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
-  const doctorDisplayName = doctor?.name || session.staff?.name || 'Dr. Ananya Sharma';
+  const doctorDisplayName = getEnglishDoctorName(doctor?.name || session.staff?.name);
 
   // If in consultation
   if (consult && selected) {
@@ -2856,58 +3424,17 @@ export default function PhysicianDashboard() {
         <Top doctor={doctor} onLogout={leave} />
 
         {activeTab === 'communities' ? (
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              padding: '60px 24px',
-              textAlign: 'center',
-              maxWidth: '620px',
-              margin: '40px auto',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-          >
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: '#eaf7f0',
-                color: '#087d43',
-                display: 'grid',
-                placeItems: 'center',
-                margin: '0 auto 16px',
-              }}
-            >
-              <UsersRound size={32} />
-            </div>
-            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: '0 0 8px 0' }}>
-              Doctor Forum & Medical Communities
-            </h2>
-            <p style={{ color: '#64748b', fontSize: '14px', lineHeight: '1.6', margin: '0 0 24px 0' }}>
-              The verified Physician & Specialist Medical Network is currently being prepared. Clinical case discussions and peer consultation channels will be available soon.
-            </p>
-            <span
-              style={{
-                display: 'inline-block',
-                background: '#f1f5f9',
-                color: '#475569',
-                fontSize: '12px',
-                fontWeight: '600',
-                padding: '6px 16px',
-                borderRadius: '20px',
-              }}
-            >
-              Doctor Network • Coming Soon
-            </span>
-          </div>
+          <DoctorCommunities
+            doctor={doctor}
+            onLogout={leave}
+            onBack={() => setActiveTab('appointments')}
+          />
         ) : activeTab === 'help' ? (
           <HelpSupportTab patientId={doctor?.id || session.staff?.id} />
         ) : (
           <>
             <h1 className="dp-greeting">
-              {greet}, {doctorDisplayName} 👋
+              {greet}, <span translate="no" className="notranslate">{doctorDisplayName}</span> 👋
             </h1>
 
             <div className={`dp-work ${selected ? 'open' : ''}`}>

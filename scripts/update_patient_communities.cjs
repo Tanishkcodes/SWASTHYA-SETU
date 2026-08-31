@@ -1,4 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+const fs = require('fs');
+const path = require('path');
+
+const targetFile = path.join(__dirname, '..', 'src', 'components', 'CommunitiesTab.jsx');
+
+const newContent = `import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertCircle, ArrowLeft, Baby, Brain, Check, ChevronRight, Droplet,
   Heart, HeartHandshake, Leaf, MessageCircle, RefreshCw, Ribbon, Search,
@@ -27,8 +32,8 @@ const COPY = {
 const SHORT_COPY={ta:{title:'சமூகங்கள்',join:'சமூகத்தில் சேரவும்',joined:'இணைந்தது',leave:'சமூகத்திலிருந்து விலகவும்',view:'சமூகத்தைக் காண்க',search:'சமூகங்கள் அல்லது சுகாதார தலைப்புகளைத் தேடுங்கள்',back:'அனைத்து சமூகங்கள்',helpful:'பயனுள்ளது',comments:'கருத்துகள்',share:'பகிரவும்',send:'கருத்தை இடுக'},te:{title:'కమ్యూనిటీలు',join:'కమ్యూనిటీలో చేరండి',joined:'చేరారు',leave:'కమ్యూనిటీని వీడండి',view:'కమ్యూనిటీని చూడండి',search:'కమ్యూనిటీలు లేదా ఆరోగ్య అంశాలను వెతకండి',back:'అన్ని కమ్యూనిటీలు',helpful:'సహాయకరం',comments:'వ్యాఖ్యలు',share:'పంచుకోండి',send:'వ్యాఖ్య పంపండి'},bn:{title:'কমিউনিটি',join:'কমিউনিটিতে যোগ দিন',joined:'যোগ দিয়েছেন',leave:'কমিউনিটি ছাড়ুন',view:'কমিউনিটি দেখুন',search:'কমিউনিটি বা স্বাস্থ্য বিষয় খুঁজুন',back:'সব কমিউনিটি',helpful:'সহায়ক',comments:'মন্তব্য',share:'শেয়ার',send:'মন্তব্য পাঠান'},mr:{title:'समुदाय',join:'समुदायात सामील व्हा',joined:'सामील',leave:'समुदाय सोडा',view:'समुदाय पहा',search:'समुदाय किंवा आरोग्य विषय शोधा',back:'सर्व समुदाय',helpful:'उपयुक्त',comments:'टिप्पण्या',share:'शेअर',send:'टिप्पणी पाठवा'},gu:{title:'સમુદાયો',join:'સમુદાયમાં જોડાઓ',joined:'જોડાયા',leave:'સમુદાય છોડો',view:'સમુદાય જુઓ',search:'સમુદાય અથવા આરોગ્ય વિષય શોધો',back:'બધા સમુદાયો',helpful:'મદદરૂપ',comments:'ટિપ્પણીઓ',share:'શેર',send:'ટિપ્પણી મોકલો'},kn:{title:'ಸಮುದಾಯಗಳು',join:'ಸಮುದಾಯಕ್ಕೆ ಸೇರಿ',joined:'ಸೇರಿದ್ದೀರಿ',leave:'ಸಮುದಾಯ ತೊರೆಯಿರಿ',view:'ಸಮುದಾಯ ನೋಡಿ',search:'ಸಮುದಾಯ ಅಥವಾ ಆರೋಗ್ಯ ವಿಷಯ ಹುಡುಕಿ',back:'ಎಲ್ಲಾ ಸಮುದಾಯಗಳು',helpful:'ಸಹಾಯಕ',comments:'ಕಾಮೆಂಟ್‌ಗಳು',share:'ಹಂಚಿಕೊಳ್ಳಿ',send:'ಕಾಮೆಂಟ್ ಕಳುಹಿಸಿ'},ml:{title:'കമ്മ്യൂണിറ്റികൾ',join:'കമ്മ്യൂണിറ്റിയിൽ ചേരുക',joined:'ചേർന്നു',leave:'കമ്മ്യൂണിറ്റി വിടുക',view:'കമ്മ്യൂണിറ്റി കാണുക',search:'കമ്മ്യൂണിറ്റി അല്ലെങ്കിൽ ആരോഗ്യ വിഷയം തിരയുക',back:'എല്ലാ കമ്മ്യൂണിറ്റികളും',helpful:'സഹായകരം',comments:'അഭിപ്രായങ്ങൾ',share:'പങ്കിടുക',send:'അഭിപ്രായം അയയ്ക്കുക'}};
 
 const countOf=(row,key)=>Number(row?.[key]?.[0]?.count||0);
-const displayName=(name='Community member')=>name.trim().split(/\s+/)[0]||'Member';
-const localText=(row,key,lang)=>row?.[`${key}_i18n`]?.[lang]||(lang==='en'?row?.[key]:aiTranslationService.translate(row?.[key]||'',lang,'general'))||'';
+const displayName=(name='Community member')=>name.trim().split(/\\s+/)[0]||'Member';
+const localText=(row,key,lang)=>row?.[\`\${key}_i18n\`]?.[lang]||(lang==='en'?row?.[key]:aiTranslationService.translate(row?.[key]||'',lang,'general'))||'';
 const formatCount=value=>new Intl.NumberFormat('en-IN',{notation:value>=10000?'compact':'standard',maximumFractionDigits:1}).format(value||0);
 function timeAgo(value,lang){const delta=Math.round((new Date(value).getTime()-Date.now())/1000);const f=new Intl.RelativeTimeFormat(lang||'en',{numeric:'auto'});if(Math.abs(delta)<3600)return f.format(Math.round(delta/60),'minute');if(Math.abs(delta)<86400)return f.format(Math.round(delta/3600),'hour');return f.format(Math.round(delta/86400),'day')}
 
@@ -133,7 +138,7 @@ export default function CommunitiesTab({patientId}){
   };
 
   const share=async community=>{
-    const url=`${window.location.origin}${window.location.pathname}#community-${community.id}`;
+    const url=\`\${window.location.origin}\${window.location.pathname}#community-\${community.id}\`;
     try{
       if(navigator.share)await navigator.share({title:community.title,text:community.description,url});
       else await navigator.clipboard.writeText(url);
@@ -144,7 +149,7 @@ export default function CommunitiesTab({patientId}){
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2600);return()=>clearTimeout(timer)},[toast]);
 
   const categories=useMemo(()=>['all',...new Set(communities.map(item=>item.category).filter(Boolean))],[communities]);
-  const filtered=useMemo(()=>communities.filter(item=>(category==='all'||item.category===category)&&`${localText(item,'title',currentLang)} ${localText(item,'description',currentLang)} ${item.category||''} ${(item.eligible_specialities||[]).join(' ')}`.toLowerCase().includes(query.trim().toLowerCase())),[communities,category,query,currentLang]);
+  const filtered=useMemo(()=>communities.filter(item=>(category==='all'||item.category===category)&&\`\${localText(item,'title',currentLang)} \${localText(item,'description',currentLang)} \${item.category||''} \${(item.eligible_specialities||[]).join(' ')}\`.toLowerCase().includes(query.trim().toLowerCase())),[communities,category,query,currentLang]);
 
   if(selected){
     const theme=THEMES[selected.theme_key]||THEMES[selected.disease_key]||THEMES.general,Icon=theme.icon,isJoined=joined.includes(selected.id);
@@ -227,9 +232,9 @@ export default function CommunitiesTab({patientId}){
                             key={opt.id}
                             type="button"
                             onClick={()=>handleVotePoll(post,opt.id)}
-                            style={{position:'relative',width:'100%',padding:'8px 12px',borderRadius:'8px',border:`1px solid ${isSelected?'#087d43':'#cbd5e1'}`,background:isSelected?'#f0fdf4':'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',overflow:'hidden',textAlign:'left'}}
+                            style={{position:'relative',width:'100%',padding:'8px 12px',borderRadius:'8px',border:\`1px solid \${isSelected?'#087d43':'#cbd5e1'}\`,background:isSelected?'#f0fdf4':'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',overflow:'hidden',textAlign:'left'}}
                           >
-                            <div style={{position:'absolute',top:0,left:0,bottom:0,width:`${pct}%`,background:'rgba(8,125,67,0.12)',zIndex:0,transition:'width 0.3s ease'}}/>
+                            <div style={{position:'absolute',top:0,left:0,bottom:0,width:\`\${pct}%\`,background:'rgba(8,125,67,0.12)',zIndex:0,transition:'width 0.3s ease'}}/>
                             <span style={{position:'relative',zIndex:1,fontSize:'13px',fontWeight:600,color:'#1e293b',display:'flex',alignItems:'center',gap:'6px'}}>
                               {isSelected&&<Check size={14} color="#087d43" strokeWidth={3}/>}
                               {opt.text}
@@ -378,3 +383,7 @@ export default function CommunitiesTab({patientId}){
     </section>
   );
 }
+`;
+
+fs.writeFileSync(targetFile, newContent, 'utf8');
+console.log('Successfully updated CommunitiesTab.jsx with poll voting and rich doctor post interoperability');

@@ -39,13 +39,7 @@ export default function ConsentPage() {
   };
 
   const handleProceed = () => {
-    if (consents.voice) {
-      navigate('/interview');
-    } else {
-      // If voice not allowed, skip interview, go to scan (or alert user)
-      // For this app, we require at least voice or document
-      navigate('/interview');
-    }
+    navigate('/patient-dashboard');
   };
 
   const consentItems = [

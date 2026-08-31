@@ -1,58 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
-  <defs>
-    <linearGradient id="logoTeal" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#14B8A6" />
-      <stop offset="100%" stop-color="#0D9488" />
-    </linearGradient>
-
-    <linearGradient id="logoNavy" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2563EB" />
-      <stop offset="100%" stop-color="#1E3A8A" />
-    </linearGradient>
-
-    <linearGradient id="logoOrange" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FB923C" />
-      <stop offset="100%" stop-color="#EA580C" />
-    </linearGradient>
-
-    <linearGradient id="logoArchGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0D9488" />
-      <stop offset="50%" stop-color="#0284C7" />
-      <stop offset="100%" stop-color="#1E3A8A" />
-    </linearGradient>
-  </defs>
-
-  <!-- Heart Wings -->
-  <path d="M 50 34 C 42 22, 28 14, 34 8 C 40 2, 49 12, 50 16 Z" fill="url(#logoTeal)" />
-  <path d="M 50 34 C 58 22, 72 14, 66 8 C 60 2, 51 12, 50 16 Z" fill="url(#logoNavy)" />
-  <path d="M 50 34 C 38 20, 24 10, 36 6 C 45 3, 50 15, 50 15 C 50 15, 55 3, 64 6 C 76 10, 62 20, 50 34 Z" fill="none" stroke="url(#logoArchGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-
-  <!-- Orange Medical Cross -->
-  <g transform="translate(50, 18)">
-    <rect x="-2" y="-5.5" width="4" height="11" rx="1.2" fill="url(#logoOrange)" />
-    <rect x="-5.5" y="-2" width="11" height="4" rx="1.2" fill="url(#logoOrange)" />
-  </g>
-
-  <!-- Guardian Figures -->
-  <circle cx="24" cy="36" r="4" fill="url(#logoTeal)" />
-  <path d="M 18 56 C 18 45, 26 40, 34 38" fill="none" stroke="url(#logoTeal)" stroke-width="4" stroke-linecap="round" />
-
-  <circle cx="76" cy="36" r="4" fill="url(#logoNavy)" />
-  <path d="M 82 56 C 82 45, 74 40, 66 38" fill="none" stroke="url(#logoNavy)" stroke-width="4" stroke-linecap="round" />
-
-  <!-- Bridge Arch -->
-  <path d="M 22 58 C 32 40, 68 40, 78 58" fill="none" stroke="url(#logoArchGrad)" stroke-width="4.5" stroke-linecap="round" />
-  <path d="M 28 60 C 36 48, 64 48, 72 60" fill="none" stroke="url(#logoArchGrad)" stroke-width="2.2" stroke-linecap="round" />
-
-  <!-- Minimal Struts -->
-  <g stroke="url(#logoArchGrad)" stroke-width="1.8" stroke-linecap="round">
-    <line x1="36" y1="49" x2="36" y2="56" />
-    <line x1="45" y1="44.5" x2="45" y2="52.5" />
-    <line x1="50" y1="43.5" x2="50" y2="51.5" stroke="#0284C7" stroke-width="2" />
-    <line x1="55" y1="44.5" x2="55" y2="52.5" />
-    <line x1="64" y1="49" x2="64" y2="56" />
-  </g>
-
-  <!-- Clean ECG Heartbeat Pulse -->
-  <path d="M 28 72 L 40 72 L 44 65 L 48 78 L 50 60 L 53 82 L 56 68 L 60 72 L 72 72" fill="none" stroke="url(#logoTeal)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 100 100"
+  width="100%"
+  height="100%"
+>
+  <!-- Top Pill - Navy -->
+  <rect 
+    x="42" y="10" 
+    width="16" height="34" 
+    rx="8" 
+    fill="#1E3A8A" 
+  />
+  
+  <!-- Right Pill - Teal -->
+  <rect 
+    x="56" y="42" 
+    width="34" height="16" 
+    rx="8" 
+    fill="#0D9488" 
+  />
+  
+  <!-- Bottom Pill - Light Blue -->
+  <rect 
+    x="42" y="56" 
+    width="16" height="34" 
+    rx="8" 
+    fill="#38BDF8" 
+  />
+  
+  <!-- Left Pill - Vibrant Orange -->
+  <rect 
+    x="10" y="42" 
+    width="34" height="16" 
+    rx="8" 
+    fill="#EA580C" 
+  />
+  
+  <!-- Center Connector Dot -->
+  <circle 
+    cx="50" cy="50" 
+    r="8" 
+    fill="#F8FAFC" 
+    opacity="0.9"
+  />
 </svg>

@@ -6,5 +6,16 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  build: {
+    sourcemap: false, // Disables source maps so raw source files are NEVER exposed in production
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', 'lucide-react'],
+        }
+      }
+    }
   }
 })

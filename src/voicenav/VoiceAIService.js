@@ -86,10 +86,10 @@ class VoiceAIService {
     return response.json();
   }
 
-  async anamnesis({ disease, history, latestInput, language, doctorSpecialty, isAyurvedic, questionNumber }) {
+  async anamnesis({ disease, history, latestInput, language, doctorName, doctorSpecialty, isAyurvedic, questionNumber }) {
     const response = await this._request({
       action: 'anamnesis', disease, history, latestInput, language,
-      doctorSpecialty, isAyurvedic, questionNumber,
+      doctorName, doctorSpecialty, isAyurvedic, questionNumber,
     }, 'application/json', 15000);
     return response.json();
   }

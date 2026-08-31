@@ -25,8 +25,8 @@ export default function DocumentScanPage() {
     audioPromptManager.speakPageWelcome('scan');
 
     registerPage('scan', {
-      next: () => navigate('/summary'),
-      back: () => navigate('/interview'),
+      next: () => navigate('/patient-dashboard'),
+      back: () => navigate('/patient-dashboard'),
       takePicture: handleCapture,
     });
 
@@ -139,7 +139,7 @@ export default function DocumentScanPage() {
             reportType: docType,
             title: `${docType === 'lab' ? 'Lab report' : 'Prescription'} ${new Date().toLocaleDateString()}`,
             file,
-            ocrText: JSON.stringify(result),
+            ocrText: result.extractedText || JSON.stringify(result),
           });
           if (saved.error) throw saved.error;
           persisted = saved.data;
@@ -285,11 +285,11 @@ export default function DocumentScanPage() {
       </div>
 
       <div style={{ marginTop: 'var(--space-8)', display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '800px' }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/interview')}>
+        <button className="btn btn-ghost" onClick={() => navigate('/patient-dashboard')}>
           {t('back')}
         </button>
-        <button className="btn btn-primary btn-xl animate-pulse-glow" onClick={() => navigate('/summary')}>
-          {t('generateSummary')}
+        <button className="btn btn-primary btn-xl animate-pulse-glow" onClick={() => navigate('/patient-dashboard')}>
+          View in Dashboard
         </button>
       </div>
     </div>

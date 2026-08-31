@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Swasthya Setu Voice E2E</title>
+    <script>
+      class MockSpeechRecognition {
+        constructor() {
+          window.__voiceRecognition = this;
+          this.continuous = true;
+          this.interimResults = true;
+          this.maxAlternatives = 3;
+        }
+
+        start() {
+          this.started = true;
+          this.onstart?.();
+        }
+
+        stop() {
+          this.started = false;
+          this.onend?.();
+        }
+
+        abort() {
+          this.started = false;
+        }
+
+        emit(transcript) {
+          const alternative = { transcript, confidence: 0.99 };
+          const result = [alternative];
+          result.isFinal = true;
+          this.onresult?.({ resultIndex: 0, results: [result] });
+        }
+      }
+
+      window.SpeechRecognition = MockSpeechRecognition;
+      window.webkitSpeechRecognition = MockSpeechRecognition;
+      window.__emitVoice = transcript => window.__voiceRecognition?.emit(transcript);
+    </script>
+  </head>
+  <body>
+    <div id="voice-test-controls" style="position:fixed;right:8px;bottom:8px;z-index:99999;background:white;padding:4px">
+      <label for="voice-test-input">Voice test transcript</label>
+      <input id="voice-test-input" />
+      <button id="voice-test-emit" type="button" onclick="window.__emitVoice(document.getElementById('voice-test-input').value)">Emit voice</button>
+      <pre id="voice-parser-results" aria-label="Voice parser results"></pre>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script type="module">
+      import commandParser from '/src/voicenav/CommandParser.js';
+
+      const cases = [
+        ['book appointment', 'bookAppointment'], ['doctor portal', 'login_doctor'],
+        ['admin portal', 'login_admin'], ['patient login', 'login_patient'],
+        ['check symptoms', 'triage'], ['scan document', 'scanRecord'],
+        ['go back', 'back'], ['scroll up', 'scrollUp'], ['scroll down', 'scrollDown'],
+        ['next', 'next'], ['confirm', 'confirm'], ['option 2', 'selectOption'],
+        ['hindi mein', 'set_language_hi'], ['tamil il', 'set_language_ta'],
+        ['telugu lo', 'set_language_te'], ['bangla te', 'set_language_bn'],
+        ['marathi madhe', 'set_language_mr'], ['gujarati ma', 'set_language_gu'],
+        ['kannada dalli', 'set_language_kn'], ['malayalam il', 'set_language_ml'],
+        ['appointments dikhao', 'viewAppointments'], ['history dikhao', 'viewHistory'],
+        ['reports dikhao', 'viewReports'], ['communities dikhao', 'viewCommunities'],
+        ['help chahiye', 'viewHelp'], ['logout', 'logout']
+      ];
+
+      const results = [];
+      for (const [spoken, expected] of cases) {
+        const parsed = await commandParser.parse(spoken);
+        results.push({ spoken, expected, actual: parsed.intent, pass: parsed.intent === expected });
+      }
+      document.getElementById('voice-parser-results').textContent = JSON.stringify(results);
+    </script>
+  </body>
+</html>

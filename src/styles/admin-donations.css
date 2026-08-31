@@ -1,1 +1,489 @@
-.admin-donations{display:flex;flex-direction:column;gap:1rem}.admin-donations-head{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:#fff;border:1px solid var(--gray-200);border-radius:18px;padding:1.4rem}.admin-donations-head h2{margin:0;color:var(--navy-900)}.admin-donations-head p{margin:.3rem 0 0;color:var(--gray-500)}.admin-donations-head>div:last-child{display:flex;gap:.6rem}.admin-primary,.admin-refresh{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border:0;border-radius:10px;padding:.7rem 1rem;font-weight:750;cursor:pointer}.admin-primary{background:var(--teal-600);color:#fff}.admin-refresh{background:#edf5f3;color:#116b60}.admin-trust-note,.admin-donation-error{display:flex;align-items:center;gap:.55rem;padding:.8rem 1rem;border-radius:12px;background:#ecfdf5;color:#14675d;border:1px solid #bce7dc}.admin-donation-error{background:#fff1f2;color:#b91c1c;border-color:#fecdd3}.admin-donation-empty{min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#fff;border:1px dashed #bed3cf;border-radius:16px;color:#6c7d8d;padding:2rem}.admin-donation-empty h3{margin:.7rem 0 .2rem;color:#23394c}.admin-donation-empty p{margin:0}.admin-request-table{background:#fff;border:1px solid var(--gray-200);border-radius:16px;overflow:auto}.admin-request-row{min-width:900px;display:grid;grid-template-columns:1.45fr 1.25fr 1fr .7fr .55fr 1.35fr;gap:.8rem;align-items:center;padding:.85rem 1rem;border-bottom:1px solid #e7edec;font-size:.82rem}.admin-request-row.header{background:#f5f9f8;color:#627487;font-weight:800}.admin-request-row>span:first-child{display:flex;flex-direction:column}.admin-request-row small{color:#778796;text-transform:capitalize}.admin-status{display:inline-block;text-transform:capitalize;padding:.25rem .5rem;border-radius:999px;background:#edf2f7;color:#526377}.admin-status.active{background:#dcfce7;color:#15803d}.admin-status.fulfilled{background:#dbeafe;color:#1d4ed8}.admin-status.closed,.admin-status.cancelled{background:#f1f5f9;color:#64748b}.admin-row-actions{display:flex;gap:.35rem;align-items:center}.admin-row-actions button{border:1px solid #cedbd8;background:#fff;color:#176b60;border-radius:7px;padding:.38rem .5rem;font-weight:700;cursor:pointer}.admin-donation-backdrop{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:1rem;background:rgba(4,21,33,.65);backdrop-filter:blur(5px)}.admin-donation-modal{position:relative;width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:1.6rem;box-shadow:0 25px 70px rgba(0,0,0,.3)}.admin-donation-modal h2{margin:0 2.5rem .4rem 0}.admin-donation-modal>p{color:#657789}.admin-modal-x{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border:0;border-radius:50%;background:#eef3f2;display:grid;place-items:center;cursor:pointer}.admin-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin:1rem 0}.admin-form-grid label{display:flex;flex-direction:column;gap:.35rem;font-size:.8rem;font-weight:750;color:#3b4d5f}.admin-form-grid .full{grid-column:1/-1}.admin-form-grid input,.admin-form-grid select,.admin-form-grid textarea{border:1px solid #cbd8d5;border-radius:9px;padding:.7rem;font:inherit;resize:vertical}.admin-modal-actions{display:flex;justify-content:flex-end;gap:.65rem}.admin-modal-actions>button:not(.admin-primary){border:0;background:#eef3f2;color:#405265;border-radius:10px;padding:.7rem 1rem;font-weight:700;cursor:pointer}.admin-responses{display:flex;flex-direction:column}.admin-responses>div{display:grid;grid-template-columns:1fr auto;gap:.6rem;padding:.85rem 0;border-bottom:1px solid #e5ecea}.admin-responses div div{display:flex;flex-direction:column}.admin-responses small{color:#718293}.admin-responses span{display:flex;flex-direction:column;align-items:flex-end;font-weight:750}.admin-responses b{text-transform:capitalize;color:#087367;font-size:.74rem}.admin-responses p{grid-column:1/-1;background:#f7faf9;padding:.6rem;border-radius:8px;margin:0;color:#536678}@media(max-width:720px){.admin-donations-head{align-items:flex-start;flex-direction:column}.admin-form-grid{grid-template-columns:1fr}.admin-form-grid .full{grid-column:auto}.admin-donations-head>div:last-child{width:100%}.admin-donations-head button{flex:1}}
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN DONATIONS STYLES - SWASTHYA SETU
+   Matches Landing Page, Manage Blood Donations Table & New Request Modal
+   ══════════════════════════════════════════════════════════════════════ */
+
+.admin-don-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* ── Header & Breadcrumbs ── */
+.admin-don-header {
+  margin-bottom: 4px;
+}
+
+.admin-don-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.admin-don-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.admin-don-top-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.admin-don-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-don-back-btn:hover {
+  background: #f8fafc;
+  color: #087d43;
+  border-color: #087d43;
+}
+
+.admin-don-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.admin-don-bc-link {
+  color: #087d43;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.admin-don-bc-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Landing Page Hero Cards Grid ── */
+.admin-don-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .admin-don-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-don-hero-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 320px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-don-hero-card.blood {
+  border: 1px solid #fed7aa;
+  background: linear-gradient(135deg, #ffffff 0%, #fff7ed 60%, #ffedd5 100%);
+}
+
+.admin-don-hero-card.monetary {
+  border: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 60%, #dcfce7 100%);
+}
+
+.admin-don-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  z-index: 2;
+}
+
+.admin-don-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+}
+
+.admin-don-badge-icon.blood {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+.admin-don-badge-icon.monetary {
+  background: #dcfce7;
+  color: #059669;
+}
+
+.admin-don-hero-art {
+  position: absolute;
+  right: 0;
+  top: 10px;
+  width: 170px;
+  height: 170px;
+  pointer-events: none;
+  opacity: 0.95;
+}
+
+.admin-don-card-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.admin-don-card-desc {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0 0 20px 0;
+  max-width: 70%;
+}
+
+/* 3 Stat Badges Row */
+.admin-don-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 22px;
+  position: relative;
+  z-index: 2;
+}
+
+.admin-don-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.admin-don-stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.admin-don-stat-icon.red {
+  background: #ffe4e6;
+  color: #e11d48;
+}
+
+.admin-don-stat-icon.green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.admin-don-stat-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.admin-don-stat-lbl {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Action Button at bottom of card */
+.admin-don-cta-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.admin-don-cta-btn.blood {
+  background: #ffffff;
+  color: #e11d48;
+  border: 1.5px solid #fca5a5;
+}
+
+.admin-don-cta-btn.blood:hover {
+  background: #fff1f2;
+  border-color: #e11d48;
+}
+
+.admin-don-cta-btn.monetary {
+  background: #ffffff;
+  color: #087d43;
+  border: 1.5px solid #86efac;
+}
+
+.admin-don-cta-btn.monetary:hover {
+  background: #f0fdf4;
+  border-color: #087d43;
+}
+
+/* ── Bottom Info Banner ── */
+.admin-don-info-banner {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1e40af;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+/* ── 4 Top Stat Cards on Manage Blood Donations Page ── */
+.admin-don-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .admin-don-metrics-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin-don-metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.admin-don-metric-icon-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.admin-don-metric-icon-circle.red {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.admin-don-metric-icon-circle.orange {
+  background: #ffedd5;
+  color: #f97316;
+}
+
+.admin-don-metric-icon-circle.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.admin-don-metric-icon-circle.purple {
+  background: #f3e8ff;
+  color: #a855f7;
+}
+
+.admin-don-metric-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.admin-don-metric-lbl {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Blood Requests Table Card ── */
+.admin-don-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.admin-don-table-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.admin-don-table-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.admin-don-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-don-filter-select {
+  padding: 7px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Blood Group Badges */
+.blood-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.blood-badge.red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.blood-badge.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.blood-badge.amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.blood-badge.purple {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+/* Urgency & Status Badges */
+.urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.urgency-badge.emergency {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.urgency-badge.urgent {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+.urgency-badge.routine {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.don-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.don-status-badge.pending {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.don-status-badge.fulfilled {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.don-status-badge.cancelled {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* ── Modal Form Fields for New Blood Request ── */
+.don-modal-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .don-modal-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.don-required-star {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 2px;
+}

@@ -198,7 +198,7 @@ function App() {
               <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
               <Route path="/language" element={<Layout><LanguageSelectPage /></Layout>} />
               <Route path="/consent" element={<Layout><ConsentPage /></Layout>} />
-              <Route path="/interview" element={<Layout><HistoryInterviewPage /></Layout>} />
+              <Route path="/interview" element={<Navigate to="/patient-dashboard" replace />} />
               <Route path="/scan" element={<Layout><DocumentScanPage /></Layout>} />
               <Route path="/summary" element={<Layout><SummaryPage /></Layout>} />
               <Route path="/completion" element={<Layout><CompletionPage /></Layout>} />

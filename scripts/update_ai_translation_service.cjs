@@ -1,4 +1,9 @@
-/* =========================================================================
+const fs = require('fs');
+const path = require('path');
+
+const targetFile = path.join(__dirname, '..', 'src', 'engine', 'AiTranslationService.js');
+
+const newServiceContent = `/* =========================================================================
    SWASTHYA SETU — Universal Bidirectional AI & Indic Translation Engine
    Provides instantaneous, smart, and accurate translations across all 9
    supported Indian languages + English (hi, mr, gu, ta, te, kn, bn, ml, en).
@@ -75,7 +80,7 @@ const MULTI_DICT = {
   'government': { en: 'Government', hi: 'सरकारी', mr: 'शासकीय', gu: 'સરકારી', ta: 'அரசு', te: 'ప్రభుత్వ', kn: 'ಸರ್ಕಾರಿ', bn: 'সরকারি', ml: 'സർക്കാർ' },
   'private': { en: 'Private', hi: 'निजी', mr: 'खाजगी', gu: 'ખાનગી', ta: 'தனியார்', te: 'ప్రైవేట్', kn: 'ಖಾಸಗಿ', bn: 'বেসরকারি', ml: 'സ്വകാര്യ' },
   'confirmed': { en: 'Confirmed', hi: 'पुष्टि की गई', mr: 'निश्चित', gu: 'પુષ્ટિ થયેલ', ta: 'உறுதியானது', te: 'ధృవీకరించబడింది', kn: 'ದೃಢೀಕರಿಸಲಾಗಿದೆ', bn: 'নিশ্চিত', ml: 'സ്ഥിരീകരിച്ചു' },
-  'pending': { en: 'Pending', hi: 'प्रतीक्षारत', mr: 'ಪ್ರಲಂಬಿತ', gu: 'બાકી', ta: 'நிலுவையில்', te: 'వేచి ఉంది', kn: 'ಬಾಕಿ ಉಳಿದಿದೆ', bn: 'অপেক্ষমাণ', ml: 'തീർച്ചപ്പെടാത്ത' },
+  'pending': { en: 'Pending', hi: 'प्रतीक्षारत', mr: 'प्रलंबित', gu: 'બાકી', ta: 'நிலுவையில்', te: 'వేచి ఉంది', kn: 'ಬಾಕಿ ಉಳಿದಿದೆ', bn: 'অপেক্ষমাণ', ml: 'തീർച്ചപ്പെടാത്ത' },
   'completed': { en: 'Completed', hi: 'पूर्ण', mr: 'पूर्ण', gu: 'પૂર્ણ', ta: 'முடிந்தது', te: 'పూర్తయింది', kn: 'ಪೂರ್ಣಗೊಂಡಿದೆ', bn: 'সম্পন্ন', ml: 'പൂർത്തിയായി' },
   'token': { en: 'Token', hi: 'टोकन', mr: 'टोकन', gu: 'ટોકન', ta: 'டோக்கன்', te: 'టోకెన్', kn: 'ಟೋಕನ್', bn: 'টোকেন', ml: 'ടോക്കൺ' },
   'room': { en: 'Room', hi: 'कमरा', mr: 'खोली', gu: 'રૂમ', ta: 'அறை', te: 'గది', kn: 'ಕೊಠಡಿ', bn: 'রুম', ml: 'മുറി' },
@@ -83,8 +88,6 @@ const MULTI_DICT = {
   'exp': { en: 'Exp.', hi: 'अनुभव', mr: 'अनुभव', gu: 'અનુભવ', ta: 'அனுபவம்', te: 'అనుభవం', kn: 'ಅನುಭವ', bn: 'অভিজ্ঞতা', ml: 'പരിചയം' },
   'today': { en: 'Today', hi: 'आज', mr: 'आज', gu: 'આજે', ta: 'இன்று', te: 'ఈరోజు', kn: 'ಇಂದು', bn: 'আজ', ml: 'ഇന്ന്' },
   'tomorrow': { en: 'Tomorrow', hi: 'कल', mr: 'उद्या', gu: 'આવતીકાલે', ta: 'நாளை', te: 'రేపు', kn: 'ನಾಳೆ', bn: 'আগামীকাল', ml: 'നാളെ' },
-  'sidhant': { en: 'Sidhant', hi: 'सिद्धांत', mr: 'सिद्धांत', gu: 'સિદ્ધાંત', ta: 'சித்தாந்த்', te: 'సిద్ధాంత్', kn: 'ಸಿದ್ಧಾಂತ್', bn: 'সিদ্ধান্ত', ml: 'സിദ്ധാന്ത്' },
-  'ananya sharma': { en: 'Ananya Sharma', hi: 'अनन्या शर्मा', mr: 'अनन्या शर्मा', gu: 'અનન્યા શર્મા', ta: 'அனன்யா சர்மா', te: 'అనన్య శర్మ', kn: 'ಅನನ್ಯಾ ಶರ್ಮಾ', bn: 'অনন্যা শর্মা', ml: 'അനന്യ ശർമ്മ' },
 };
 
 class AiTranslationService {
@@ -174,18 +177,10 @@ class AiTranslationService {
 
   async _processBatch() {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) return;
+
     const currentBatch = new Map(this._batch);
     this._batch.clear();
-
-    if (!apiKey && !voiceAIService.available) {
-      currentBatch.forEach((items, targetLang) => {
-        items.forEach((contextType, originalStr) => {
-          const cacheKey = `${targetLang}_${contextType}_${originalStr.toLowerCase()}`;
-          this._pending.delete(cacheKey);
-        });
-      });
-      return;
-    }
 
     for (const [targetLang, items] of currentBatch.entries()) {
       const textsToTranslate = Array.from(items.keys());
@@ -198,54 +193,40 @@ class AiTranslationService {
       const langName = langNames[targetLang] || targetLang;
 
       try {
-        if (apiKey) {
-          const prompt = `Translate this JSON array of hospital and medical text into ${langName}. Keep punctuation and meaning accurate. Return ONLY a valid JSON array of translated strings.
-Input: ${JSON.stringify(textsToTranslate)}`;
+        const prompt = \`Translate this JSON array of hospital and medical text into \${langName}. Keep punctuation and meaning accurate. Return ONLY a valid JSON array of translated strings.
+Input: \${JSON.stringify(textsToTranslate)}\`;
 
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
+        const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${apiKey}\`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-            const translatedArray = JSON.parse(rawJson);
+        if (response.ok) {
+          const data = await response.json();
+          let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          rawJson = rawJson.replace(/\\\`\\\`\\\`json/g, '').replace(/\\\`\\\`\\\`/g, '').trim();
+          const translatedArray = JSON.parse(rawJson);
 
-            if (Array.isArray(translatedArray) && translatedArray.length === textsToTranslate.length) {
-              textsToTranslate.forEach((originalStr, index) => {
-                const translatedStr = translatedArray[index];
-                const contextType = items.get(originalStr);
-                const cacheKey = `${targetLang}_${contextType}_${originalStr.toLowerCase()}`;
-                this._cache.set(cacheKey, translatedStr);
-                this._pending.delete(cacheKey);
-              });
-              this._notify();
-            }
-          }
-        } else if (voiceAIService.available) {
-          // Secure Server-side Supabase Edge Function Translation (Zero Browser API Key exposure)
-          await Promise.all(textsToTranslate.map(async (originalStr) => {
-            const contextType = items.get(originalStr);
-            const res = await voiceAIService.translate(originalStr, langName, contextType);
-            if (res && res.text) {
-              const cacheKey = `${targetLang}_${contextType}_${originalStr.toLowerCase()}`;
-              this._cache.set(cacheKey, res.text);
+          if (Array.isArray(translatedArray) && translatedArray.length === textsToTranslate.length) {
+            textsToTranslate.forEach((originalStr, index) => {
+              const translatedStr = translatedArray[index];
+              const contextType = items.get(originalStr);
+              const cacheKey = \`\${targetLang}_\${contextType}_\${originalStr.toLowerCase()}\`;
+              this._cache.set(cacheKey, translatedStr);
               this._pending.delete(cacheKey);
-            }
-          }));
-          this._notify();
+            });
+            this._notify();
+          }
         }
       } catch (err) {
-        console.warn('Translation batch error:', err);
+        console.warn('Gemini batch translation error:', err);
       } finally {
         textsToTranslate.forEach(originalStr => {
-          const cacheKey = `${targetLang}_${items.get(originalStr)}_${originalStr.toLowerCase()}`;
+          const cacheKey = \`\${targetLang}_\${items.get(originalStr)}_\${originalStr.toLowerCase()}\`;
           this._pending.delete(cacheKey);
         });
       }
@@ -348,3 +329,7 @@ Input: ${JSON.stringify(textsToTranslate)}`;
 
 const aiTranslationService = new AiTranslationService();
 export default aiTranslationService;
+`;
+
+fs.writeFileSync(targetFile, newServiceContent, 'utf8');
+console.log('Successfully updated AiTranslationService with universal bidirectional translation');
