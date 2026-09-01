@@ -3,15 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useSession } from '../context/SessionContext';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
-import { QrCode, UserCircle, Key, Shield, ArrowLeft, Stethoscope, Users } from 'lucide-react';
-import AudioButton from '../components/AudioButton';
+import { UserCircle, Key, Shield, ArrowLeft, Stethoscope, Users, Eye, EyeOff } from 'lucide-react';
 import VirtualKeyboard from '../components/VirtualKeyboard';
-import ABHAScanner from '../components/ABHAScanner';
 import SwasthyaLogo from '../components/SwasthyaLogo';
 import BrandTitle from '../components/BrandTitle';
 import aiCommandEngine from '../engine/AICommandEngine';
 import audioFeedback from '../voicenav/AudioFeedback';
-import { db } from '../lib/db';
+import { db, getAuthLockStatus } from '../lib/db';
 import '../styles/auth.css';
 
 function normalizeGender(rawGender, t) {
@@ -47,10 +45,14 @@ export default function AuthPage() {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const role = queryParams.get('role') || 'patient';
+  const isStaff = role === 'doctor' || role === 'admin';
 
   const { t, currentLang } = useLanguage();
-  const { setPatient, setStaff, setAyushMode, setAuth, session } = useSession();
+  const { loginPatient, loginStaff, session } = useSession();
   const { audioPromptManager, registerPage, unregisterPage, language, setOnTranscript, clearOnTranscript, setDictationMode, speak } = useVoiceNav();
+
+  // Loading state
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Patient states
   const [activeTab, setActiveTab] = useState('new'); // 'abha', 'aadhaar', 'new'
@@ -66,7 +68,32 @@ export default function AuthPage() {
   // Staff states
   const [staffUsername, setStaffUsername] = useState('');
   const [staffPassword, setStaffPassword] = useState('');
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [lockRemaining, setLockRemaining] = useState(0);
+
+  // Live 1-second interval to continuously tick down lockout seconds in real-time
+  useEffect(() => {
+    if (!isStaff) return;
+    const updateLockoutTimer = () => {
+      const u = staffUsername.trim();
+      if (!u) {
+        setLockRemaining(0);
+        return;
+      }
+      const status = getAuthLockStatus(u);
+      if (status.locked) {
+        setLockRemaining(status.remainingSeconds);
+      } else {
+        setLockRemaining(0);
+        setAuthError(prev => (prev && prev.includes('locked') ? '' : prev));
+      }
+    };
+
+    updateLockoutTimer();
+    const timer = setInterval(updateLockoutTimer, 1000);
+    return () => clearInterval(timer);
+  }, [isStaff, staffUsername]);
 
   // Keyboard state
   const [activeInput, setActiveInput] = useState(null); // { name, value }
@@ -75,15 +102,12 @@ export default function AuthPage() {
   // Registration voice state
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Scanner state
-  const [showScanner, setShowScanner] = useState(false);
-
   useEffect(() => {
     // If arriving directly, ensure no stuck audio
     audioFeedback.stop();
   }, []);
 
-  // If user is already authenticated with the matching role, redirect to their dashboard
+  // If user is already authenticated with the matching role, redirect directly to their dashboard
   useEffect(() => {
     if (session?.isAuthenticated && session?.userRole === role) {
       if (role === 'doctor') {
@@ -134,66 +158,80 @@ export default function AuthPage() {
   }, [role]);
 
   const handleNext = async () => {
-    // ----------------------------
-    // PATIENT LOGIN
-    // ----------------------------
-    if (role === 'patient') {
-      let patientData = { authMethod: activeTab };
-      
-      if (activeTab === 'abha') {
-        if (!abhaId) { setAuthError(t('enterAbha')); return; }
-        patientData.abhaId = abhaId;
-        patientData.name = "Patient (from ABHA)";
-      } else if (activeTab === 'aadhaar') {
-        if (aadhaar.length < 12) { setAuthError('Invalid Aadhaar'); return; }
-        patientData.aadhaarLast4 = aadhaar.slice(-4);
-        patientData.name = "Patient (from Aadhaar)";
-      } else {
-        if (!formData.name) { setAuthError(t('fullName') + ' is required'); return; }
-        patientData = { ...patientData, ...formData };
-      }
+    if (isLoggingIn) return;
+    setAuthError('');
+    setIsLoggingIn(true);
 
-      setAuthError('');
-      const { data: savedPatient, error } = await db.patients.upsert({
-        name: patientData.name,
-        phone: patientData.phone || null,
-        age: patientData.age ? Number(patientData.age) : null,
-        gender: patientData.gender || null,
-        language: currentLang || 'en',
-        abhaId: patientData.abhaId || null,
-        aadhaarLast4: patientData.aadhaarLast4 || null,
-        authMethod: patientData.authMethod,
-      });
-      if (error || !savedPatient) {
-        setAuthError(`Unable to connect to the patient database: ${error?.message || 'unknown error'}`);
+    try {
+      // ----------------------------
+      // PATIENT LOGIN (INSTANT 0ms UI TRANSITION)
+      // ----------------------------
+      if (role === 'patient') {
+        let patientData = { authMethod: activeTab };
+        
+        if (activeTab === 'abha') {
+          if (!abhaId) { setAuthError(t('enterAbha')); setIsLoggingIn(false); return; }
+          patientData.abhaId = abhaId;
+          patientData.name = "Patient (from ABHA)";
+        } else if (activeTab === 'aadhaar') {
+          if (aadhaar.length < 12) { setAuthError('Invalid Aadhaar'); setIsLoggingIn(false); return; }
+          patientData.aadhaarLast4 = aadhaar.slice(-4);
+          patientData.name = "Patient (from Aadhaar)";
+        } else {
+          if (!formData.name) { setAuthError((t('fullName') || 'Full Name') + ' is required'); setIsLoggingIn(false); return; }
+          patientData = { ...patientData, ...formData };
+        }
+
+        const localId = 'pat-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+        const fullPatient = { ...patientData, id: localId };
+
+        // 1. Instantly log in and navigate without blocking on network latency
+        loginPatient(fullPatient);
+        navigate('/patient-dashboard', { replace: true });
+
+        // 2. Persist to database in parallel and update ID seamlessly
+        db.patients.upsert({
+          name: patientData.name,
+          phone: patientData.phone || null,
+          age: patientData.age ? Number(patientData.age) : null,
+          gender: patientData.gender || null,
+          language: currentLang || 'en',
+          abhaId: patientData.abhaId || null,
+          aadhaarLast4: patientData.aadhaarLast4 || null,
+          authMethod: patientData.authMethod,
+        }).then(({ data: savedPatient }) => {
+          if (savedPatient?.id) {
+            loginPatient({ ...patientData, id: savedPatient.id });
+          }
+        }).catch(err => console.warn('Background patient database sync:', err));
         return;
       }
-      setAuth(true, 'patient');
-      setPatient({ ...patientData, id: savedPatient.id });
-      navigate('/patient-dashboard', { replace: true });
-      return;
-    }
 
-    // ----------------------------
-    // STAFF LOGIN (Doctor/Admin)
-    // ----------------------------
-    if (!staffUsername || !staffPassword) {
-      setAuthError('Please enter both username and password.');
-      return;
-    }
+      // ----------------------------
+      // STAFF LOGIN (Doctor/Admin)
+      // ----------------------------
+      if (!staffUsername || !staffPassword) {
+        setAuthError('Please enter both username and password.');
+        setIsLoggingIn(false);
+        return;
+      }
 
-    const { data: staff, error } = await db.staff.login(staffUsername.trim(), staffPassword);
-    if (error) { setAuthError(`Staff authentication failed: ${error.message}`); return; }
-    if (staff?.role === 'doctor' && role === 'doctor') {
-      setStaff(staff);
-      setAuth(true, 'doctor');
-      navigate('/physician', { replace: true });
-    } else if (staff?.role === 'admin' && role === 'admin') {
-      setStaff(staff);
-      setAuth(true, 'admin');
-      navigate('/admin-dashboard', { replace: true });
-    } else {
-      setAuthError('Invalid username, password, or portal role.');
+      const { data: staff, error } = await db.staff.login(staffUsername.trim(), staffPassword);
+      if (error) { setAuthError(error.message); setIsLoggingIn(false); return; }
+      if (staff?.role === 'doctor' && role === 'doctor') {
+        loginStaff(staff);
+        navigate('/physician', { replace: true });
+      } else if (staff?.role === 'admin' && role === 'admin') {
+        loginStaff(staff);
+        navigate('/admin-dashboard', { replace: true });
+      } else {
+        setAuthError('Invalid username, password, or portal role.');
+        setIsLoggingIn(false);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setAuthError('An unexpected error occurred during login. Please try again.');
+      setIsLoggingIn(false);
     }
   };
 
@@ -353,7 +391,123 @@ export default function AuthPage() {
     }
   }, [location.search, language, currentLang, t]);
 
-  const isStaff = role === 'doctor' || role === 'admin';
+  // ─────────────────────────────────────────────────────────────────────────────
+  // ACTIVE SESSION GUARD: If already logged into a DIFFERENT portal, require logout
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (session?.isAuthenticated && session?.userRole && session?.userRole !== role) {
+    const roleLabels = {
+      patient: 'Patient Portal',
+      doctor: 'Doctor / Physician Portal',
+      admin: 'Hospital Admin Portal',
+    };
+    const activePortalName = roleLabels[session.userRole] || 'Active Portal';
+    const targetPortalName = roleLabels[role] || 'Portal';
+    const activeUserName = session.userRole === 'patient'
+      ? (session.patient?.name || session.patient?.phone || 'Patient')
+      : (session.staff?.name || session.staff?.username || 'Staff User');
+
+    const handleReturnToActive = () => {
+      if (session.userRole === 'doctor') navigate('/physician');
+      else if (session.userRole === 'admin') navigate('/admin-dashboard');
+      else navigate('/patient-dashboard');
+    };
+
+    return (
+      <div className="auth-page animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '85vh', padding: '2rem' }}>
+        <div style={{
+          width: '100%',
+          maxWidth: '520px',
+          background: '#ffffff',
+          borderRadius: '24px',
+          padding: '3rem 2.5rem',
+          boxShadow: '0 25px 60px rgba(15, 23, 42, 0.1)',
+          border: '1px solid var(--gray-200)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '68px',
+            height: '68px',
+            borderRadius: '50%',
+            background: '#fffbeb',
+            border: '2px solid #fef3c7',
+            color: '#d97706',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem auto'
+          }}>
+            <Shield size={34} />
+          </div>
+
+          <h2 style={{ fontSize: '1.65rem', fontWeight: '800', color: 'var(--navy-900)', marginBottom: '0.75rem', letterSpacing: '-0.3px' }}>
+            Active Session Detected
+          </h2>
+
+          <p style={{ color: 'var(--gray-600)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '2rem' }}>
+            You are currently logged in as <strong style={{ color: 'var(--navy-900)' }}>{activeUserName}</strong> in the <strong style={{ color: 'var(--teal-700)' }}>{activePortalName}</strong>.
+            <br />
+            To access the <strong>{targetPortalName}</strong>, please log out of your current session first.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleReturnToActive}
+              style={{
+                width: '100%',
+                padding: '15px',
+                borderRadius: '12px',
+                fontSize: '1rem',
+                fontWeight: '700',
+                background: session.userRole === 'admin' ? 'var(--navy-800)' : session.userRole === 'doctor' ? 'var(--orange-600)' : 'var(--teal-600)',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Return to My {activePortalName} →
+            </button>
+
+            <button
+              type="button"
+              onClick={() => logout()}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                fontSize: '0.925rem',
+                fontWeight: '600',
+                color: '#dc2626',
+                border: '1px solid #fecaca',
+                background: '#fef2f2',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Log Out and Switch to {targetPortalName}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--gray-500)',
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                marginTop: '0.5rem',
+                fontWeight: '500'
+              }}
+            >
+              ← Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', minHeight: '100vh', paddingTop: 'calc(var(--header-height, 72px) + 2.5rem)', paddingBottom: '4rem', paddingLeft: '1.5rem', paddingRight: '1.5rem', background: 'transparent' }}>
@@ -418,20 +572,58 @@ export default function AuthPage() {
                 value={staffUsername}
                 onChange={(e) => setStaffUsername(e.target.value)}
                 onFocus={() => handleInputFocus('staffUsername', staffUsername)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleNext();
+                  }
+                }}
               />
             </div>
             <div className="input-group">
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--gray-600)', fontWeight: '600' }}><Key size={16}/> {t('password') || 'Password'}</label>
-              <input 
-                type="password" 
-                name="staffPassword"
-                className="input-field input-field-lg"
-                style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', transition: 'all 0.2s', width: '100%' }}
-                placeholder="••••••••"
-                value={staffPassword}
-                onChange={(e) => setStaffPassword(e.target.value)}
-                onFocus={() => handleInputFocus('staffPassword', staffPassword)}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input 
+                  type={showStaffPassword ? "text" : "password"} 
+                  name="staffPassword"
+                  className="input-field input-field-lg"
+                  style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', transition: 'all 0.2s', width: '100%', paddingRight: '46px' }}
+                  placeholder="••••••••"
+                  value={staffPassword}
+                  onChange={(e) => setStaffPassword(e.target.value)}
+                  onFocus={() => handleInputFocus('staffPassword', staffPassword)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleNext();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowStaffPassword(prev => !prev)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: showStaffPassword ? 'var(--teal-600)' : 'var(--gray-400)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '6px',
+                    borderRadius: '8px',
+                    transition: 'color 0.2s'
+                  }}
+                  title={showStaffPassword ? "Hide password" : "Show password"}
+                  aria-label={showStaffPassword ? "Hide password" : "Show password"}
+                >
+                  {showStaffPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -482,6 +674,12 @@ export default function AuthPage() {
                       value={abhaId}
                       onChange={(e) => setAbhaId(e.target.value)}
                       onFocus={() => handleInputFocus('abhaId', abhaId)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleNext();
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -502,6 +700,12 @@ export default function AuthPage() {
                         onChange={(e) => setAadhaar(e.target.value)}
                         maxLength={12}
                         onFocus={() => handleInputFocus('aadhaar', aadhaar)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleNext();
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -529,6 +733,12 @@ export default function AuthPage() {
                       value={formData.name}
                       onChange={handleFormChange}
                       onFocus={() => handleInputFocus('name', formData.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleNext();
+                        }
+                      }}
                     />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
@@ -543,6 +753,12 @@ export default function AuthPage() {
                         value={formData.age}
                         onChange={handleFormChange}
                         onFocus={() => handleInputFocus('age', formData.age)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleNext();
+                          }
+                        }}
                       />
                     </div>
                     <div className="input-group">
@@ -556,6 +772,12 @@ export default function AuthPage() {
                         value={formData.phone}
                         onChange={handleFormChange}
                         onFocus={() => handleInputFocus('phone', formData.phone)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleNext();
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -591,14 +813,42 @@ export default function AuthPage() {
             <ArrowLeft size={18} />
             {t('back') || 'Back'}
           </button>
-          <button 
-            type="button"
-            className={`btn ${isStaff && role === 'doctor' ? 'btn-accent' : 'btn-primary'}`}
-            onClick={handleNext}
-            style={{ flex: 2, padding: '16px', fontWeight: 'bold', borderRadius: '12px', ...(isStaff && role === 'admin' ? { background: 'var(--navy-700)' } : {}) }}
-          >
-            {t('loginSecurely') || 'Login Securely'}
-          </button>
+          {(() => {
+            const mins = Math.floor(lockRemaining / 60);
+            const secs = lockRemaining % 60;
+            const lockTimeStr = mins > 0 ? `${mins}m ${String(secs).padStart(2, '0')}s` : `${secs}s`;
+            const isLocked = lockRemaining > 0;
+
+            return (
+              <button 
+                type="button"
+                disabled={isLoggingIn || isLocked}
+                className={`btn ${isStaff && role === 'doctor' ? 'btn-accent' : 'btn-primary'}`}
+                onClick={handleNext}
+                style={{
+                  flex: 2,
+                  padding: '16px',
+                  fontWeight: 'bold',
+                  borderRadius: '12px',
+                  opacity: (isLoggingIn || isLocked) ? 0.7 : 1,
+                  cursor: (isLoggingIn || isLocked) ? 'not-allowed' : 'pointer',
+                  ...(isStaff && role === 'admin' && !isLocked ? { background: 'var(--navy-700)' } : {}),
+                  ...(isLocked ? { background: '#94a3b8', borderColor: '#94a3b8', color: '#fff' } : {})
+                }}
+              >
+                {isLoggingIn ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+                    Connecting...
+                  </span>
+                ) : isLocked ? (
+                  `Locked (${lockTimeStr})`
+                ) : (
+                  t('loginSecurely') || 'Login Securely'
+                )}
+              </button>
+            );
+          })()}
         </div>
 
         {/* Role Switcher Helper */}

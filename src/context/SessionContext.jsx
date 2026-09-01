@@ -123,6 +123,30 @@ function sessionReducer(state, action) {
       };
     }
 
+    case 'LOGIN_PATIENT': {
+      return {
+        ...state,
+        isAuthenticated: true,
+        userRole: 'patient',
+        sessionExpiresAt: null,
+        loginTimestamp: Date.now(),
+        patient: { ...state.patient, ...action.payload },
+        sessionStartTime: state.sessionStartTime || Date.now(),
+      };
+    }
+
+    case 'LOGIN_STAFF': {
+      const staff = action.payload;
+      return {
+        ...state,
+        isAuthenticated: true,
+        userRole: staff.role,
+        sessionExpiresAt: getNextMidnightTimestamp(),
+        loginTimestamp: Date.now(),
+        staff: staff,
+      };
+    }
+
     case 'SET_PATIENT':
       return {
         ...state,
@@ -320,10 +344,13 @@ export function SessionProvider({ children }) {
 
   const logout = useCallback(() => {
     try {
+      if (session.userRole === 'doctor' && session.staff) {
+        db.staff.recordLogout(session.staff);
+      }
       localStorage.removeItem('swasthya_session');
     } catch (e) {}
     dispatch({ type: 'RESET_SESSION' });
-  }, []);
+  }, [session.userRole, session.staff]);
 
   // Save session state to localStorage
   React.useEffect(() => {
@@ -435,10 +462,41 @@ export function SessionProvider({ children }) {
   const setSubmitted = useCallback(() => dispatch({ type: 'SET_SUBMITTED' }), []);
   const resetSession = useCallback(() => dispatch({ type: 'RESET_SESSION' }), []);
 
+  const loginPatient = useCallback((patientData) => {
+    dispatch({ type: 'LOGIN_PATIENT', payload: patientData });
+    try {
+      const current = JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+      localStorage.setItem('swasthya_session', JSON.stringify({
+        ...current,
+        isAuthenticated: true,
+        userRole: 'patient',
+        sessionExpiresAt: null,
+        loginTimestamp: Date.now(),
+        patient: { ...(current.patient || {}), ...patientData },
+      }));
+    } catch (e) {}
+  }, []);
+
+  const loginStaff = useCallback((staffData) => {
+    dispatch({ type: 'LOGIN_STAFF', payload: staffData });
+    try {
+      const current = JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+      localStorage.setItem('swasthya_session', JSON.stringify({
+        ...current,
+        isAuthenticated: true,
+        userRole: staffData.role,
+        sessionExpiresAt: getNextMidnightTimestamp(),
+        loginTimestamp: Date.now(),
+        staff: staffData,
+      }));
+    } catch (e) {}
+  }, []);
+
   const value = {
     session,
     dispatch,
     logout,
+    loginPatient, loginStaff,
     setAuth, setPatient, setStaff, setLanguage, setAyushMode, setConsent, setAllConsents,
     setChiefComplaint, addHPIResponse, addPastMedical, addMedication,
     addAllergy, setFamilyHistory, setPersonalHistory, setReviewOfSystems,

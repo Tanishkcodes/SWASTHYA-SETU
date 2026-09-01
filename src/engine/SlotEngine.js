@@ -28,6 +28,279 @@ const DEFAULT_EVENING_WINDOW   = { start: '16:00', end: '19:30' }; // 16:00–19
 const KEY_SCHEDULE   = 'ss_doctor_schedule_';    // + doctorId_dateStr
 const KEY_APPTS      = 'ss_appointments_';        // + patientKey
 const KEY_GLOBAL_APPTS = 'ss_global_appointments'; // all appointments across patients
+const KEY_PROXY_HOLDS = 'ss_slot_holds_proxy';     // Proxy hold / temporary lock store
+const KEY_PACING      = 'ss_doctor_opd_pacing_';   // Doctor OPD pacing and consultation duration
+const HOLD_TTL_MS     = 5 * 60 * 1000;            // 5 minutes temporary reservation hold
+
+// ─── AI Dynamic OPD Load & Slot Throttling Engine ────────────────────────────
+
+/**
+ * Record when a doctor starts consulting with a patient
+ */
+export function recordConsultationStart(doctorId, appointmentId = null) {
+  if (!doctorId) return;
+  const key = KEY_PACING + doctorId;
+  let state = {};
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {}
+
+  state.currentAppointmentId = appointmentId;
+  state.inConsultationSince = Date.now();
+  state.lastUpdated = Date.now();
+  state.doctorId = doctorId;
+
+  localStorage.setItem(key, JSON.stringify(state));
+  try {
+    window.dispatchEvent(new CustomEvent('swasthya_pacing_changed', { detail: state }));
+  } catch (e) {}
+}
+
+/**
+ * Record when a doctor ends session / completes consultation with a patient
+ */
+export function recordConsultationEnd(doctorId, appointmentId = null) {
+  if (!doctorId) return;
+  const key = KEY_PACING + doctorId;
+  let state = {};
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {}
+
+  const now = Date.now();
+  let durationMins = 8; // default baseline
+  if (state.inConsultationSince) {
+    durationMins = Math.max(1, Math.round((now - state.inConsultationSince) / 60000));
+  }
+
+  const completed = (state.completedConsultations || 0) + 1;
+  const totalMins = (state.totalConsultationMinutes || 0) + durationMins;
+  const avgMins = Math.round(totalMins / completed);
+
+  state.inConsultationSince = null;
+  state.currentAppointmentId = null;
+  state.completedConsultations = completed;
+  state.totalConsultationMinutes = totalMins;
+  state.averageConsultationMinutes = avgMins;
+  state.lastConsultationEndedAt = now;
+  state.lastUpdated = now;
+
+  localStorage.setItem(key, JSON.stringify(state));
+  try {
+    window.dispatchEvent(new CustomEvent('swasthya_pacing_changed', { detail: state }));
+    window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed', { detail: { unthrottled: true, doctorId } }));
+  } catch (e) {}
+}
+
+/**
+ * Calculate live AI Doctor Pacing, Estimated Delay, and Dynamic Slot Throttling Status
+ */
+export function getDoctorPacingStatus(doctorId, dateStr = todayStr()) {
+  if (!doctorId) return { throttleLevel: 'none', delayMinutes: 0, isThrottled: false, pacingMessage: '' };
+
+  const key = KEY_PACING + doctorId;
+  let state = {};
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {}
+
+  const isToday = dateStr === todayStr();
+  const now = Date.now();
+
+  // Calculate current consultation duration if active
+  let currentConsultationMinutes = 0;
+  if (state.inConsultationSince) {
+    currentConsultationMinutes = Math.max(0, Math.round((now - state.inConsultationSince) / 60000));
+  }
+
+  // Count waiting queue appointments today
+  const allAppts = readGlobalAppointments();
+  const docApptsToday = allAppts.filter(a => a.doctorId === doctorId && a.dateStr === dateStr && a.status !== 'cancelled');
+  const waitingCount = docApptsToday.filter(a => a.status === 'in_consultation' || a.status === 'waiting' || a.status === 'in_queue').length;
+
+  const avgDuration = state.averageConsultationMinutes || 10;
+  const baselineSlotDuration = 10; // expected mins per patient
+
+  // AI Delay Computation:
+  // If in consultation > 15 mins, doctor is engaged in a complex/extended case
+  let delayMinutes = 0;
+  if (isToday) {
+    if (currentConsultationMinutes > 12) {
+      delayMinutes += (currentConsultationMinutes - baselineSlotDuration);
+    }
+    if (waitingCount > 2) {
+      delayMinutes += (waitingCount - 2) * avgDuration;
+    }
+  }
+
+  // Determine AI dynamic throttle level
+  let throttleLevel = 'none'; // 'none' | 'moderate' | 'heavy'
+  let isThrottled = false;
+  let pacingMessage = '';
+
+  if (state.manualOverride === 'pause') {
+    throttleLevel = 'heavy';
+    isThrottled = true;
+    pacingMessage = 'Doctor engaged in Emergency / High Priority Ward Rounds. Immediate slots paused.';
+  } else if (delayMinutes >= 25 || waitingCount >= 5 || currentConsultationMinutes >= 22) {
+    throttleLevel = 'heavy';
+    isThrottled = true;
+    pacingMessage = `Doctor managing complex cases (Running ~${delayMinutes}m behind schedule). Immediate slots temporarily paused to prevent crowding.`;
+  } else if (delayMinutes >= 15 || waitingCount >= 3 || currentConsultationMinutes >= 15) {
+    throttleLevel = 'moderate';
+    isThrottled = true;
+    pacingMessage = `Heavy OPD Load (Running ~${delayMinutes}m behind schedule). Slot capacity dynamically buffered.`;
+  }
+
+  return {
+    doctorId,
+    dateStr,
+    isToday,
+    inConsultationSince: state.inConsultationSince,
+    currentConsultationMinutes,
+    waitingCount,
+    averageConsultationMinutes: avgDuration,
+    delayMinutes,
+    throttleLevel,
+    isThrottled,
+    pacingMessage,
+    completedCount: state.completedConsultations || 0
+  };
+}
+
+/**
+ * Manually override doctor pacing from Doctor or Admin Dashboard
+ */
+export function setDoctorPacingOverride(doctorId, mode = 'auto', note = '') {
+  if (!doctorId) return;
+  const key = KEY_PACING + doctorId;
+  let state = {};
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) state = JSON.parse(raw);
+  } catch (e) {}
+
+  state.manualOverride = mode; // 'auto' | 'throttle' | 'pause'
+  state.overrideNote = note;
+  state.lastUpdated = Date.now();
+
+  localStorage.setItem(key, JSON.stringify(state));
+  try {
+    window.dispatchEvent(new CustomEvent('swasthya_pacing_changed', { detail: state }));
+    window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed', { detail: { override: true, doctorId } }));
+  } catch (e) {}
+}
+
+// ─── Proxy Slot Lock & Hold Gatekeeper (IRCTC / Ticketmaster Architecture) ───
+
+/**
+ * Clean up expired holds from the proxy buffer
+ */
+export function cleanExpiredHolds() {
+  try {
+    const raw = localStorage.getItem(KEY_PROXY_HOLDS);
+    if (!raw) return [];
+    const now = Date.now();
+    const list = JSON.parse(raw) || [];
+    const valid = list.filter(h => h.expiresAt > now);
+    if (valid.length !== list.length) {
+      localStorage.setItem(KEY_PROXY_HOLDS, JSON.stringify(valid));
+    }
+    return valid;
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Count active proxy holds for a slot (excluding current patient's own hold)
+ */
+export function countActiveHolds(doctorId, dateStr, time24, excludePatientId = null) {
+  const valid = cleanExpiredHolds();
+  return valid.filter(h => 
+    h.doctorId === doctorId &&
+    h.dateStr === dateStr &&
+    h.time24 === time24 &&
+    (!excludePatientId || h.patientId !== excludePatientId)
+  ).length;
+}
+
+/**
+ * Acquire a 5-minute atomic slot hold in the proxy layer
+ */
+export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientName = '' }) {
+  const valid = cleanExpiredHolds();
+  const schedule = getDoctorSchedule(doctorId, dateStr);
+  const slot = schedule.slots.find(s => s.time24 === time24);
+  if (!slot || !slot.isOpen) {
+    return { success: false, error: 'Slot is not open for booking' };
+  }
+
+  const confirmedBooked = countBookings(doctorId, dateStr, time24);
+  const otherHolds = valid.filter(h => 
+    h.doctorId === doctorId && 
+    h.dateStr === dateStr && 
+    h.time24 === time24 && 
+    h.patientId !== patientId
+  ).length;
+
+  // Capacity Gatekeeper: confirmed + active holds must be < capacity
+  if (confirmedBooked + otherHolds >= slot.capacity) {
+    return { 
+      success: false, 
+      error: 'This slot was just temporarily locked by another patient. Please select an alternate slot.' 
+    };
+  }
+
+  // Remove any previous hold by this patient for any slot on this date
+  const filtered = valid.filter(h => !(h.patientId === patientId && h.dateStr === dateStr));
+
+  const now = Date.now();
+  const expiresAt = now + HOLD_TTL_MS;
+  const holdId = `hold_${now}_${Math.random().toString(36).slice(2, 7)}`;
+
+  const newHold = {
+    holdId,
+    doctorId,
+    dateStr,
+    time24,
+    patientId,
+    patientName,
+    createdAt: now,
+    expiresAt
+  };
+
+  filtered.push(newHold);
+  localStorage.setItem(KEY_PROXY_HOLDS, JSON.stringify(filtered));
+
+  try {
+    window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed', { detail: newHold }));
+  } catch (e) {}
+
+  return { success: true, holdId, expiresAt, remainingSeconds: Math.round(HOLD_TTL_MS / 1000) };
+}
+
+/**
+ * Release a proxy slot hold (when user cancels, changes slot, or navigates away)
+ */
+export function releaseSlotHold({ holdId = null, doctorId = null, dateStr = null, time24 = null, patientId = null } = {}) {
+  const valid = cleanExpiredHolds();
+  const filtered = valid.filter(h => {
+    if (holdId && h.holdId === holdId) return false;
+    if (patientId && doctorId && dateStr && time24 && h.patientId === patientId && h.doctorId === doctorId && h.dateStr === dateStr && h.time24 === time24) return false;
+    if (patientId && h.patientId === patientId && !doctorId) return false;
+    return true;
+  });
+
+  localStorage.setItem(KEY_PROXY_HOLDS, JSON.stringify(filtered));
+  try {
+    window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed', { detail: { released: true, patientId } }));
+  } catch (e) {}
+  return { success: true };
+}
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -82,13 +355,12 @@ export function getDoctorSchedule(doctorId, dateStr = todayStr()) {
     ...eveningSlots.map(s => ({ ...s, session: 'evening',   capacity: DEFAULT_CAPACITY_PER_SLOT, isOpen: true })),
   ];
 
-  // Slightly randomize capacity between 2–4 for realism
   const schedule = {
     doctorId,
     dateStr,
     slots: allSlots.map(s => ({
       ...s,
-      capacity: Math.floor(Math.random() * 3) + 2, // 2, 3 or 4
+      capacity: DEFAULT_CAPACITY_PER_SLOT,
     }))
   };
 
@@ -149,42 +421,95 @@ function countBookings(doctorId, dateStr, time24) {
  * Where SlotInfo = { label, time24, capacity, booked, slotsLeft, state }
  * state: 'open' | 'fast' | 'full' | 'closed'
  */
-export function getLiveSlots(doctorId, dateStr = todayStr()) {
+export function getLiveSlots(doctorId, dateStr = todayStr(), currentPatientId = null) {
+  // Check if doctor is on approved leave / holiday
+  try {
+    const rawLeaves = localStorage.getItem('ss_db_doctor_leaves');
+    if (rawLeaves) {
+      const leaves = JSON.parse(rawLeaves) || [];
+      const cleanId = String(doctorId || '').toLowerCase().trim();
+      const cleanName = cleanId.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+      const found = leaves.find(l => {
+        if (l.date !== dateStr) return false;
+        const lDocId = String(l.doctor_id || l.doctorId || '').toLowerCase().trim();
+        const lDocName = String(l.doctor_name || l.doctorName || '').toLowerCase().trim();
+        const lDocNameClean = lDocName.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+        return lDocId === cleanId || lDocName === cleanId || lDocNameClean === cleanName || cleanId.includes(lDocId) || (lDocId && cleanId.includes(lDocId));
+      });
+      if (found) {
+        return {
+          onLeave: true,
+          leaveReason: found.reason || 'On Approved Leave / Holiday',
+          leaveInfo: found,
+          morning: [],
+          afternoon: [],
+          evening: []
+        };
+      }
+    }
+  } catch (e) {}
+
   const schedule = getDoctorSchedule(doctorId, dateStr);
   const now = new Date();
   const isToday = dateStr === todayStr();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const pacing = getDoctorPacingStatus(doctorId, dateStr);
 
   const processed = schedule.slots.map(slot => {
-    const booked = countBookings(doctorId, dateStr, slot.time24);
-    const slotsLeft = Math.max(0, slot.capacity - booked);
+    const [h, m] = slot.time_24?.split(':').map(Number) || slot.time24.split(':').map(Number);
+    const slotMinutes = h * 60 + m;
 
     // For today, mark past slots as closed
     let isPast = false;
     if (isToday) {
-      const [h, m] = slot.time24.split(':').map(Number);
-      const slotMinutes = h * 60 + m;
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
       isPast = slotMinutes <= nowMinutes;
     }
 
+    // Dynamic AI Throttling: If doctor is running behind or overloaded, dynamically throttle slots in the immediate window
+    let isThrottledSlot = false;
+    let effectiveCapacity = slot.capacity;
+
+    if (isToday && pacing.isThrottled && !isPast) {
+      const minsFromNow = slotMinutes - nowMinutes;
+      // If slot is within next 90 minutes of the active delay
+      if (minsFromNow >= 0 && minsFromNow <= 90) {
+        if (pacing.throttleLevel === 'heavy') {
+          isThrottledSlot = true;
+          effectiveCapacity = 0;
+        } else if (pacing.throttleLevel === 'moderate') {
+          effectiveCapacity = Math.max(1, slot.capacity - 1);
+        }
+      }
+    }
+
+    const confirmedBooked = countBookings(doctorId, dateStr, slot.time24);
+    const activeHolds = countActiveHolds(doctorId, dateStr, slot.time24, currentPatientId);
+    const totalOccupied = confirmedBooked + activeHolds;
+    const slotsLeft = Math.max(0, effectiveCapacity - totalOccupied);
+
     let state;
-    if (!slot.isOpen || isPast) state = 'closed';
+    if (!slot.isOpen || isPast || isThrottledSlot) state = 'closed';
     else if (slotsLeft === 0)    state = 'full';
     else if (slotsLeft === 1)    state = 'fast';
     else                          state = 'open';
 
     return {
-      label:     slot.label,
-      time24:    slot.time24,
-      session:   slot.session,
-      capacity:  slot.capacity,
-      booked,
+      label:       slot.label,
+      time24:      slot.time24,
+      session:     slot.session,
+      capacity:    effectiveCapacity,
+      booked:      confirmedBooked,
+      activeHolds,
       slotsLeft,
-      state
+      state,
+      isThrottled: isThrottledSlot
     };
   });
 
   return {
+    onLeave: false,
+    leaveReason: '',
+    pacingInfo: pacing,
     morning:   processed.filter(s => s.session === 'morning'),
     afternoon: processed.filter(s => s.session === 'afternoon'),
     evening:   processed.filter(s => s.session === 'evening'),
@@ -196,7 +521,7 @@ export function getLiveSlots(doctorId, dateStr = todayStr()) {
 /**
  * Book a slot. Returns { success, token, error }
  */
-export function bookSlot({ doctorId, doctorName, hospitalName, patientName, patientKey, dateStr, time24, slotLabel, reason }) {
+export function bookSlot({ doctorId, doctorName, hospitalName, patientName, patientKey, dateStr, time24, slotLabel, reason, holdId = null }) {
   const schedule = getDoctorSchedule(doctorId, dateStr);
   const slot = schedule.slots.find(s => s.time24 === time24);
 
@@ -204,7 +529,13 @@ export function bookSlot({ doctorId, doctorName, hospitalName, patientName, pati
   if (!slot.isOpen) return { success: false, error: 'Slot is closed by the doctor' };
 
   const booked = countBookings(doctorId, dateStr, time24);
-  if (booked >= slot.capacity) return { success: false, error: 'Slot is fully booked' };
+  const otherHolds = countActiveHolds(doctorId, dateStr, time24, patientKey);
+  if (booked + otherHolds >= slot.capacity) {
+    return { success: false, error: 'Slot is fully booked or held by other patients' };
+  }
+
+  // Release proxy hold upon final booking
+  releaseSlotHold({ holdId, doctorId, dateStr, time24, patientId: patientKey });
 
   // Generate OPD token
   const allAppts = readGlobalAppointments();

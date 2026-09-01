@@ -29,9 +29,10 @@ export default function LandingPage() {
   };
 
   const handleStartSession = () => {
-    // "Start Health Session" button is exclusively for patients
-    if (session.isAuthenticated && session.userRole === 'patient') {
-      navigate('/patient-dashboard');
+    if (session.isAuthenticated) {
+      if (session.userRole === 'patient') navigate('/patient-dashboard');
+      else if (session.userRole === 'doctor') navigate('/physician');
+      else if (session.userRole === 'admin') navigate('/admin-dashboard');
     } else {
       navigate('/auth?role=patient');
     }

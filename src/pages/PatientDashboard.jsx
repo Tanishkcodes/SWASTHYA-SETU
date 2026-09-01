@@ -13,6 +13,7 @@ import CommunitiesTab from '../components/CommunitiesTab';
 import HelpSupportTab from '../components/HelpSupportTab';
 import aiTranslationService from '../engine/AiTranslationService';
 import aiCommandEngine from '../engine/AICommandEngine';
+import { acquireSlotHold, releaseSlotHold, countActiveHolds } from '../engine/SlotEngine';
 import {
   Calendar, Clock, FileText, User, Heart, Users, Headphones,
   Search, MapPin, Star, ChevronDown, Check, ArrowRight, ArrowLeft,
@@ -2299,6 +2300,40 @@ export default function PatientDashboard() {
   const [dbDoctorsList, setDbDoctorsList] = useState([]);
   const [dbHospitalsList, setDbHospitalsList] = useState([]);
 
+  // 2-Step Doctor Selection & Profile Flow (Matching User References)
+  const [bookingFlowView, setBookingFlowView] = useState('main'); // 'main' | 'doctor_select' | 'doctor_profile'
+  const [selectedDoctorObj, setSelectedDoctorObj] = useState(null);
+  const [doctorCareSystem, setDoctorCareSystem] = useState('allopathy'); // 'allopathy' | 'ayurveda'
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
+
+  // All Hospitals Modal View
+  const [showAllHospitalsModal, setShowAllHospitalsModal] = useState(false);
+
+  // Appointment Booking Modal
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingHospital, setBookingHospital] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [selectedDept, setSelectedDept] = useState('General Medicine');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+  });
+  const [selectedSlot, setSelectedSlot] = useState('10:30 AM');
+  const [bookingReason, setBookingReason] = useState('');
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [newlyBookedToken, setNewlyBookedToken] = useState(null);
+
+  // Appointment Details / QR Modal
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showAllAppointmentsModal, setShowAllAppointmentsModal] = useState(false);
+
+  // Document Modal Preview
+  const [selectedDoc, setSelectedDoc] = useState(null);
+
+  // ABHA Card Modal
+  const [showAbhaModal, setShowAbhaModal] = useState(false);
+
   // Fetch dynamic doctors & hospitals from Supabase database
   useEffect(() => {
     let active = true;
@@ -2357,39 +2392,7 @@ export default function PatientDashboard() {
     }));
   };
 
-  // 2-Step Doctor Selection & Profile Flow (Matching User References)
-  const [bookingFlowView, setBookingFlowView] = useState('main'); // 'main' | 'doctor_select' | 'doctor_profile'
-  const [selectedDoctorObj, setSelectedDoctorObj] = useState(null);
-  const [doctorCareSystem, setDoctorCareSystem] = useState('allopathy'); // 'allopathy' | 'ayurveda'
-  const [doctorSearchQuery, setDoctorSearchQuery] = useState('');
-
-  // All Hospitals Modal View
-  const [showAllHospitalsModal, setShowAllHospitalsModal] = useState(false);
-
-  // Appointment Booking Modal
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [bookingHospital, setBookingHospital] = useState(null);
-  const [selectedDoctor, setSelectedDoctor] = useState('');
-  const [selectedDept, setSelectedDept] = useState('General Medicine');
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-  });
-  const [selectedSlot, setSelectedSlot] = useState('10:30 AM');
-  const [bookingReason, setBookingReason] = useState('');
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [newlyBookedToken, setNewlyBookedToken] = useState(null);
-
-  // Appointment Details / QR Modal
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [showAllAppointmentsModal, setShowAllAppointmentsModal] = useState(false);
-
-  // Document Modal Preview
-  const [selectedDoc, setSelectedDoc] = useState(null);
-
-  // ABHA Card Modal
-  const [showAbhaModal, setShowAbhaModal] = useState(false);
+  // Hooks moved to top
 
   // Trigger voice feedback dynamically when modals open
   useEffect(() => {
@@ -3091,10 +3094,55 @@ export default function PatientDashboard() {
   const [bookingCaseNotes, setBookingCaseNotes] = useState('');
   const [bookingReports, setBookingReports] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [liveSlots, setLiveSlots] = useState({ morning: [], afternoon: [], evening: [] });
+  const [liveSlots, setLiveSlots] = useState({ morning: [], afternoon: [], evening: [], onLeave: false, leaveReason: '' });
+  const [doctorLeavesList, setDoctorLeavesList] = useState([]);
+  const [activeHold, setActiveHold] = useState(null);
+  const [holdRemainingSeconds, setHoldRemainingSeconds] = useState(0);
+
+  // Active Hold Countdown Timer (5-minute TTL proxy lock)
+  useEffect(() => {
+    if (!activeHold || !activeHold.expiresAt) {
+      setHoldRemainingSeconds(0);
+      return;
+    }
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.round((activeHold.expiresAt - Date.now()) / 1000));
+      setHoldRemainingSeconds(remaining);
+      if (remaining <= 0) {
+        setActiveHold(null);
+        setSelectedBookingSlot('');
+        alert('Your 5-minute temporary slot reservation has expired. Please select your slot again.');
+      }
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [activeHold]);
+
+  // Fetch doctor leaves whenever selected doctor changes
+  useEffect(() => {
+    if (!selectedDoctorObj) return;
+    const fetchLeaves = async () => {
+      try {
+        const { data } = await db.doctorLeaves.getDoctorLeaves(selectedDoctorObj.id || selectedDoctorObj.name);
+        setDoctorLeavesList(data || []);
+      } catch (err) {
+        console.warn('Could not fetch doctor leaves:', err);
+      }
+    };
+    fetchLeaves();
+
+    const handleLeaveChange = () => fetchLeaves();
+    window.addEventListener('swasthya_doctor_leave_changed', handleLeaveChange);
+    window.addEventListener('storage', handleLeaveChange);
+    return () => {
+      window.removeEventListener('swasthya_doctor_leave_changed', handleLeaveChange);
+      window.removeEventListener('storage', handleLeaveChange);
+    };
+  }, [selectedDoctorObj]);
 
   useEffect(() => {
-    if (bookingStep !== 2 || !selectedDoctorObj || !bookingHospital) return;
+    if (!selectedDoctorObj || !bookingHospital) return;
     let active = true;
     const load = async () => {
       setSlotsLoading(true);
@@ -3109,18 +3157,58 @@ export default function PatientDashboard() {
       const doctorId = selectedDoctorObj.id || seededDoctorIds[slug(selectedDoctorObj.name)] || `${hospitalId}-${slug(selectedDoctorObj.name)}`;
       const hospitalSave = await db.hospitals.ensure({ ...bookingHospital, id: hospitalId });
       const doctorSave = hospitalSave.error ? hospitalSave : await db.doctors.ensure({ ...selectedDoctorObj, id: doctorId, hospitalName: bookingHospital.name }, hospitalId);
-      const result = doctorSave.error ? { morning: [], afternoon: [], evening: [] } : await db.slots.getLive(doctorId, selectedBookingDate);
+      const result = doctorSave.error ? { morning: [], afternoon: [], evening: [], onLeave: false } : await db.slots.getLive(doctorId, selectedBookingDate);
       if (active) {
         setLiveSlots(result);
-        const available = [...result.morning, ...result.afternoon, ...result.evening]
+        const available = [...(result.morning || []), ...(result.afternoon || []), ...(result.evening || [])]
           .filter(slot => slot.state === 'open' || slot.state === 'fast');
         setSelectedBookingSlot(current => available.some(slot => slot.label === current) ? current : '');
         setSlotsLoading(false);
       }
     };
     load();
-    return () => { active = false; };
+
+    const handleHoldSync = () => load();
+    window.addEventListener('swasthya_slot_hold_changed', handleHoldSync);
+    window.addEventListener('storage', handleHoldSync);
+    return () => {
+      active = false;
+      window.removeEventListener('swasthya_slot_hold_changed', handleHoldSync);
+      window.removeEventListener('storage', handleHoldSync);
+    };
   }, [bookingStep, selectedBookingDate, selectedDoctorObj, bookingHospital]);
+
+  // Handler for slot selection with proxy lock acquisition
+  const handleSelectSlotWithHold = (slot) => {
+    if (slot.state === 'full' || slot.state === 'closed') return;
+    const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const hospitalId = bookingHospital?.id || slug(bookingHospital?.name || '');
+    const doctorId = selectedDoctorObj?.id || `${hospitalId}-${slug(selectedDoctorObj?.name || '')}`;
+    const patientId = session.patient?.id || 'guest-patient';
+
+    const holdResult = acquireSlotHold({
+      doctorId,
+      dateStr: selectedBookingDate,
+      time24: slot.time24,
+      patientId,
+      patientName: session.patient?.full_name || session.patient?.name || 'Patient'
+    });
+
+    if (!holdResult.success) {
+      alert(holdResult.error || 'This slot was just temporarily reserved by another patient. Please select another slot.');
+      return;
+    }
+
+    setSelectedBookingSlot(slot.label);
+    setActiveHold({
+      holdId: holdResult.holdId,
+      expiresAt: holdResult.expiresAt,
+      time24: slot.time24,
+      slotLabel: slot.label,
+      doctorId,
+      dateStr: selectedBookingDate
+    });
+  };
 
   // Select Doctor opens the multi-step booking wizard (Exact Match to User Reference Images)
   const handleSelectDoctorForBooking = (doctor) => {
@@ -3229,6 +3317,12 @@ export default function PatientDashboard() {
       dept: effectiveSpecialty,
       reason: bookingReason || bookingCaseNotes || 'General Consultation'
     };
+
+    // Release proxy hold upon successful booking
+    if (activeHold?.holdId) {
+      releaseSlotHold({ holdId: activeHold.holdId, patientId: session.patient.id });
+      setActiveHold(null);
+    }
 
     setNewlyBookedToken(`${tr('tokenWord')} ${tokenStr}`);
     setAppointments(prev => [newApt, ...prev]);
@@ -3619,7 +3713,7 @@ export default function PatientDashboard() {
             {/* Footer Badge: Lock + HIPAA Compliant */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
               <Lock size={15} color="#0f766e" />
-              <span style={{ fontSize: '0.825rem', fontWeight: '800', color: '#0f766e' }}>
+              <span key={`badge-${currentLang}`} translate="no" className="notranslate" style={{ fontSize: '0.825rem', fontWeight: '800', color: '#0f766e' }}>
                 {tr('trustBadge')}
               </span>
             </div>
@@ -4997,13 +5091,15 @@ export default function PatientDashboard() {
                           };
                         }).map((d) => {
                           const isSelected = selectedBookingDate === d.dateStr;
+                          const leaveOnThisDay = (doctorLeavesList || []).find(l => l.date === d.dateStr);
+
                           return (
                             <button
                               key={d.dateStr}
                               onClick={() => setSelectedBookingDate(d.dateStr)}
                               style={{
-                                backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.95)' : '#ffffff',
-                                border: isSelected ? '2px solid #0c4e47' : '1px solid #e2e8f0',
+                                backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.95)' : leaveOnThisDay ? '#fef2f2' : '#ffffff',
+                                border: isSelected ? '2px solid #0c4e47' : leaveOnThisDay ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
                                 borderRadius: '18px',
                                 padding: '1.4rem 0.5rem 1.25rem 0.5rem',
                                 textAlign: 'center',
@@ -5018,14 +5114,14 @@ export default function PatientDashboard() {
                               }}
                               onMouseEnter={e => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                  e.currentTarget.style.borderColor = leaveOnThisDay ? '#f87171' : '#cbd5e1';
                                   e.currentTarget.style.transform = 'translateY(-2px)';
                                   e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.05)';
                                 }
                               }}
                               onMouseLeave={e => {
                                 if (!isSelected) {
-                                  e.currentTarget.style.borderColor = '#e2e8f0';
+                                  e.currentTarget.style.borderColor = leaveOnThisDay ? '#fca5a5' : '#e2e8f0';
                                   e.currentTarget.style.transform = 'translateY(0)';
                                   e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.02)';
                                 }
@@ -5039,14 +5135,14 @@ export default function PatientDashboard() {
                                   left: 0,
                                   right: 0,
                                   height: '4px',
-                                  backgroundColor: '#0c4e47'
+                                  backgroundColor: leaveOnThisDay ? '#dc2626' : '#0c4e47'
                                 }} />
                               )}
 
                               <div style={{
                                 fontSize: '0.72rem',
                                 fontWeight: '800',
-                                color: isSelected ? '#0c4e47' : '#94a3b8',
+                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#0c4e47') : leaveOnThisDay ? '#dc2626' : '#94a3b8',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.6px',
                                 marginBottom: '4px'
@@ -5057,7 +5153,7 @@ export default function PatientDashboard() {
                               <div style={{
                                 fontSize: '2rem',
                                 fontWeight: '900',
-                                color: isSelected ? '#0c4e47' : '#0f172a',
+                                color: isSelected ? (leaveOnThisDay ? '#991b1b' : '#0c4e47') : leaveOnThisDay ? '#7f1d1d' : '#0f172a',
                                 lineHeight: 1.1,
                                 letterSpacing: '-0.5px'
                               }}>
@@ -5067,11 +5163,28 @@ export default function PatientDashboard() {
                               <div style={{
                                 fontSize: '0.85rem',
                                 fontWeight: '700',
-                                color: isSelected ? '#0c4e47' : '#64748b',
+                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#0c4e47') : leaveOnThisDay ? '#991b1b' : '#64748b',
                                 marginTop: '4px'
                               }}>
                                 {d.month}
                               </div>
+
+                              {leaveOnThisDay && (
+                                <span style={{
+                                  display: 'inline-block',
+                                  marginTop: '6px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: '800',
+                                  color: '#dc2626',
+                                  background: '#fee2e2',
+                                  border: '1px solid #fecaca',
+                                  borderRadius: '6px',
+                                  padding: '1px 6px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  On Leave
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -5132,38 +5245,96 @@ export default function PatientDashboard() {
                         </div>
                       </div>
 
-                      {/* Next Button Row */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
-                        <button
-                          onClick={() => setBookingStep(2)}
-                          data-voice-action="next"
-                          style={{
-                            background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
-                            color: '#ffffff',
-                            border: 'none',
-                            borderRadius: '14px',
-                            padding: '13px 30px',
-                            fontSize: '0.975rem',
-                            fontWeight: '800',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
+                      {/* Selected Date Leave Notice */}
+                      {(() => {
+                        const leaveOnSelectedDate = (doctorLeavesList || []).find(l => l.date === selectedBookingDate) || (liveSlots.onLeave ? { reason: liveSlots.leaveReason } : null);
+                        if (!leaveOnSelectedDate) return null;
+                        return (
+                          <div style={{
+                            background: '#fef2f2',
+                            border: '1.5px solid #fca5a5',
+                            borderRadius: '16px',
+                            padding: '16px 20px',
+                            marginTop: '1.75rem',
+                            display: 'flex',
                             alignItems: 'center',
-                            gap: '10px',
-                            boxShadow: '0 6px 20px rgba(12, 78, 71, 0.3)',
-                            transition: 'all 0.25s ease'
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(12, 78, 71, 0.4)';
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)';
-                          }}
-                        >
-                          <span>{tr('nextSelectTime')}</span>
-                          <ArrowRight size={18} />
-                        </button>
+                            gap: '14px',
+                            boxShadow: '0 4px 15px rgba(220, 38, 38, 0.05)'
+                          }}>
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              borderRadius: '50%',
+                              backgroundColor: '#fee2e2',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              color: '#dc2626'
+                            }}>
+                              <AlertCircle size={22} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#991b1b' }}>
+                                Doctor Unavailable on Selected Date ({selectedBookingDate})
+                              </div>
+                              <div style={{ fontSize: '0.825rem', color: '#7f1d1d', marginTop: '2px' }}>
+                                {selectedDoctorObj.name} is on scheduled leave ({leaveOnSelectedDate.reason || 'Holiday / Leave'}). Appointments and slots for this date are blocked. Please choose another date above.
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Next Button Row */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                        {(() => {
+                          const isBlocked = Boolean((doctorLeavesList || []).find(l => l.date === selectedBookingDate) || liveSlots.onLeave);
+                          return (
+                            <button
+                              onClick={() => {
+                                if (isBlocked) {
+                                  alert(`${selectedDoctorObj.name} is on leave on ${selectedBookingDate}. Please choose another date.`);
+                                  return;
+                                }
+                                setBookingStep(2);
+                              }}
+                              disabled={isBlocked}
+                              data-voice-action="next"
+                              style={{
+                                background: isBlocked ? '#94a3b8' : 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '14px',
+                                padding: '13px 30px',
+                                fontSize: '0.975rem',
+                                fontWeight: '800',
+                                cursor: isBlocked ? 'not-allowed' : 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                opacity: isBlocked ? 0.6 : 1,
+                                boxShadow: isBlocked ? 'none' : '0 6px 20px rgba(12, 78, 71, 0.3)',
+                                transition: 'all 0.25s ease'
+                              }}
+                              onMouseEnter={e => {
+                                if (!isBlocked) {
+                                  e.currentTarget.style.transform = 'translateY(-2px)';
+                                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(12, 78, 71, 0.4)';
+                                }
+                              }}
+                              onMouseLeave={e => {
+                                if (!isBlocked) {
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)';
+                                }
+                              }}
+                            >
+                              <span>{isBlocked ? 'Date Blocked (Doctor on Leave)' : tr('nextSelectTime')}</span>
+                              <ArrowRight size={18} />
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
@@ -5188,23 +5359,28 @@ export default function PatientDashboard() {
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.9rem' }}>
                             {visibleSlots.map((slot) => {
                               const isSelected = selectedBookingSlot === slot.label;
-                              const isDisabled = slot.state === 'full' || slot.state === 'closed';
+                              const isThrottled = Boolean(slot.isThrottled);
+                              const isDisabled = isThrottled || slot.state === 'full' || slot.state === 'closed';
 
                               const bgColor = isSelected
                                 ? '#0c4e47'
+                                : isThrottled ? '#fffbeb'
                                 : isDisabled ? '#f8fafc' : '#ffffff';
                               const borderColor = isSelected
                                 ? '#0c4e47'
+                                : isThrottled ? '#fde68a'
                                 : slot.state === 'fast' ? '#fed7aa'
                                 : isDisabled ? '#e2e8f0' : '#e2e8f0';
-                              const textColor = isSelected ? '#ffffff' : isDisabled ? '#94a3b8' : '#0f172a';
+                              const textColor = isSelected ? '#ffffff' : isThrottled ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
 
                               const statusLabel = isSelected ? ui('Selected')
+                                : isThrottled             ? ui('Paused (High OPD Load)')
                                 : slot.state === 'full'   ? ui('Fully Booked')
                                 : slot.state === 'closed' ? ui('Closed')
                                 : slot.state === 'fast'   ? ui(`${slot.slotsLeft} slot left`)
                                 : ui(`${slot.slotsLeft} slots left`);
                               const statusColor = isSelected ? '#ccfbf1'
+                                : isThrottled ? '#b45309'
                                 : slot.state === 'full' || slot.state === 'closed' ? '#94a3b8'
                                 : slot.state === 'fast' ? '#ea580c' : '#059669';
 
@@ -5212,7 +5388,7 @@ export default function PatientDashboard() {
                                 <button
                                   key={slot.time24}
                                   disabled={isDisabled}
-                                  onClick={() => !isDisabled && setSelectedBookingSlot(slot.label)}
+                                  onClick={() => !isDisabled && handleSelectSlotWithHold(slot)}
                                   style={{
                                     backgroundColor: bgColor,
                                     border: isSelected ? `1.5px solid ${borderColor}` : `1px solid ${borderColor}`,
@@ -5220,7 +5396,7 @@ export default function PatientDashboard() {
                                     padding: '13px 10px',
                                     textAlign: 'center',
                                     cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                    opacity: isDisabled ? 0.5 : 1,
+                                    opacity: isDisabled ? (isThrottled ? 0.75 : 0.5) : 1,
                                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                     color: textColor,
                                     boxShadow: isSelected ? '0 8px 20px rgba(12, 78, 71, 0.25)' : '0 2px 6px rgba(0,0,0,0.02)',
@@ -5279,18 +5455,70 @@ export default function PatientDashboard() {
                           </div>
                         </div>
 
-                        {/* Selected Date Pill */}
-                        <div style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '8px',
-                          fontSize: '0.9rem', fontWeight: '800', color: '#0f172a',
-                          background: 'rgba(240, 253, 249, 0.7)', border: '1px solid #ccfbf1',
-                          borderRadius: '12px', padding: '7px 16px', marginBottom: '1.75rem'
-                        }}>
-                          <Calendar size={16} color="#0c4e47" />
-                          <span>{selectedBookingDate}</span>
+                        {/* AI Dynamic OPD Queue Pacing Alert */}
+                        {liveSlots.pacingInfo && liveSlots.pacingInfo.isThrottled && !liveSlots.onLeave && (
+                          <div style={{
+                            background: '#fffbeb',
+                            border: '1.5px solid #fde68a',
+                            borderRadius: '16px',
+                            padding: '12px 18px',
+                            marginBottom: '1.5rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            boxShadow: '0 2px 10px rgba(245, 158, 11, 0.08)'
+                          }}>
+                            <div style={{
+                              width: '36px', height: '36px', borderRadius: '10px',
+                              background: '#fef3c7', color: '#b45309', display: 'grid', placeItems: 'center', flexShrink: 0
+                            }}>
+                              <Activity size={20} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.875rem', fontWeight: '800', color: '#92400e' }}>
+                                AI OPD Load & Pacing Buffer Active
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: '#b45309', marginTop: '2px' }}>
+                                {liveSlots.pacingInfo.pacingMessage || 'Doctor is attending extended patient cases. Immediate slots are throttled to ensure zero waiting room delay.'}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Selected Date Pill and Active Proxy Hold Timer */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '1.5rem' }}>
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '8px',
+                            fontSize: '0.9rem', fontWeight: '800', color: '#0f172a',
+                            background: 'rgba(240, 253, 249, 0.7)', border: '1px solid #ccfbf1',
+                            borderRadius: '12px', padding: '7px 16px'
+                          }}>
+                            <Calendar size={16} color="#0c4e47" />
+                            <span>{selectedBookingDate}</span>
+                          </div>
+
+                          {activeHold && holdRemainingSeconds > 0 && (
+                            <div style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '8px',
+                              background: '#ecfdf5', border: '1.5px solid #a7f3d0',
+                              borderRadius: '12px', padding: '7px 14px',
+                              color: '#065f46', fontSize: '0.85rem', fontWeight: '700',
+                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
+                            }}>
+                              <span style={{ fontSize: '1rem' }}>🛡️</span>
+                              <span>Slot <b>{selectedBookingSlot}</b> Reserved:</span>
+                              <span style={{
+                                background: '#047857', color: '#ffffff',
+                                padding: '2px 8px', borderRadius: '6px',
+                                fontFamily: 'monospace', fontWeight: '800', fontSize: '0.825rem'
+                              }}>
+                                {Math.floor(holdRemainingSeconds / 60)}:{String(holdRemainingSeconds % 60).padStart(2, '0')}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Loading State */}
+                        {/* Loading State or On Leave State */}
                         {slotsLoading ? (
                           <div style={{ textAlign: 'center', padding: '3rem 0', color: '#64748b' }}>
                             <div style={{
@@ -5300,6 +5528,55 @@ export default function PatientDashboard() {
                             }} />
                             <p style={{ fontSize: '0.9rem', fontWeight: '600' }}>{tr('loadingLiveSchedule')}</p>
                           </div>
+                        ) : liveSlots.onLeave ? (
+                          <div style={{
+                            background: '#fef2f2',
+                            border: '1.5px solid #fca5a5',
+                            borderRadius: '20px',
+                            padding: '2.5rem 2rem',
+                            textAlign: 'center',
+                            marginBottom: '2rem',
+                            boxShadow: '0 4px 20px rgba(220, 38, 38, 0.05)'
+                          }}>
+                            <div style={{
+                              width: '56px',
+                              height: '56px',
+                              borderRadius: '50%',
+                              backgroundColor: '#fee2e2',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 14px',
+                              color: '#dc2626'
+                            }}>
+                              <AlertCircle size={28} />
+                            </div>
+                            <h4 style={{ margin: '0 0 6px 0', fontSize: '1.25rem', fontWeight: '900', color: '#991b1b' }}>
+                              Doctor on Holiday / Leave on this Date
+                            </h4>
+                            <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#7f1d1d', maxWidth: '520px', marginInline: 'auto' }}>
+                              {selectedDoctorObj.name} is on scheduled leave ({liveSlots.leaveReason || 'Holiday'}). All consultation slots are locked and unavailable for booking on {selectedBookingDate}.
+                            </p>
+                            <button
+                              onClick={() => setBookingStep(1)}
+                              style={{
+                                backgroundColor: '#0c4e47',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '12px',
+                                padding: '10px 22px',
+                                fontSize: '0.875rem',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}
+                            >
+                              <ArrowLeft size={16} />
+                              <span>Select Another Date</span>
+                            </button>
+                          </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.85rem', marginBottom: '2.25rem' }}>
                             {renderSlotGroup(liveSlots.morning,   '☀️', 'Morning Slots')}
@@ -5307,7 +5584,7 @@ export default function PatientDashboard() {
                             {renderSlotGroup(liveSlots.evening,   '🌙', 'Evening Slots')}
 
                             {/* All sessions empty message */}
-                            {[...liveSlots.morning, ...liveSlots.afternoon, ...liveSlots.evening].filter(slot => !slot.isPast).length === 0 && (
+                            {[...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast).length === 0 && (
                               <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem 0' }}>
                                 No slots available for this date. Please select a different date.
                               </div>
@@ -5316,19 +5593,21 @@ export default function PatientDashboard() {
                         )}
 
                         {/* Legend Row */}
-                        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-                          {[
-                            { dot: '#059669', label: 'Available' },
-                            { dot: '#ea580c', label: 'Filling Fast' },
-                            { dot: '#cbd5e1', label: 'Fully Booked' },
-                            { dot: '#cbd5e1', label: 'Closed', strikethrough: true }
-                          ].map(l => (
-                            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>
-                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: l.dot, display: 'inline-block' }} />
-                              <span>{l.label}</span>
-                            </div>
-                          ))}
-                        </div>
+                        {!liveSlots.onLeave && (
+                          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                            {[
+                              { dot: '#059669', label: 'Available' },
+                              { dot: '#ea580c', label: 'Filling Fast' },
+                              { dot: '#cbd5e1', label: 'Fully Booked' },
+                              { dot: '#cbd5e1', label: 'Closed', strikethrough: true }
+                            ].map(l => (
+                              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: l.dot, display: 'inline-block' }} />
+                                <span>{l.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {/* Footer nav */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -5348,21 +5627,26 @@ export default function PatientDashboard() {
 
                           {/* Real-time Badge */}
                           <div style={{
-                            backgroundColor: 'rgba(240, 253, 249, 0.9)', border: '1px solid #ccfbf1',
+                            backgroundColor: liveSlots.onLeave ? 'rgba(254, 242, 242, 0.9)' : 'rgba(240, 253, 249, 0.9)', 
+                            border: liveSlots.onLeave ? '1px solid #fca5a5' : '1px solid #ccfbf1',
                             borderRadius: '20px', padding: '8px 18px', display: 'flex', alignItems: 'center',
-                            gap: '8px', fontSize: '0.825rem', color: '#0f766e', fontWeight: '700',
+                            gap: '8px', fontSize: '0.825rem', color: liveSlots.onLeave ? '#991b1b' : '#0f766e', fontWeight: '700',
                             boxShadow: '0 2px 8px rgba(12, 78, 71, 0.05)'
                           }}>
                             <span style={{
                               width: '8px', height: '8px', borderRadius: '50%',
-                              backgroundColor: '#10b981', display: 'inline-block',
-                              boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)'
+                              backgroundColor: liveSlots.onLeave ? '#dc2626' : '#10b981', display: 'inline-block',
+                              boxShadow: liveSlots.onLeave ? '0 0 0 2px rgba(220, 38, 38, 0.2)' : '0 0 0 2px rgba(16, 185, 129, 0.2)'
                             }} />
-                            <span>{tr('liveAvailabilityBadge')}</span>
+                            <span>{liveSlots.onLeave ? 'Doctor on Leave' : tr('liveAvailabilityBadge')}</span>
                           </div>
 
                           <button
                             onClick={() => {
+                              if (liveSlots.onLeave) {
+                                alert(`${selectedDoctorObj.name} is on leave on ${selectedBookingDate}. Please select another date.`);
+                                return;
+                              }
                               if (!selectedBookingSlot) {
                                 const firstOpen = liveSlots?.morning?.find(s => s.state === 'open' || s.state === 'fast')
                                   || liveSlots?.afternoon?.find(s => s.state === 'open' || s.state === 'fast')
@@ -5372,18 +5656,20 @@ export default function PatientDashboard() {
                               }
                               setBookingStep(3);
                             }}
+                            disabled={Boolean(liveSlots.onLeave)}
                             data-voice-action="next"
                             style={{
-                              background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                              background: liveSlots.onLeave ? '#94a3b8' : 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
                               color: '#ffffff', border: 'none', borderRadius: '14px', padding: '13px 30px',
-                              fontSize: '0.975rem', fontWeight: '800', cursor: 'pointer',
+                              fontSize: '0.975rem', fontWeight: '800', cursor: liveSlots.onLeave ? 'not-allowed' : 'pointer',
                               display: 'inline-flex', alignItems: 'center', gap: '10px',
-                              boxShadow: '0 6px 20px rgba(12, 78, 71, 0.3)', transition: 'all 0.25s ease'
+                              opacity: liveSlots.onLeave ? 0.6 : 1,
+                              boxShadow: liveSlots.onLeave ? 'none' : '0 6px 20px rgba(12, 78, 71, 0.3)', transition: 'all 0.25s ease'
                             }}
-                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(12, 78, 71, 0.4)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)'; }}
+                            onMouseEnter={e => { if (!liveSlots.onLeave) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(12, 78, 71, 0.4)'; } }}
+                            onMouseLeave={e => { if (!liveSlots.onLeave) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(12, 78, 71, 0.3)'; } }}
                           >
-                            <span>{tr('nextCase')}</span>
+                            <span>{liveSlots.onLeave ? 'Date Locked' : tr('nextCase')}</span>
                             <ArrowRight size={18} />
                           </button>
                         </div>

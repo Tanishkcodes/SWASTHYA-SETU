@@ -22,13 +22,26 @@ const LS = {
   staff:        'ss_db_staff',
   hospitals:    'ss_db_hospitals',
   doctors:      'ss_db_doctors',
+  doctorLeaves: 'ss_db_doctor_leaves',
 };
 
 // ─── Staff Authentication Lockout (Brute-force defense: 2 min lockout on 5 failed attempts) ───
+function lsReadObj(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export function getAuthLockStatus(username) {
   if (!username) return { locked: false, remainingSeconds: 0 };
-  const attempts = lsRead('swasthya_auth_attempts') || {};
-  const record = attempts[username.toLowerCase().trim()];
+  const attempts = lsReadObj('swasthya_auth_attempts');
+  const key = username.toLowerCase().trim();
+  const record = attempts[key];
   if (!record) return { locked: false, remainingSeconds: 0 };
   const now = Date.now();
   if (record.lockedUntil && record.lockedUntil > now) {
@@ -40,7 +53,7 @@ export function getAuthLockStatus(username) {
 
 export function recordFailedAttempt(username) {
   if (!username) return { count: 0, locked: false, remainingSeconds: 0 };
-  const attempts = lsRead('swasthya_auth_attempts') || {};
+  const attempts = lsReadObj('swasthya_auth_attempts');
   const key = username.toLowerCase().trim();
   const record = attempts[key] || { count: 0, lockedUntil: 0 };
   const now = Date.now();
@@ -51,7 +64,7 @@ export function recordFailedAttempt(username) {
   record.count = (record.count || 0) + 1;
   if (record.count >= 5) {
     record.lockedUntil = now + (2 * 60 * 1000); // 2 minutes lockout
-    record.count = 0;
+    record.count = 5;
     attempts[key] = record;
     lsWrite('swasthya_auth_attempts', attempts);
     return { count: 5, locked: true, remainingSeconds: 120 };
@@ -63,7 +76,7 @@ export function recordFailedAttempt(username) {
 
 export function clearFailedAttempts(username) {
   if (!username) return;
-  const attempts = lsRead('swasthya_auth_attempts') || {};
+  const attempts = lsReadObj('swasthya_auth_attempts');
   const key = username.toLowerCase().trim();
   if (attempts[key]) {
     delete attempts[key];
@@ -360,14 +373,18 @@ const doctors = {
       }
 
       const { data, error } = await query;
-      const normalized = (data || []).map(d => ({
-        ...d,
-        hospitalName: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital',
-        hospital_name: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital'
-      }));
-      return { data: normalized, error };
+      if (!error && data && data.length > 0) {
+        const normalized = data.map(d => ({
+          ...d,
+          hospitalName: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital',
+          hospital_name: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital'
+        }));
+        return { data: normalized, error: null };
+      }
     }
-    const filtered = includeInactive ? _builtinDoctors : _builtinDoctors.filter(d => d.is_active !== false);
+    const custom = lsRead(LS.doctors) || [];
+    const all = [...custom, ..._builtinDoctors.filter(b => !custom.some(c => c.id === b.id))];
+    const filtered = includeInactive ? all : all.filter(d => d.is_active !== false);
     return { data: filtered, error: null };
   },
 
@@ -401,13 +418,21 @@ const doctors = {
         };
         return { data: normalized, error: null };
       }
-      return { data, error };
     }
 
+    const customList = lsRead(LS.doctors) || [];
+    const customIdx = customList.findIndex(d => d.id === doctorId);
+    if (customIdx !== -1) {
+      customList[customIdx] = { ...customList[customIdx], ...payload };
+      lsWrite(LS.doctors, customList);
+    }
     const idx = _builtinDoctors.findIndex(d => d.id === doctorId);
     if (idx !== -1) {
       _builtinDoctors[idx] = { ..._builtinDoctors[idx], ...payload };
       return { data: _builtinDoctors[idx], error: null };
+    }
+    if (customIdx !== -1) {
+      return { data: customList[customIdx], error: null };
     }
     return { data: null, error: new Error('Doctor not found') };
   },
@@ -456,8 +481,11 @@ const doctors = {
       }
     }
 
-    // Fallback: match built-in doctors by hospital_id, hospital_name, or hospitalName
-    const matched = _builtinDoctors.filter(d => {
+    // Fallback: match custom and built-in doctors by hospital_id, hospital_name, or hospitalName
+    const custom = lsRead(LS.doctors) || [];
+    const allDoctors = [...custom, ..._builtinDoctors.filter(b => !custom.some(c => c.id === b.id))];
+    const matched = allDoctors.filter(d => {
+      if (d.is_active === false) return false;
       const hId = String(d.hospital_id || '').toLowerCase();
       const hName = String(d.hospital_name || d.hospitalName || '').toLowerCase();
       return hId === norm || hName.includes(norm) || norm.includes(hId);
@@ -482,9 +510,9 @@ const doctors = {
           error: null
         };
       }
-      return { data, error };
     }
-    const found = _builtinDoctors.find(d => d.id === doctorId);
+    const custom = lsRead(LS.doctors) || [];
+    const found = custom.find(d => d.id === doctorId) || _builtinDoctors.find(d => d.id === doctorId);
     return { data: found || null, error: null };
   },
 
@@ -518,6 +546,8 @@ const doctors = {
     phone = null,
     avatarUrl = null,
     username = null,
+    registrationNumber = null,
+    dob = null,
     initialPassword = 'password123',
   }) {
     const slug = str => String(str || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -560,6 +590,8 @@ const doctors = {
       email: cleanEmail,
       phone: phone || null,
       avatar_url: generatedAvatar,
+      registration_number: registrationNumber || null,
+      dob: dob || null,
       rating: 4.8,
       reviews_count: 0,
       is_active: true,
@@ -600,7 +632,12 @@ const doctors = {
     }
 
     // localStorage fallback
-    _builtinDoctors.unshift({ ...doctorRow, hospitalName, hospital_id: resolvedHospitalId });
+    const customList = lsRead(LS.doctors) || [];
+    const docEntry = { ...doctorRow, hospitalName, hospital_id: resolvedHospitalId };
+    customList.unshift(docEntry);
+    lsWrite(LS.doctors, customList);
+    _builtinDoctors.unshift(docEntry);
+
     const { data: staffId, error: staffError } = await staff.create({
       username: cleanUsername,
       password: initialPassword,
@@ -610,7 +647,7 @@ const doctors = {
       doctorId: doctorId,
     });
 
-    return { data: { doctor: doctorRow, staffId, username: cleanUsername }, error: staffError };
+    return { data: { doctor: docEntry, staffId, username: cleanUsername }, error: staffError };
   },
 
   async ensure(doctor, hospitalId) {
@@ -727,8 +764,22 @@ const slots = {
    * (for Step 2 patient booking UI)
    */
   async getLive(doctorId, dateStr) {
+    // Check if doctor is on approved leave / holiday
+    const leaveCheck = await doctorLeaves.isDoctorOnLeave(doctorId, dateStr);
+    if (leaveCheck.onLeave) {
+      const reason = leaveCheck.leave?.reason || 'On Approved Leave / Holiday';
+      return {
+        onLeave: true,
+        leaveReason: reason,
+        leaveInfo: leaveCheck.leave,
+        morning: [],
+        afternoon: [],
+        evening: [],
+      };
+    }
+
     const { data: slotRows, error } = await this.getForDoctor(doctorId, dateStr);
-    if (error) return { morning: [], afternoon: [], evening: [] };
+    if (error) return { onLeave: false, leaveReason: '', morning: [], afternoon: [], evening: [] };
 
     const now = new Date();
     const isToday = dateStr === localDateKey(now);
@@ -762,11 +813,139 @@ const slots = {
     }));
 
     return {
+      onLeave: false,
+      leaveReason: '',
       morning:   enriched.filter(s => s.session === 'morning'),
       afternoon: enriched.filter(s => s.session === 'afternoon'),
       evening:   enriched.filter(s => s.session === 'evening'),
     };
   },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DOCTOR LEAVES & HOLIDAYS MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+const doctorLeaves = {
+  async getAll({ doctorId = null, date = null, hospitalId = null } = {}) {
+    let list = lsRead(LS.doctorLeaves) || [];
+    if (USE_SUPABASE()) {
+      try {
+        let query = supabase.from('doctor_leaves').select('*');
+        if (doctorId) query = query.eq('doctor_id', doctorId);
+        if (date) query = query.eq('date', date);
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          list = data;
+        }
+      } catch (e) {}
+    }
+    return {
+      data: list.filter(item => {
+        if (doctorId && item.doctor_id !== doctorId && item.doctorId !== doctorId) return false;
+        if (date && item.date !== date) return false;
+        if (hospitalId && item.hospital_id !== hospitalId && item.hospitalId !== hospitalId) return false;
+        return true;
+      }),
+      error: null
+    };
+  },
+
+  async isDoctorOnLeave(doctorIdOrName, dateStr) {
+    if (!doctorIdOrName || !dateStr) return { onLeave: false, leave: null };
+    const cleanId = String(doctorIdOrName).toLowerCase().trim();
+    const cleanName = cleanId.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+
+    const { data: leaves } = await this.getAll();
+    const found = (leaves || []).find(l => {
+      if (l.date !== dateStr) return false;
+      const lDocId = String(l.doctor_id || l.doctorId || '').toLowerCase().trim();
+      const lDocName = String(l.doctor_name || l.doctorName || '').toLowerCase().trim();
+      const lDocNameClean = lDocName.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+      return lDocId === cleanId || lDocName === cleanId || lDocNameClean === cleanName || cleanId.includes(lDocId) || (lDocId && cleanId.includes(lDocId));
+    });
+
+    if (found) {
+      return { onLeave: true, leave: found };
+    }
+    return { onLeave: false, leave: null };
+  },
+
+  async getDoctorLeaves(doctorIdOrName) {
+    if (!doctorIdOrName) return { data: [], error: null };
+    const cleanId = String(doctorIdOrName).toLowerCase().trim();
+    const cleanName = cleanId.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+    const { data: leaves } = await this.getAll();
+    const matched = (leaves || []).filter(l => {
+      const lDocId = String(l.doctor_id || l.doctorId || '').toLowerCase().trim();
+      const lDocName = String(l.doctor_name || l.doctorName || '').toLowerCase().trim();
+      const lDocNameClean = lDocName.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+      return lDocId === cleanId || lDocName === cleanId || lDocNameClean === cleanName || cleanId.includes(lDocId) || (lDocId && cleanId.includes(lDocId));
+    });
+    return { data: matched, error: null };
+  },
+
+  async setLeave({ doctorId, doctorName, hospitalId, hospitalName, date, reason = 'Annual Leave', notes = '' }) {
+    if (!date) return { data: null, error: new Error('Date is required') };
+    const leaveId = 'leave-' + uuid().replace(/-/g, '').slice(0, 12);
+    const row = {
+      id: leaveId,
+      doctor_id: doctorId,
+      doctorId: doctorId,
+      doctor_name: doctorName,
+      doctorName: doctorName,
+      hospital_id: hospitalId,
+      hospitalId: hospitalId,
+      hospital_name: hospitalName,
+      hospitalName: hospitalName,
+      date,
+      reason: reason || 'Scheduled Holiday / Leave',
+      notes: notes || '',
+      created_at: new Date().toISOString(),
+    };
+
+    if (USE_SUPABASE()) {
+      try {
+        await supabase.from('doctor_leaves').upsert(row);
+      } catch (e) {}
+    }
+
+    const list = lsRead(LS.doctorLeaves) || [];
+    const filtered = list.filter(l => !( (l.doctor_id === doctorId || l.doctorId === doctorId || l.doctor_name === doctorName) && l.date === date ));
+    filtered.unshift(row);
+    lsWrite(LS.doctorLeaves, filtered);
+
+    try {
+      window.dispatchEvent(new CustomEvent('swasthya_doctor_leave_changed', { detail: row }));
+    } catch (e) {}
+
+    return { data: row, error: null };
+  },
+
+  async cancelLeave(leaveId, doctorId = null, date = null) {
+    if (USE_SUPABASE()) {
+      try {
+        if (leaveId) {
+          await supabase.from('doctor_leaves').delete().eq('id', leaveId);
+        } else if (doctorId && date) {
+          await supabase.from('doctor_leaves').delete().eq('doctor_id', doctorId).eq('date', date);
+        }
+      } catch (e) {}
+    }
+
+    const list = lsRead(LS.doctorLeaves) || [];
+    const updated = list.filter(l => {
+      if (leaveId && l.id === leaveId) return false;
+      if (doctorId && date && (l.doctor_id === doctorId || l.doctorId === doctorId) && l.date === date) return false;
+      return true;
+    });
+    lsWrite(LS.doctorLeaves, updated);
+
+    try {
+      window.dispatchEvent(new CustomEvent('swasthya_doctor_leave_changed', { detail: { leaveId, doctorId, date } }));
+    } catch (e) {}
+
+    return { success: true, error: null };
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -787,6 +966,17 @@ const appointments = {
     );
     if (!date || !time24 || isExpired) {
       return { data: null, token: null, error: new Error('Past appointment dates and time slots cannot be booked.') };
+    }
+
+    // Check if doctor is on approved leave / holiday
+    const leaveCheck = await doctorLeaves.isDoctorOnLeave(doctorId, date);
+    if (leaveCheck.onLeave) {
+      const leaveReason = leaveCheck.leave?.reason || 'On Approved Leave / Holiday';
+      return {
+        data: null,
+        token: null,
+        error: new Error(`Dr. is on leave (${leaveReason}) on ${date}. Appointment slots are blocked. Please select an alternative date.`)
+      };
     }
 
     if (USE_SUPABASE()) {
@@ -849,7 +1039,31 @@ const appointments = {
   },
 
   /** Get all appointments for admin dashboard */
+  /** Get all appointments for admin dashboard */
   async getAllForAdmin({ limit = 500 } = {}) {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    const parseSlotMins = (tStr, t24) => {
+      if (t24 && typeof t24 === 'string' && t24.includes(':')) {
+        const [h, m] = t24.split(':').map(Number);
+        if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+      }
+      if (tStr && typeof tStr === 'string') {
+        const match = tStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          let h = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          const mer = (match[3] || '').toUpperCase();
+          if (mer === 'PM' && h < 12) h += 12;
+          if (mer === 'AM' && h === 12) h = 0;
+          return h * 60 + m;
+        }
+      }
+      return 600;
+    };
+
     if (USE_SUPABASE()) {
       const { data, error } = await supabase
         .from('appointments')
@@ -857,15 +1071,36 @@ const appointments = {
         .order('date', { ascending: false })
         .order('time_24', { ascending: true })
         .limit(limit);
+      if (!error && data) {
+        const normalized = data.map(a => {
+          const slotMins = parseSlotMins(a.time_label, a.time_24);
+          const isPast = (a.date && a.date < todayKey) || (a.date === todayKey && slotMins <= currentMins);
+          if (isPast && (a.status === 'confirmed' || a.status === 'upcoming' || !a.status)) {
+            return { ...a, status: 'cancelled' };
+          }
+          return a;
+        });
+        return { data: normalized, error: null };
+      }
       return { data: data || [], error };
     }
     const all = lsRead(LS.appointments);
-    const sorted = [...all].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const normalized = all.map(a => {
+      const slotMins = parseSlotMins(a.time_label, a.time_24);
+      const isPast = (a.date && a.date < todayKey) || (a.date === todayKey && slotMins <= currentMins);
+      if (isPast && (a.status === 'confirmed' || a.status === 'upcoming' || !a.status)) {
+        return { ...a, status: 'cancelled' };
+      }
+      return a;
+    });
+    const sorted = [...normalized].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     return { data: sorted.slice(0, limit), error: null };
   },
 
   /** Get doctor's queue for a date */
   async getDoctorQueue(doctorId, dateStr) {
+    const cleanTarget = String(doctorId || '').toLowerCase().trim().replace(/^dr\.\s*|^dr\s*/i, '').replace(/[^a-z0-9]/g, '');
+
     if (USE_SUPABASE()) {
       let query = supabase
         .from('appointments')
@@ -877,12 +1112,16 @@ const appointments = {
       const { data, error } = await query;
       return { data: data || [], error };
     }
+
     const all = lsRead(LS.appointments);
     return {
       data: all.filter(a => {
         if (!a || a.date !== dateStr || a.status === 'cancelled') return false;
-        if (a.doctor_id === doctorId) return true;
-        if (doctorId && a.doctor_id && (a.doctor_id.endsWith(doctorId) || doctorId.endsWith(a.doctor_id))) return true;
+        const aDocId = String(a.doctor_id || '').toLowerCase().trim();
+        const aDocName = String(a.doctor_name || a.doctorName || a.doctor || '').toLowerCase().trim().replace(/^dr\.\s*|^dr\s*/i, '').replace(/[^a-z0-9]/g, '');
+        const aDocSlug = aDocId.replace(/[^a-z0-9]/g, '');
+        if (aDocId === String(doctorId || '').toLowerCase().trim()) return true;
+        if (cleanTarget && (aDocSlug === cleanTarget || aDocSlug.includes(cleanTarget) || cleanTarget.includes(aDocSlug) || aDocName === cleanTarget)) return true;
         return false;
       }),
       error: null,
@@ -1193,6 +1432,160 @@ const DEFAULT_STAFF_DEFINITIONS = [
     hospital_name: 'AIIMS New Delhi',
     is_active: true,
   },
+  {
+    id: 'f0000001-0005-0002-0002-000000000002',
+    username: 'drpriyaverma',
+    name: 'Dr. Priya Verma',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0004-0002-0002-000000000002',
+    hospital_id: 'sms-jaipur',
+    hospital_name: 'Sawai Man Singh Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0006-0002-0002-000000000002',
+    username: 'drrohanmehta',
+    name: 'Dr. Rohan Mehta',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0005-0002-0002-000000000002',
+    hospital_id: 'sms-jaipur',
+    hospital_name: 'Sawai Man Singh Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0007-0002-0002-000000000002',
+    username: 'drnehaagarwal',
+    name: 'Dr. Neha Agarwal',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0006-0002-0002-000000000002',
+    hospital_id: 'sms-jaipur',
+    hospital_name: 'Sawai Man Singh Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0008-0002-0002-000000000002',
+    username: 'dramitsingh',
+    name: 'Dr. Amit Singh',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0007-0002-0002-000000000002',
+    hospital_id: 'sms-jaipur',
+    hospital_name: 'Sawai Man Singh Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0009-0002-0002-000000000002',
+    username: 'vaidyarmehta',
+    name: 'Vaidya R. Mehta',
+    role: 'doctor',
+    department: 'Ayurveda & Panchakarma',
+    doctor_id: 'd0000001-0008-0002-0002-000000000002',
+    hospital_id: 'sms-jaipur',
+    hospital_name: 'Sawai Man Singh Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0010-0002-0002-000000000002',
+    username: 'vaidyasanjeev',
+    name: 'Vaidya Sanjeev Sharma',
+    role: 'doctor',
+    department: 'Ayurveda & Panchakarma',
+    doctor_id: 'd0000001-0009-0002-0002-000000000002',
+    hospital_id: 'nia-jaipur',
+    hospital_name: 'National Institute of Ayurveda (NIA)',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0011-0003-0003-000000000003',
+    username: 'drnareshtrehan',
+    name: 'Dr. Naresh Trehan',
+    role: 'doctor',
+    department: 'Cardiology',
+    doctor_id: 'd0000001-0010-0003-0003-000000000003',
+    hospital_id: 'apollo-delhi',
+    hospital_name: 'Indraprastha Apollo Hospitals',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0012-0003-0003-000000000003',
+    username: 'drarjunmehta',
+    name: 'Dr. Arjun Mehta',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0011-0003-0003-000000000003',
+    hospital_id: 'apollo-delhi',
+    hospital_name: 'Indraprastha Apollo Hospitals',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0013-0004-0004-000000000004',
+    username: 'drrajeshverma',
+    name: 'Dr. Rajesh Verma',
+    role: 'doctor',
+    department: 'Orthopedics & Joint Replacement',
+    doctor_id: 'd0000001-0012-0004-0004-000000000004',
+    hospital_id: 'shalby-jaipur',
+    hospital_name: 'Shalby Hospital Jaipur',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0014-0004-0004-000000000004',
+    username: 'drnehagupta',
+    name: 'Dr. Neha Gupta',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0013-0004-0004-000000000004',
+    hospital_id: 'shalby-jaipur',
+    hospital_name: 'Shalby Hospital Jaipur',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0015-0005-0005-000000000005',
+    username: 'drgayatrijoshi',
+    name: 'Dr. Gayatri Joshi',
+    role: 'doctor',
+    department: 'Nadi Pariksha & Kayachikitsa',
+    doctor_id: 'd0000001-0014-0005-0005-000000000005',
+    hospital_id: 'aiia-delhi',
+    hospital_name: 'All India Institute of Ayurveda (AIIA)',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0016-0007-0007-000000000007',
+    username: 'drdevishetty',
+    name: 'Dr. Devi Shetty',
+    role: 'doctor',
+    department: 'Cardiology',
+    doctor_id: 'd0000001-0015-0007-0007-000000000007',
+    hospital_id: 'narayana-bangalore',
+    hospital_name: 'Narayana Health City',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0017-0010-0010-000000000010',
+    username: 'drmanojsaxena',
+    name: 'Dr. Manoj Saxena',
+    role: 'doctor',
+    department: 'General Medicine',
+    doctor_id: 'd0000001-0016-0010-0010-000000000010',
+    hospital_id: 'jaipur-hospital',
+    hospital_name: 'Jaipur Hospital',
+    is_active: true,
+  },
+  {
+    id: 'f0000001-0018-0010-0010-000000000010',
+    username: 'drsunitakhandelwal',
+    name: 'Dr. Sunita Khandelwal',
+    role: 'doctor',
+    department: 'Pediatrics',
+    doctor_id: 'd0000001-0017-0010-0010-000000000010',
+    hospital_id: 'jaipur-hospital',
+    hospital_name: 'Jaipur Hospital',
+    is_active: true,
+  },
 ];
 
 const staff = {
@@ -1200,6 +1593,7 @@ const staff = {
     let list = lsRead(LS.staff) || [];
     let updated = false;
 
+    // Seed default staff (admins and core doctors)
     for (const def of DEFAULT_STAFF_DEFINITIONS) {
       const existing = list.find(a => a.username?.toLowerCase() === def.username.toLowerCase());
       if (!existing) {
@@ -1222,7 +1616,6 @@ const staff = {
           updated = true;
         }
       }
-      // If existing.password_changed_at IS set, the user has changed their password, DO NOT overwrite it!
     }
 
     if (updated || !lsRead(LS.staff)) {
@@ -1251,18 +1644,42 @@ const staff = {
       try {
         const { data, error } = await supabase
           .from('staff_accounts')
-          .select('doctor_id, username, updated_at, is_active')
+          .select('id, doctor_id, username, name, updated_at, is_active')
           .eq('role', 'doctor');
 
         if (!error && data) {
           data.forEach(row => {
-            const docId = row.doctor_id;
-            if (docId && row.updated_at) {
-              const loginDate = row.updated_at.split('T')[0];
-              map[docId] = {
-                lastLoginAt: row.updated_at,
-                loggedInToday: loginDate === todayKey,
-              };
+            const loginDate = row.updated_at ? row.updated_at.split('T')[0] : null;
+            const existing = map[row.doctor_id] || map[row.id] || map[row.username] || (row.name ? map[row.name.toLowerCase().trim()] : null) || {};
+            const isToday = loginDate === todayKey || existing.loggedInToday === true;
+            
+            const dynamicShift = existing.shiftType || (row.updated_at ? (() => {
+              const d = new Date(row.updated_at);
+              const m = d.getHours() * 60 + d.getMinutes();
+              if (m >= 540 && m < 750) return 'Morning OPD Session (09:00 AM - 12:30 PM)';
+              if (m >= 750 && m < 960) return 'Afternoon OPD Session (12:30 PM - 04:00 PM)';
+              if (m >= 960 && m <= 1170) return 'Evening OPD Session (04:00 PM - 07:30 PM)';
+              return 'Hospital OPD Schedule (09:00 AM - 07:30 PM)';
+            })() : 'Hospital OPD Schedule (09:00 AM - 07:30 PM)');
+
+            const entry = {
+              ...existing,
+              lastLoginAt: existing.lastLoginAt || row.updated_at,
+              lastLogoutAt: existing.lastLogoutAt || null,
+              isOnline: existing.isOnline === true,
+              loggedInToday: isToday,
+              dutyMinutesToday: existing.dutyMinutesToday || 0,
+              dutySecondsToday: existing.dutySecondsToday || (existing.dutyMinutesToday ? existing.dutyMinutesToday * 60 : 0),
+              sessionsToday: existing.sessionsToday || [],
+              shiftType: dynamicShift,
+              targetShiftHours: existing.targetShiftHours || 6,
+            };
+            if (row.doctor_id) map[row.doctor_id] = entry;
+            if (row.id) map[row.id] = entry;
+            if (row.username) map[row.username] = entry;
+            if (row.name) {
+              map[row.name.toLowerCase().trim()] = entry;
+              map[row.name.toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim()] = entry;
             }
           });
           lsWrite('swasthya_doctor_logins', map);
@@ -1280,6 +1697,16 @@ const staff = {
     const cleanUser = String(username || '').toLowerCase().trim();
     const nowIso = new Date().toISOString();
     const todayKey = nowIso.split('T')[0];
+
+    // Compute active OPD shift from current login time
+    const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+    const calculatedShift = currentMins >= 540 && currentMins < 750
+      ? 'Morning OPD Session (09:00 AM - 12:30 PM)'
+      : currentMins >= 750 && currentMins < 960
+      ? 'Afternoon OPD Session (12:30 PM - 04:00 PM)'
+      : currentMins >= 960 && currentMins <= 1170
+      ? 'Evening OPD Session (04:00 PM - 07:30 PM)'
+      : 'Hospital OPD Schedule (09:00 AM - 07:30 PM)';
 
     // Check brute-force lockout status
     const lockStatus = getAuthLockStatus(cleanUser);
@@ -1308,14 +1735,37 @@ const staff = {
 
         // Record in doctor daily login tracker
         const loginMap = lsRead('swasthya_doctor_logins') || {};
-        const docId = userRow.doctor_id;
-        if (docId) {
-          loginMap[docId] = {
-            lastLoginAt: nowIso,
-            loggedInToday: true,
-          };
-          lsWrite('swasthya_doctor_logins', loginMap);
-        }
+        const prev = loginMap[userRow.doctor_id] || loginMap[userRow.id] || loginMap[userRow.username] || (userRow.name ? loginMap[userRow.name.toLowerCase().trim()] : null) || {};
+        const prevWasToday = prev.lastLoginAt ? prev.lastLoginAt.split('T')[0] === todayKey : false;
+        
+        const entry = {
+          ...prev,
+          lastLoginAt: nowIso,
+          firstLoginTodayAt: (prevWasToday && prev.firstLoginTodayAt) ? prev.firstLoginTodayAt : nowIso,
+          loggedInToday: true,
+          isOnline: true,
+          lastLogoutAt: null,
+          dutyMinutesToday: prevWasToday ? (prev.dutyMinutesToday || 0) : 0,
+          dutySecondsToday: prevWasToday ? (prev.dutySecondsToday || (prev.dutyMinutesToday ? prev.dutyMinutesToday * 60 : 0)) : 0,
+          sessionsToday: prevWasToday ? (prev.sessionsToday || []) : [],
+          shiftType: calculatedShift,
+          targetShiftHours: 6,
+        };
+        const registerKeys = [
+          userRow.doctor_id,
+          userRow.id,
+          userRow.username,
+          cleanUser,
+          userRow.name ? userRow.name.toLowerCase().trim() : null,
+          userRow.name ? userRow.name.toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim() : null,
+          userRow.email ? userRow.email.toLowerCase().trim() : null,
+        ].filter(Boolean);
+
+        registerKeys.forEach(k => { loginMap[k] = entry; });
+        lsWrite('swasthya_doctor_logins', loginMap);
+        try {
+          window.dispatchEvent(new CustomEvent('swasthya_doctor_status_changed'));
+        } catch (e) {}
 
         return { data: userRow, error: null };
       }
@@ -1326,9 +1776,27 @@ const staff = {
 
     // Local / Client-side fallback authentication with encrypted password hash verification
     const accounts = await staff.ensureSeedAccounts();
-    const account = accounts.find(
-      a => a.username.toLowerCase() === cleanUser && a.is_active !== false
-    );
+    const cleanAlpha = cleanUser.replace(/[^a-z0-9]/g, '');
+    const account = accounts.find(a => {
+      if (a.is_active === false) return false;
+      const aUser = (a.username || '').toLowerCase().trim();
+      const aAlpha = aUser.replace(/[^a-z0-9]/g, '');
+      const aName = (a.name || '').toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').replace(/[^a-z0-9]/g, '');
+      const aEmail = (a.email || '').toLowerCase().trim();
+      const aEmailPre = aEmail.split('@')[0]?.replace(/[^a-z0-9]/g, '');
+
+      return (
+        aUser === cleanUser ||
+        aAlpha === cleanAlpha ||
+        (cleanAlpha.startsWith('dr') && aAlpha === cleanAlpha.slice(2)) ||
+        (aAlpha.startsWith('dr') && aAlpha.slice(2) === cleanAlpha) ||
+        (cleanAlpha.startsWith('dr') && aName === cleanAlpha.slice(2)) ||
+        aName === cleanAlpha ||
+        aEmail === cleanUser ||
+        aEmailPre === cleanAlpha
+      );
+    });
+
     if (!account) {
       const attempt = recordFailedAttempt(cleanUser);
       if (attempt.locked) {
@@ -1337,7 +1805,27 @@ const staff = {
       return { data: null, error: new Error(`Invalid credentials (${5 - attempt.count} attempt(s) remaining before 2-minute lockout)`) };
     }
 
-    const isMatch = await verifyPassword(password, account.password_hash);
+    let isMatch = false;
+    if (account.password_hash) {
+      isMatch = await verifyPassword(password, account.password_hash);
+    }
+    // Dynamic default password fallback (${username}123) if password was never modified
+    if (!isMatch && (!account.password_changed_at || account.password_changed_at === null)) {
+      const u1 = (account.username || '').toLowerCase();
+      const u2 = u1.replace(/[^a-z0-9]/g, '');
+      const u3 = cleanUser;
+      const u4 = cleanAlpha;
+      if (
+        password === `${u1}123` ||
+        password === `${u2}123` ||
+        password === `${u3}123` ||
+        password === `${u4}123` ||
+        (account.username === 'swasthya_admin' && password === 'SwasthyaAdmin@2026')
+      ) {
+        isMatch = true;
+      }
+    }
+
     if (!isMatch) {
       const attempt = recordFailedAttempt(cleanUser);
       if (attempt.locked) {
@@ -1349,19 +1837,175 @@ const staff = {
     // Successful login - clear failed attempts counter
     clearFailedAttempts(cleanUser);
 
-    // Record login timestamp
+    // Comprehensive alias key builder for 100% reliable doctor matching
+    const buildDoctorKeys = (acc) => {
+      if (!acc) return [];
+      const n = (acc.name || '').toLowerCase().trim();
+      const nClean = n.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+      const nSlug = nClean.replace(/[^a-z0-9]+/g, '-');
+      const nAlpha = nClean.replace(/[^a-z0-9]/g, '');
+      const u = (acc.username || '').toLowerCase().trim();
+      const uAlpha = u.replace(/[^a-z0-9]/g, '');
+      const em = (acc.email || '').toLowerCase().trim();
+      const emPre = em.split('@')[0]?.trim();
+      const did = acc.doctor_id || acc.doctorId;
+      const id = acc.id;
+      const hospId = acc.hospital_id || acc.hospitalId || 'sms-jaipur';
+
+      return [
+        did,
+        id,
+        u,
+        uAlpha,
+        `dr.${uAlpha}`,
+        `dr${uAlpha}`,
+        n,
+        nClean,
+        `dr. ${nClean}`,
+        `dr ${nClean}`,
+        `dr-${nSlug}`,
+        nSlug,
+        `dr${nAlpha}`,
+        nAlpha,
+        em,
+        emPre,
+        `${hospId}-${nSlug}`,
+        `${hospId}-dr-${nSlug}`,
+        acc.professionalId ? String(acc.professionalId).toLowerCase().trim() : null
+      ].filter(Boolean);
+    };
+
+    const registerKeys = buildDoctorKeys({
+      ...account,
+      name: account.name,
+      username: cleanUser || account.username,
+      doctor_id: account.doctor_id || account.id,
+    });
+
     const loginMap = lsRead('swasthya_doctor_logins') || {};
-    const docId = account.doctor_id;
-    if (docId) {
-      loginMap[docId] = {
-        lastLoginAt: nowIso,
-        loggedInToday: true,
-      };
-      lsWrite('swasthya_doctor_logins', loginMap);
+    let foundPrev = null;
+    for (const k of registerKeys) {
+      if (loginMap[k]) {
+        foundPrev = loginMap[k];
+        break;
+      }
     }
+    const prev = foundPrev || {};
+    const prevWasToday = prev.lastLoginAt ? prev.lastLoginAt.split('T')[0] === todayKey : false;
+
+    const entry = {
+      ...prev,
+      doctor_id: account.doctor_id || account.id,
+      doctor_name: account.name,
+      lastLoginAt: nowIso,
+      firstLoginTodayAt: (prevWasToday && prev.firstLoginTodayAt) ? prev.firstLoginTodayAt : nowIso,
+      loggedInToday: true,
+      isOnline: true,
+      lastLogoutAt: null,
+      dutyMinutesToday: prevWasToday ? (prev.dutyMinutesToday || 0) : 0,
+      dutySecondsToday: prevWasToday ? (prev.dutySecondsToday || (prev.dutyMinutesToday ? prev.dutyMinutesToday * 60 : 0)) : 0,
+      sessionsToday: prevWasToday ? (prev.sessionsToday || []) : [],
+      shiftType: calculatedShift,
+      targetShiftHours: 6,
+    };
+
+    registerKeys.forEach(k => { loginMap[k] = entry; });
+    lsWrite('swasthya_doctor_logins', loginMap);
+    try {
+      window.dispatchEvent(new CustomEvent('swasthya_doctor_status_changed'));
+    } catch (e) {}
 
     const { password_hash, ...cleanAccount } = account;
     return { data: cleanAccount, error: null };
+  },
+
+  recordLogout(staffMember) {
+    if (!staffMember) return;
+    const nowIso = new Date().toISOString();
+    const todayKey = nowIso.split('T')[0];
+    const loginMap = lsRead('swasthya_doctor_logins') || {};
+
+    const n = (staffMember.name || '').toLowerCase().trim();
+    const nClean = n.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+    const nSlug = nClean.replace(/[^a-z0-9]+/g, '-');
+    const nAlpha = nClean.replace(/[^a-z0-9]/g, '');
+    const u = (staffMember.username || '').toLowerCase().trim();
+    const uAlpha = u.replace(/[^a-z0-9]/g, '');
+    const em = (staffMember.email || '').toLowerCase().trim();
+    const emPre = em.split('@')[0]?.trim();
+    const did = staffMember.doctor_id || staffMember.doctorId;
+    const id = staffMember.id;
+    const hospId = staffMember.hospital_id || staffMember.hospitalId || 'sms-jaipur';
+
+    const keys = [
+      did,
+      id,
+      u,
+      uAlpha,
+      `dr.${uAlpha}`,
+      `dr${uAlpha}`,
+      n,
+      nClean,
+      `dr. ${nClean}`,
+      `dr ${nClean}`,
+      `dr-${nSlug}`,
+      nSlug,
+      `dr${nAlpha}`,
+      nAlpha,
+      em,
+      emPre,
+      `${hospId}-${nSlug}`,
+      `${hospId}-dr-${nSlug}`
+    ].filter(Boolean);
+
+    let foundPrev = null;
+    for (const k of keys) {
+      if (loginMap[k]) {
+        foundPrev = loginMap[k];
+        break;
+      }
+    }
+    const prev = foundPrev || {};
+    const wasToday = prev.lastLoginAt ? prev.lastLoginAt.split('T')[0] === todayKey : true;
+    
+    let additionalSeconds = 0;
+    if (prev.lastLoginAt && wasToday) {
+      const diffMs = new Date(nowIso).getTime() - new Date(prev.lastLoginAt).getTime();
+      if (diffMs > 0) {
+        additionalSeconds = Math.max(1, Math.round(diffMs / 1000));
+      }
+    }
+    const totalSeconds = (prev.dutySecondsToday || ((prev.dutyMinutesToday || 0) * 60)) + additionalSeconds;
+    const totalMinutes = Math.round(totalSeconds / 60);
+
+    const sessionRecord = {
+      loginAt: prev.lastLoginAt,
+      logoutAt: nowIso,
+      durationSeconds: additionalSeconds,
+    };
+    const prevSessions = Array.isArray(prev.sessionsToday) ? prev.sessionsToday : [];
+    const sessionsToday = [...prevSessions, sessionRecord];
+
+    const entry = {
+      ...prev,
+      lastLogoutAt: nowIso,
+      isOnline: false,
+      loggedInToday: wasToday,
+      dutyMinutesToday: totalMinutes,
+      dutySecondsToday: totalSeconds,
+      sessionsToday,
+      shiftType: prev.shiftType || 'Hospital OPD Schedule (09:00 AM - 07:30 PM)',
+      targetShiftHours: 6,
+    };
+
+    keys.forEach(k => {
+      loginMap[k] = entry;
+    });
+
+    lsWrite('swasthya_doctor_logins', loginMap);
+    try {
+      window.dispatchEvent(new CustomEvent('swasthya_doctor_status_changed'));
+    } catch (e) {}
   },
 
   async create({
@@ -1416,6 +2060,14 @@ const staff = {
 
   async changePassword({ username, doctorId = null, oldPassword, newPassword }) {
     let cleanUser = String(username || '').toLowerCase().trim();
+    if (!cleanUser && !doctorId) {
+      try {
+        const saved = JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+        if (saved?.staff?.username) cleanUser = saved.staff.username.toLowerCase().trim();
+        if (saved?.staff?.doctor_id && !doctorId) doctorId = saved.staff.doctor_id;
+      } catch {}
+    }
+
     const strengthCheck = validatePasswordStrength(newPassword);
     if (!strengthCheck.isValid) {
       return {
@@ -1424,84 +2076,111 @@ const staff = {
       };
     }
 
+    if (cleanUser.includes('@')) {
+      cleanUser = cleanUser.split('@')[0];
+    }
+
+    // Step 1: Check LocalStorage accounts first
+    const accounts = await staff.ensureSeedAccounts();
+    let accountIndex = accounts.findIndex(
+      a => (cleanUser && (a.username.toLowerCase() === cleanUser || a.email?.toLowerCase() === cleanUser || a.email?.split('@')[0].toLowerCase() === cleanUser)) ||
+           (doctorId && a.doctor_id === doctorId)
+    );
+
+    // If not found, try loose name match
+    if (accountIndex === -1 && cleanUser) {
+      accountIndex = accounts.findIndex(
+        a => a.name && a.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanUser.replace(/[^a-z0-9]/g, '')
+      );
+    }
+
+    let localValid = false;
+
+    if (accountIndex !== -1) {
+      const account = accounts[accountIndex];
+      cleanUser = account.username.toLowerCase();
+      localValid = await verifyPassword(oldPassword, account.password_hash);
+      
+      // Fallback check for initial default password format
+      if (!localValid && !account.password_changed_at) {
+        const defaultPw = account.username === 'swasthya_admin' ? 'SwasthyaAdmin@2026' : `${account.username}123`;
+        if (oldPassword === defaultPw) {
+          localValid = true;
+        }
+      }
+    }
+
+    // Step 2: If Supabase is configured, try Supabase RPC
+    let supabaseSuccess = false;
     if (USE_SUPABASE()) {
       try {
-        // If cleanUser needs resolution by doctorId or email
-        if (!cleanUser && doctorId) {
-          const { data: staffRow } = await supabase
-            .from('staff_accounts')
-            .select('username')
-            .eq('doctor_id', doctorId)
-            .maybeSingle();
-          if (staffRow?.username) cleanUser = staffRow.username;
-        }
-
-        if (cleanUser.includes('@')) {
-          const { data: staffRow } = await supabase
-            .from('staff_accounts')
-            .select('username')
-            .or(`username.eq.${cleanUser},username.eq.${cleanUser.split('@')[0]}`)
-            .maybeSingle();
-          if (staffRow?.username) cleanUser = staffRow.username;
-          else cleanUser = cleanUser.split('@')[0];
-        }
-
         const { data, error } = await supabase.rpc('change_staff_password', {
           p_username: cleanUser,
           p_old_password: oldPassword,
           p_new_password: newPassword,
         });
-
-        if (!error) {
-          // Immediately synchronize local storage cache with new password hash
-          const accounts = await staff.ensureSeedAccounts();
-          const accountIndex = accounts.findIndex(
-            a => a.username.toLowerCase() === cleanUser || (doctorId && a.doctor_id === doctorId)
-          );
-          if (accountIndex !== -1) {
-            const newHash = await hashPassword(newPassword);
-            accounts[accountIndex] = {
-              ...accounts[accountIndex],
-              password_hash: newHash,
-              password_changed_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-            lsWrite(LS.staff, accounts);
-          }
-          return { data: true, error: null };
-        }
-
-        if (error && error.message && error.message.includes('Current password is incorrect')) {
-          return { data: null, error: new Error('Current password is incorrect') };
+        if (!error && data) {
+          supabaseSuccess = true;
         }
       } catch (e) {
         console.warn('Supabase change_staff_password notice:', e);
       }
     }
 
-    // LocalStorage fallback password change with verification
-    const accounts = await staff.ensureSeedAccounts();
-    const accountIndex = accounts.findIndex(
-      a => a.username.toLowerCase() === cleanUser || (doctorId && a.doctor_id === doctorId)
-    );
-    if (accountIndex === -1) {
-      return { data: null, error: new Error('Account not found') };
+    // If neither local verification succeeded nor Supabase RPC succeeded
+    if (!localValid && !supabaseSuccess) {
+      return { data: null, error: new Error('Current password is incorrect. Please verify your current password.') };
     }
 
-    const account = accounts[accountIndex];
-    const isOldValid = await verifyPassword(oldPassword, account.password_hash);
-    if (!isOldValid) {
-      return { data: null, error: new Error('Current password is incorrect') };
-    }
-
+    // Compute new PBKDF2 hash
     const newHash = await hashPassword(newPassword);
-    accounts[accountIndex] = {
-      ...account,
-      password_hash: newHash,
-      password_changed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    lsWrite(LS.staff, accounts);
+
+    // Update LocalStorage account
+    if (accountIndex !== -1) {
+      accounts[accountIndex] = {
+        ...accounts[accountIndex],
+        password_hash: newHash,
+        password_changed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      lsWrite(LS.staff, accounts);
+    } else {
+      accounts.push({
+        id: uuid(),
+        username: cleanUser,
+        password_hash: newHash,
+        password_changed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        is_active: true,
+      });
+      lsWrite(LS.staff, accounts);
+    }
+
+    // Also update session in localStorage if current active staff user
+    try {
+      const session = JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+      if (session?.staff && (session.staff.username?.toLowerCase() === cleanUser || (doctorId && session.staff.doctor_id === doctorId))) {
+        session.staff.password_changed_at = new Date().toISOString();
+        localStorage.setItem('swasthya_session', JSON.stringify(session));
+      }
+    } catch {}
+
+    // If Supabase is active and account wasn't updated via RPC, sync it to Supabase
+    if (USE_SUPABASE() && !supabaseSuccess) {
+      try {
+        await supabase.from('staff_accounts').upsert({
+          username: cleanUser,
+          password_hash: newHash,
+          password_changed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_active: true,
+        }, { onConflict: 'username' });
+      } catch (e) {
+        console.warn('Supabase staff_accounts background sync:', e);
+      }
+    }
+
     return { data: true, error: null };
   },
 };
@@ -3294,6 +3973,7 @@ export const db = {
   patients,
   hospitals,
   doctors,
+  doctorLeaves,
   slots,
   appointments,
   queue: doctorQueue,

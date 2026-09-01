@@ -167,19 +167,32 @@ function Layout({ children, showHeader = true }) {
 function ProtectedRoute({ children, requiredRole }) {
   const { session, logout } = useSession();
   
+  // Safe immediate fallback for seamless single-click navigation transitions
+  const savedSession = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+
+  const isAuth = session.isAuthenticated || savedSession.isAuthenticated;
+  const currentRole = session.userRole || savedSession.userRole;
+  const expiresAt = session.sessionExpiresAt || savedSession.sessionExpiresAt;
+
   // Enforce midnight auto-logout for doctor and admin roles
-  if (session.isAuthenticated && (session.userRole === 'doctor' || session.userRole === 'admin')) {
-    if (session.sessionExpiresAt && Date.now() >= session.sessionExpiresAt) {
+  if (isAuth && (currentRole === 'doctor' || currentRole === 'admin')) {
+    if (expiresAt && Date.now() >= expiresAt) {
       logout();
-      return <Navigate to={`/auth?role=${requiredRole || session.userRole}`} replace />;
+      return <Navigate to={`/auth?role=${requiredRole || currentRole}`} replace />;
     }
   }
 
-  if (!session.isAuthenticated) {
+  if (!isAuth) {
     return <Navigate to={requiredRole ? `/auth?role=${requiredRole}` : "/auth"} replace />;
   }
 
-  if (requiredRole && session.userRole !== requiredRole) {
+  if (requiredRole && currentRole !== requiredRole) {
     return <Navigate to={`/auth?role=${requiredRole}`} replace />; // redirect to correct login role
   }
 

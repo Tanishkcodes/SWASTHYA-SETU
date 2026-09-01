@@ -40,10 +40,14 @@ export default function AdminProfilePopup({
   const [pwMsg, setPwMsg] = useState({ text: '', type: '' });
   const [loading, setLoading] = useState(false);
 
-  const username =
-    session?.staff?.username ||
-    session?.username ||
-    (hospital?.id ? `admin.${hospital.id.split('-')[0]}` : 'admin');
+  let activeUsername = session?.staff?.username || session?.username;
+  if (!activeUsername) {
+    try {
+      const saved = JSON.parse(localStorage.getItem('swasthya_session') || '{}');
+      activeUsername = saved?.staff?.username || saved?.username;
+    } catch {}
+  }
+  const username = activeUsername || (hospital?.id ? `admin.${hospital.id.split('-')[0]}` : 'admin');
   const email = session?.staff?.email || `${username}@swasthyasetu.gov.in`;
   const department = session?.staff?.department || 'Central Hospital Operations';
   const facilityId = session?.staff?.hospital_id || hospital.id || 'HOSP-SMS-001';
@@ -90,7 +94,8 @@ export default function AdminProfilePopup({
         setTimeout(() => setShowPasswordForm(false), 2500);
       }
     } catch (err) {
-      setPwMsg({ text: 'An unexpected error occurred.', type: 'error' });
+      console.error('Admin password change error:', err);
+      setPwMsg({ text: err.message || 'An unexpected error occurred.', type: 'error' });
     } finally {
       setLoading(false);
     }

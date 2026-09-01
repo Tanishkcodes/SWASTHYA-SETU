@@ -76,6 +76,197 @@ function calculateAgeFromDob(dobStr) {
   return age >= 0 ? String(age) : '';
 }
 
+// Format exact time with seconds (e.g., 06:10:24 PM)
+function formatExactTime(isoStr) {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+}
+
+// Format duration with seconds precision (e.g., 1m 11s, 45s, 2h 15m 30s)
+function formatExactDuration(totalSeconds) {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = s % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+  if (mins > 0) return `${mins}m ${secs}s`;
+  return `${secs}s`;
+}
+
+// Calculate Doctor Shift Duty, Timestamps (with seconds) and Completion Percentage
+function calculateDoctorDuty(docLoginInfo) {
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
+  if (!docLoginInfo) {
+    return {
+      isOnline: false,
+      attendedToday: false,
+      dutyMinutes: 0,
+      dutySeconds: 0,
+      dutyHoursFormatted: '0s',
+      shiftCompletionPct: 0,
+      shiftStatus: 'Not Attended ⚪',
+      timeRangeStr: 'No shift activity today',
+      shiftType: 'Hospital OPD Schedule (09:00 AM - 07:30 PM)',
+      loginTimeStr: '',
+      logoutTimeStr: '',
+      sessions: [],
+    };
+  }
+
+  const loginDate = docLoginInfo.lastLoginAt ? docLoginInfo.lastLoginAt.split('T')[0] : null;
+  const loginMs = docLoginInfo.lastLoginAt ? new Date(docLoginInfo.lastLoginAt).getTime() : 0;
+  const isRecent24h = loginMs > 0 && (Date.now() - loginMs) < 24 * 60 * 60 * 1000;
+  const isOnline = docLoginInfo.isOnline === true;
+  const wasToday = isRecent24h || loginDate === todayKey || docLoginInfo.loggedInToday === true || isOnline;
+
+  if (!wasToday && !isOnline && !docLoginInfo.lastLoginAt) {
+    return {
+      isOnline: false,
+      attendedToday: false,
+      dutyMinutes: 0,
+      dutySeconds: 0,
+      dutyHoursFormatted: '0s',
+      shiftCompletionPct: 0,
+      shiftStatus: 'Not Attended ⚪',
+      timeRangeStr: 'No shift activity today',
+      shiftType: docLoginInfo.shiftType || 'Hospital OPD Schedule (09:00 AM - 07:30 PM)',
+      loginTimeStr: '',
+      logoutTimeStr: '',
+      sessions: [],
+    };
+  }
+
+  let totalSeconds = docLoginInfo.dutySecondsToday || ((docLoginInfo.dutyMinutesToday || 0) * 60) || 0;
+
+  if (isOnline && docLoginInfo.lastLoginAt) {
+    const elapsedSecs = Math.max(1, Math.round((Date.now() - new Date(docLoginInfo.lastLoginAt).getTime()) / 1000));
+    const baseSessionsSecs = (docLoginInfo.sessionsToday || []).reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+    totalSeconds = Math.max(totalSeconds, baseSessionsSecs + elapsedSecs);
+  } else if (docLoginInfo.lastLoginAt && docLoginInfo.lastLogoutAt) {
+    const diffSecs = Math.max(1, Math.round((new Date(docLoginInfo.lastLogoutAt).getTime() - new Date(docLoginInfo.lastLoginAt).getTime()) / 1000));
+    const baseSessionsSecs = (docLoginInfo.sessionsToday || []).reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+    totalSeconds = Math.max(totalSeconds, Math.max(diffSecs, baseSessionsSecs));
+  } else if (totalSeconds === 0 && docLoginInfo.lastLoginAt) {
+    totalSeconds = 60; // minimum baseline 1m
+  }
+
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const dutyHoursFormatted = formatExactDuration(totalSeconds);
+
+  const targetHours = docLoginInfo.targetShiftHours || 6;
+  const targetSeconds = targetHours * 3600;
+  const shiftCompletionPct = Math.min(100, Math.round((totalSeconds / targetSeconds) * 100));
+
+  const loginTime = docLoginInfo.lastLoginAt || docLoginInfo.firstLoginTodayAt;
+  const loginTimeStr = formatExactTime(loginTime);
+  const logoutTimeStr = formatExactTime(docLoginInfo.lastLogoutAt);
+
+  let timeRangeStr = '';
+  if (isOnline) {
+    timeRangeStr = loginTimeStr ? `${loginTimeStr} — Active Now (${dutyHoursFormatted})` : `Active Now (${dutyHoursFormatted})`;
+  } else if (loginTimeStr && logoutTimeStr) {
+    timeRangeStr = `${loginTimeStr} — ${logoutTimeStr} (${dutyHoursFormatted})`;
+  } else if (loginTimeStr) {
+    timeRangeStr = `Logged in at ${loginTimeStr} (${dutyHoursFormatted})`;
+  } else {
+    timeRangeStr = `Logged in today (${dutyHoursFormatted})`;
+  }
+
+  let shiftStatus = 'Not Attended ⚪';
+  if (isOnline) {
+    shiftStatus = `Active in Shift 🟢 (${dutyHoursFormatted})`;
+  } else if (shiftCompletionPct >= 80) {
+    shiftStatus = 'Shift Completed ✅';
+  } else if (totalSeconds > 0) {
+    shiftStatus = `Attended (${dutyHoursFormatted}) ⏳`;
+  } else {
+    shiftStatus = 'Shift Attended 🔵';
+  }
+
+  const shiftType = docLoginInfo.shiftType || (loginTime ? (() => {
+    const d = new Date(loginTime);
+    const m = d.getHours() * 60 + d.getMinutes();
+    if (m >= 540 && m < 750) return 'Morning OPD Session (09:00 AM - 12:30 PM)';
+    if (m >= 750 && m < 960) return 'Afternoon OPD Session (12:30 PM - 04:00 PM)';
+    if (m >= 960 && m <= 1170) return 'Evening OPD Session (04:00 PM - 07:30 PM)';
+    return 'Hospital OPD Schedule (09:00 AM - 07:30 PM)';
+  })() : 'Hospital OPD Schedule (09:00 AM - 07:30 PM)');
+
+  return {
+    isOnline,
+    attendedToday: true,
+    dutyMinutes: totalMinutes,
+    dutySeconds: totalSeconds,
+    dutyHoursFormatted,
+    shiftCompletionPct,
+    shiftStatus,
+    timeRangeStr,
+    shiftType,
+    loginTimeStr,
+    logoutTimeStr,
+    sessions: docLoginInfo.sessionsToday || [],
+  };
+}
+
+function getDoctorLoginState(doc, doctorLoginsMap) {
+  if (!doc) return null;
+  let map = doctorLoginsMap || {};
+  try {
+    const raw = localStorage.getItem('swasthya_doctor_logins');
+    if (raw) map = { ...map, ...JSON.parse(raw) };
+  } catch (e) {}
+
+  const nameNorm = (doc.name || '').toLowerCase().trim();
+  const nameClean = nameNorm.replace(/^dr\.\s*|^dr\s*/i, '').trim();
+  const nameSlug = nameClean.replace(/[^a-z0-9]+/g, '-');
+  const nameAlpha = nameClean.replace(/[^a-z0-9]/g, '');
+  const docId = String(doc.id || doc.doctor_id || '').toLowerCase().trim();
+  const docUsername = (doc.username || '').toLowerCase().trim();
+  const docEmail = (doc.email || '').toLowerCase().trim();
+  const emailPrefix = docEmail.split('@')[0]?.trim();
+
+  // Direct lookup of all normalized alias variants
+  const keysToTest = [
+    docId,
+    docUsername,
+    `dr.${docUsername}`,
+    `dr${docUsername}`,
+    nameNorm,
+    nameClean,
+    `dr. ${nameClean}`,
+    `dr ${nameClean}`,
+    `dr-${nameSlug}`,
+    nameSlug,
+    `dr${nameAlpha}`,
+    nameAlpha,
+    docEmail,
+    emailPrefix,
+    doc.professionalId ? String(doc.professionalId).toLowerCase().trim() : null
+  ].filter(Boolean);
+
+  for (const k of keysToTest) {
+    if (map[k]) return map[k];
+  }
+
+  // Iterative lookup over all registered keys
+  for (const key of Object.keys(map)) {
+    const entry = map[key];
+    if (!entry) continue;
+    const kClean = String(key).toLowerCase().replace(/^dr\.\s*|^dr\s*|[^a-z0-9]/g, '');
+    if (nameAlpha && (kClean === nameAlpha || kClean.includes(nameAlpha) || nameAlpha.includes(kClean))) {
+      return entry;
+    }
+  }
+
+  return null;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { logout, session } = useSession();
@@ -90,17 +281,28 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Cached staff fallback for immediate 0ms rendering
+  const cachedStaff = useMemo(() => {
+    return session?.staff || (() => {
+      try {
+        return JSON.parse(localStorage.getItem('swasthya_session') || '{}').staff;
+      } catch {
+        return null;
+      }
+    })();
+  }, [session?.staff]);
+
   // Hospital & Admin Info (Real Administrator resolution from database / session)
-  const [hospital, setHospital] = useState({
-    id: session?.staff?.hospital_id || 'sms-jaipur',
-    name: session?.staff?.hospital_name || 'Sawai Man Singh Hospital',
-    city: 'Jaipur',
-  });
+  const [hospital, setHospital] = useState(() => ({
+    id: cachedStaff?.hospital_id || 'sms-jaipur',
+    name: cachedStaff?.hospital_name || 'Sawai Man Singh Hospital',
+    city: cachedStaff?.city || 'Jaipur',
+  }));
 
   const [adminStaffUser, setAdminStaffUser] = useState(null);
 
-  const adminName = session?.staff?.name || adminStaffUser?.name || 'Hospital Administrator';
-  const adminRole = session?.staff?.role === 'admin' ? 'Administrator' : (session?.staff?.department || 'Administrator');
+  const adminName = cachedStaff?.name || session?.staff?.name || adminStaffUser?.name || 'Hospital Administrator';
+  const adminRole = (cachedStaff?.role || session?.staff?.role) === 'admin' ? 'Administrator' : (cachedStaff?.department || 'Administrator');
   const adminFirstName = adminName.split(' ')[0] || adminName;
   const adminInitials = adminName
     .split(' ')
@@ -139,6 +341,7 @@ export default function AdminDashboard() {
   const [deptFilter, setDeptFilter] = useState('All');
   const [specFilter, setSpecFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [dutyFilter, setDutyFilter] = useState('all'); // 'all' | 'online' | 'attended' | 'not_logged_in'
   const [docPage, setDocPage] = useState(1);
   const docPageSize = 7;
 
@@ -147,6 +350,15 @@ export default function AdminDashboard() {
 
   // Edit Doctor Modal State (No password modification by admin)
   const [showEditDoctorModal, setShowEditDoctorModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [managingLeaveDoctor, setManagingLeaveDoctor] = useState(null);
+  const [doctorLeavesList, setDoctorLeavesList] = useState([]);
+  const [newLeaveDate, setNewLeaveDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [newLeaveReason, setNewLeaveReason] = useState('Annual Leave');
+  const [newLeaveNotes, setNewLeaveNotes] = useState('');
   const [editingDoctor, setEditingDoctor] = useState({
     id: '',
     name: '',
@@ -208,6 +420,7 @@ export default function AdminDashboard() {
         { data: hospData },
         { data: staffData },
         { data: loginsData },
+        { data: leavesData },
       ] = await Promise.all([
         db.appointments.getAllForAdmin({ limit: 500 }),
         db.doctors.getAllForAdmin(),
@@ -216,10 +429,24 @@ export default function AdminDashboard() {
         db.hospitals.getAll(),
         db.staff.getAll(),
         db.staff.getDoctorDailyLogins(),
+        db.doctorLeaves.getAll(),
       ]);
 
+      if (leavesData) {
+        setDoctorLeavesList(leavesData);
+      }
+
+      const targetHospId = session?.staff?.hospital_id || cachedStaff?.hospital_id || 'sms-jaipur';
+      const targetHospName = session?.staff?.hospital_name || cachedStaff?.hospital_name || 'Sawai Man Singh Hospital';
+
       if (hospData && hospData.length > 0) {
-        setHospital(hospData[0]);
+        const foundHospital = hospData.find(h => 
+          (targetHospId && (h.id === targetHospId || String(h.id).toLowerCase().includes(String(targetHospId).toLowerCase()))) ||
+          (targetHospName && h.name && (h.name.toLowerCase().includes(targetHospName.toLowerCase()) || targetHospName.toLowerCase().includes(h.name.toLowerCase())))
+        );
+        if (foundHospital) {
+          setHospital(foundHospital);
+        }
       }
 
       if (loginsData) {
@@ -227,7 +454,8 @@ export default function AdminDashboard() {
       }
 
       if (staffData && staffData.length > 0) {
-        const foundAdmin = staffData.find(s => s.role === 'admin' || s.username === session?.staff?.username);
+        const targetUsername = session?.staff?.username || cachedStaff?.username;
+        const foundAdmin = staffData.find(s => s.role === 'admin' && (!targetUsername || s.username === targetUsername));
         if (foundAdmin) setAdminStaffUser(foundAdmin);
       }
 
@@ -237,13 +465,13 @@ export default function AdminDashboard() {
       const allDonations = donData || [];
 
       // Filter doctors for this hospital from the real database
-      const currentHospId = session?.staff?.hospital_id || hospData?.[0]?.id || hospital.id || 'sms-jaipur';
-      const currentHospName = session?.staff?.hospital_name || hospData?.[0]?.name || hospital.name || 'Sawai Man Singh Hospital';
+      const currentHospId = targetHospId;
+      const currentHospName = targetHospName;
       const hospitalDocs = rawDoctors.filter(d => {
         const dHospId = d.hospital_id || d.hospitals?.id;
         const dHospName = d.hospital_name || d.hospitalName || d.hospital || d.hospitals?.name;
-        if (dHospId && (dHospId === currentHospId || dHospId.toLowerCase().includes(currentHospId.toLowerCase()))) return true;
-        if (dHospName && currentHospName && (dHospName.toLowerCase().includes(currentHospName.toLowerCase()) || currentHospName.toLowerCase().includes(dHospName.toLowerCase()))) return true;
+        if (dHospId && (dHospId === currentHospId || String(dHospId).toLowerCase().includes(String(currentHospId).toLowerCase()))) return true;
+        if (dHospName && currentHospName && (String(dHospName).toLowerCase().includes(String(currentHospName).toLowerCase()) || String(currentHospName).toLowerCase().includes(String(dHospName).toLowerCase()))) return true;
         return false;
       });
 
@@ -304,15 +532,36 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     loadDashboardData();
+
+    const handleSync = async () => {
+      try {
+        const { data } = await db.staff.getDoctorDailyLogins();
+        if (data) setDoctorLogins(data);
+      } catch (e) {}
+    };
+
+    const interval = setInterval(handleSync, 2000);
+    window.addEventListener('swasthya_doctor_status_changed', handleSync);
+    window.addEventListener('swasthya_doctor_leave_changed', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('swasthya_doctor_status_changed', handleSync);
+      window.removeEventListener('swasthya_doctor_leave_changed', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, []);
 
-  // Doctors Summary Metrics (Card 1: Total Doctors, Card 2: Allopathy, Card 3: Ayurveda, Card 4: Logged In Today)
+  // Doctors Summary Metrics (Card 1: Total Doctors, Card 2: Online Now, Card 3: Attended Today, Card 4: Not Logged In Today)
   const docMetrics = useMemo(() => {
     const total = doctorsList.length;
     let allopathy = 0;
     let ayurveda = 0;
     let activeRoster = 0;
-    let loggedInToday = 0;
+    let onlineNow = 0;
+    let attendedToday = 0;
+    let totalDutyMinutes = 0;
+    let totalShiftPctSum = 0;
 
     doctorsList.forEach(d => {
       const sys = d.system || (d.speciality?.toLowerCase().includes('ayur') ? 'Ayurveda' : 'Allopathy');
@@ -320,14 +569,40 @@ export default function AdminDashboard() {
       else allopathy++;
       if (d.is_active !== false) activeRoster++;
 
-      const docLoginInfo = doctorLogins[d.id] || doctorLogins[d.doctor_id];
-      if (docLoginInfo?.loggedInToday) loggedInToday++;
+      const docLoginInfo = getDoctorLoginState(d, doctorLogins);
+      const duty = calculateDoctorDuty(docLoginInfo);
+      if (duty.isOnline) onlineNow++;
+      if (duty.attendedToday) {
+        attendedToday++;
+        totalDutyMinutes += duty.dutyMinutes;
+        totalShiftPctSum += duty.shiftCompletionPct;
+      }
     });
+
+    const notLoggedInToday = Math.max(0, total - attendedToday);
+    const avgShiftCompletionPct = attendedToday > 0 ? Math.round(totalShiftPctSum / attendedToday) : 0;
+    const totHrs = Math.floor(totalDutyMinutes / 60);
+    const totMins = totalDutyMinutes % 60;
+    const totalDutyHoursFormatted = totHrs > 0 ? `${totHrs}h ${totMins}m` : `${totMins}m`;
 
     const alloPct = total > 0 ? ((allopathy / total) * 100).toFixed(1) : '0';
     const ayurPct = total > 0 ? ((ayurveda / total) * 100).toFixed(1) : '0';
 
-    return { total, allopathy, ayurveda, active: activeRoster, loggedInToday, alloPct, ayurPct };
+    return {
+      total,
+      allopathy,
+      ayurveda,
+      active: activeRoster,
+      onlineNow,
+      attendedToday,
+      notLoggedInToday,
+      loggedInToday: attendedToday,
+      totalDutyMinutes,
+      avgShiftCompletionPct,
+      totalDutyHoursFormatted,
+      alloPct,
+      ayurPct,
+    };
   }, [doctorsList, doctorLogins]);
 
   // Dynamic Specializations Set from Database
@@ -339,9 +614,19 @@ export default function AdminDashboard() {
     return Array.from(set);
   }, [doctorsList]);
 
-  // Filtered Doctors List based on search, department, specialization, status
+  // Filtered Doctors List based on search, department, specialization, status, and duty status
   const filteredDoctors = useMemo(() => {
     return doctorsList.filter(doc => {
+      // 0. Duty / Shift Attendance Filter
+      if (dutyFilter !== 'all') {
+        const docLoginInfo = getDoctorLoginState(doc, doctorLogins);
+        const isOnline = docLoginInfo?.isOnline === true;
+        const attended = docLoginInfo?.loggedInToday === true;
+
+        if (dutyFilter === 'online' && !isOnline) return false;
+        if (dutyFilter === 'attended' && !attended) return false;
+        if (dutyFilter === 'not_logged_in' && attended) return false;
+      }
       // 1. Text Search
       if (docSearch.trim()) {
         const q = docSearch.toLowerCase().trim();
@@ -367,7 +652,7 @@ export default function AdminDashboard() {
       }
       return true;
     });
-  }, [doctorsList, docSearch, deptFilter, specFilter, statusFilter]);
+  }, [doctorsList, docSearch, deptFilter, specFilter, statusFilter, dutyFilter, doctorLogins]);
 
   // Paginated Doctors
   const totalDocPages = Math.max(1, Math.ceil(filteredDoctors.length / docPageSize));
@@ -402,13 +687,15 @@ export default function AdminDashboard() {
       a => a.status === 'completed' || a.status === 'in_consultation'
     ).length;
 
+    const onlineNowCount = docMetrics.onlineNow || 0;
     const loggedInTodayCount = docMetrics.loggedInToday || 0;
 
     return {
       totalAppointments,
       patientsServed,
       activeDoctors: totalActiveRoster,
-      doctorsLoggedInToday: loggedInTodayCount,
+      onlineNow: onlineNowCount,
+      loggedInToday: loggedInTodayCount,
       totalDonations: stats.totalDonations,
     };
   }, [filteredAppointments, selectedDate, stats, docMetrics, appointmentsList]);
@@ -611,13 +898,14 @@ export default function AdminDashboard() {
         experience: parseInt(newDoctor.experience, 10) || 5,
         age: parseInt(newDoctor.age, 10) || 35,
         gender: newDoctor.gender || 'Female',
-        hospitalId: hospital.id || 'sms-jaipur',
-        hospitalName: hospital.name || 'Sawai Man Singh Hospital',
+        hospitalId: hospital?.id || session?.staff?.hospital_id || 'sms-jaipur',
+        hospitalName: hospital?.name || session?.staff?.hospital_name || 'Sawai Man Singh Hospital',
         email: assignedEmail,
         phone: newDoctor.phone || null,
         username: assignedUsername,
         avatarUrl: newDoctor.avatar_url || null,
-        avatar_url: newDoctor.avatar_url || null,
+        registrationNumber: newDoctor.registrationNumber || null,
+        dob: newDoctor.dob || null,
         initialPassword: newDoctor.password || `${assignedUsername}123`,
       });
 
@@ -792,7 +1080,7 @@ export default function AdminDashboard() {
         {/* ── Top Header Row (Language selector removed) ── */}
         <header className="admin-header">
           <h1 className="admin-hospital-title">
-            {hospital.name}, {hospital.city}
+            {hospital.city ? `${hospital.name}, ${hospital.city}` : hospital.name || 'AIIMS New Delhi'}
           </h1>
 
           <div className="admin-header-actions">
@@ -980,17 +1268,17 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Card 3: Active Doctors on Duty Today */}
+              {/* Card 3: Doctors Online Now (Live Session & Shift Record) */}
               <div className="admin-metric-card">
                 <div className="admin-metric-icon-wrap purple">
                   <UserCheck size={26} />
                 </div>
                 <div className="admin-metric-content">
-                  <div className="admin-metric-number">{dateMetrics.doctorsLoggedInToday}</div>
-                  <div className="admin-metric-label">Doctors Logged In Today</div>
+                  <div className="admin-metric-number">{dateMetrics.onlineNow}</div>
+                  <div className="admin-metric-label">Doctors Online Now</div>
                   <div className="admin-metric-trend">
                     <TrendingUp size={12} />
-                    <span>{dateMetrics.activeDoctors} registered in roster</span>
+                    <span>{dateMetrics.loggedInToday} attended today • {dateMetrics.activeDoctors} in roster</span>
                   </div>
                 </div>
               </div>
@@ -1208,6 +1496,7 @@ export default function AdminDashboard() {
                           <th>Patient Name</th>
                           <th>Doctor</th>
                           <th>Department</th>
+                          {selectedDate === 'all' && <th>Date</th>}
                           <th>Time</th>
                           <th>Status</th>
                         </tr>
@@ -1222,20 +1511,74 @@ export default function AdminDashboard() {
                             row.doctors?.speciality ||
                             (row.doctors?.system === 'Ayurveda' ? 'Ayurveda' : 'Allopathy') ||
                             'General Medicine';
+                          
+                          const tokenDateMatch = String(row.token_number || '').match(/APT-(\d{4})(\d{2})(\d{2})-/);
+                          const inferredTokenDate = tokenDateMatch ? `${tokenDateMatch[1]}-${tokenDateMatch[2]}-${tokenDateMatch[3]}` : '';
+                          const rawDateStr = row.date || row.booked_at?.split('T')[0] || inferredTokenDate || row.created_at?.split('T')[0] || '';
+                          
+                          let formattedDate = '—';
+                          if (rawDateStr) {
+                            try {
+                              const [y, m, d] = rawDateStr.split('-').map(Number);
+                              if (y && m && d) {
+                                const dObj = new Date(y, m - 1, d);
+                                formattedDate = dObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                              } else {
+                                const dObj = new Date(rawDateStr);
+                                formattedDate = !isNaN(dObj.getTime())
+                                  ? dObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                                  : rawDateStr;
+                              }
+                            } catch {
+                              formattedDate = rawDateStr;
+                            }
+                          }
+
                           const timeStr = row.time_label || row.time_24 || '10:00 AM';
                           const rawStatus = (row.status || 'upcoming').toLowerCase();
-                          const statusClass =
-                            rawStatus === 'completed'
-                              ? 'completed'
-                              : rawStatus === 'in_consultation' || rawStatus === 'in-progress'
-                              ? 'in-progress'
-                              : 'upcoming';
-                          const statusLabel =
-                            statusClass === 'completed'
-                              ? 'Completed'
-                              : statusClass === 'in-progress'
-                              ? 'In Progress'
-                              : 'Upcoming';
+                          
+                          const now = new Date();
+                          const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                          const currentMins = now.getHours() * 60 + now.getMinutes();
+
+                          const parseSlotMins = (tStr, t24) => {
+                            if (t24 && typeof t24 === 'string' && t24.includes(':')) {
+                              const [h, m] = t24.split(':').map(Number);
+                              if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+                            }
+                            if (tStr && typeof tStr === 'string') {
+                              const match = tStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                              if (match) {
+                                let h = parseInt(match[1], 10);
+                                const m = parseInt(match[2], 10);
+                                const mer = (match[3] || '').toUpperCase();
+                                if (mer === 'PM' && h < 12) h += 12;
+                                if (mer === 'AM' && h === 12) h = 0;
+                                return h * 60 + m;
+                              }
+                            }
+                            return 600;
+                          };
+
+                          const slotMins = parseSlotMins(row.time_label, row.time_24 || row.time);
+                          const isPastDateTime = (rawDateStr && rawDateStr < todayKey) || (rawDateStr === todayKey && slotMins <= currentMins);
+
+                          let statusClass = 'upcoming';
+                          let statusLabel = 'Upcoming';
+
+                          if (rawStatus === 'completed') {
+                            statusClass = 'completed';
+                            statusLabel = 'Completed';
+                          } else if (rawStatus === 'in_consultation' || rawStatus === 'in-progress') {
+                            statusClass = 'in-progress';
+                            statusLabel = 'In Progress';
+                          } else if (rawStatus === 'cancelled' || isPastDateTime || rawStatus === 'missed' || rawStatus === 'expired' || rawStatus === 'not_consulted') {
+                            statusClass = 'cancelled';
+                            statusLabel = isPastDateTime ? 'Not Consulted (Missed)' : 'Cancelled';
+                          } else {
+                            statusClass = 'upcoming';
+                            statusLabel = 'Upcoming';
+                          }
                           const dotColor =
                             idx % 3 === 0 ? '#10b981' : idx % 3 === 1 ? '#2563eb' : '#7c3aed';
 
@@ -1250,6 +1593,14 @@ export default function AdminDashboard() {
                               <td style={{ fontWeight: 600, color: '#0f172a' }}>{patientName}</td>
                               <td>{docName}</td>
                               <td>{deptStr}</td>
+                              {selectedDate === 'all' && (
+                                <td style={{ fontWeight: 600, color: '#1e293b' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                    <Calendar size={13} color="#087d43" />
+                                    <span>{formattedDate}</span>
+                                  </div>
+                                </td>
+                              )}
                               <td>{timeStr}</td>
                               <td>
                                 <span className={`admin-status-badge ${statusClass}`}>{statusLabel}</span>
@@ -1286,56 +1637,153 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* 4 Summary Metric Cards */}
+            {/* 4 Summary Metric Cards: Total Roster, Online Now, Attended Today, Not Logged In Today */}
             <div className="doc-metrics-grid">
-              {/* Card 1: Total Doctors */}
-              <div className="doc-metric-card">
+              {/* Card 1: Total Hospital Doctors */}
+              <div className="doc-metric-card" style={{ cursor: 'pointer' }} onClick={() => { setDutyFilter('all'); setDocPage(1); }}>
                 <div className="doc-metric-icon-circle green">
                   <Users size={24} />
                 </div>
                 <div>
                   <div className="doc-metric-val">{docMetrics.total}</div>
-                  <div className="doc-metric-label">Total Doctors</div>
-                  <div className="doc-metric-subtext">All Departments</div>
+                  <div className="doc-metric-label">Total Hospital Doctors</div>
+                  <div className="doc-metric-subtext">{docMetrics.allopathy} Allopathy • {docMetrics.ayurveda} Ayurveda</div>
                 </div>
               </div>
 
-              {/* Card 2: Allopathy Doctors */}
-              <div className="doc-metric-card">
-                <div className="doc-metric-icon-circle blue">
-                  <Stethoscope size={24} />
-                </div>
-                <div>
-                  <div className="doc-metric-val">{docMetrics.allopathy}</div>
-                  <div className="doc-metric-label">Allopathy Doctors</div>
-                  <div className="doc-metric-subtext">{docMetrics.alloPct}% of total</div>
-                </div>
-              </div>
-
-              {/* Card 3: Ayurveda Doctors */}
-              <div className="doc-metric-card">
-                <div className="doc-metric-icon-circle purple">
+              {/* Card 2: Doctors Online Now (Live Session) */}
+              <div className="doc-metric-card" style={{ cursor: 'pointer', border: dutyFilter === 'online' ? '2px solid #10b981' : undefined }} onClick={() => { setDutyFilter('online'); setDocPage(1); }}>
+                <div className="doc-metric-icon-circle teal" style={{ background: '#ecfdf5', color: '#047857' }}>
                   <Activity size={24} />
                 </div>
                 <div>
-                  <div className="doc-metric-val">{docMetrics.ayurveda}</div>
-                  <div className="doc-metric-label">Ayurveda Doctors</div>
-                  <div className="doc-metric-subtext">{docMetrics.ayurPct}% of total</div>
+                  <div className="doc-metric-val" style={{ color: '#047857' }}>{docMetrics.onlineNow}</div>
+                  <div className="doc-metric-label">🟢 Online Now (Live)</div>
+                  <div className="doc-metric-subtext" style={{ color: '#059669', fontWeight: 600 }}>Active in consultation now</div>
                 </div>
               </div>
 
-              {/* Card 4: Active Doctors */}
-              {/* Card 4: Doctors Logged In Today */}
-              <div className="doc-metric-card">
-                <div className="doc-metric-icon-circle orange">
-                  <ShieldCheck size={24} />
+              {/* Card 3: Attended Today's Shift */}
+              <div className="doc-metric-card" style={{ cursor: 'pointer', border: dutyFilter === 'attended' ? '2px solid #3b82f6' : undefined }} onClick={() => { setDutyFilter('attended'); setDocPage(1); }}>
+                <div className="doc-metric-icon-circle blue">
+                  <UserCheck size={24} />
                 </div>
                 <div>
-                  <div className="doc-metric-val">{docMetrics.loggedInToday}</div>
-                  <div className="doc-metric-label">Logged In Today (On Duty)</div>
-                  <div className="doc-metric-subtext highlight">{docMetrics.active} registered in roster</div>
+                  <div className="doc-metric-val" style={{ color: '#1d4ed8' }}>{docMetrics.attendedToday}</div>
+                  <div className="doc-metric-label">🔵 Attended Today's Shift</div>
+                  <div className="doc-metric-subtext">
+                    {docMetrics.attendedToday > 0 
+                      ? `${docMetrics.avgShiftCompletionPct}% avg shift fulfilled (${docMetrics.totalDutyHoursFormatted} on duty)`
+                      : '0% daily roster attendance'}
+                  </div>
                 </div>
               </div>
+
+              {/* Card 4: Not Logged In Today */}
+              <div className="doc-metric-card" style={{ cursor: 'pointer', border: dutyFilter === 'not_logged_in' ? '2px solid #f59e0b' : undefined }} onClick={() => { setDutyFilter('not_logged_in'); setDocPage(1); }}>
+                <div className="doc-metric-icon-circle orange" style={{ background: '#fffbeb', color: '#b45309' }}>
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <div className="doc-metric-val" style={{ color: '#b45309' }}>{docMetrics.notLoggedInToday}</div>
+                  <div className="doc-metric-label">⚪ Not Logged In Today</div>
+                  <div className="doc-metric-subtext highlight" style={{ color: '#b45309' }}>Pending / absent today</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Attendance & Duty Status Filter Pills */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '0 0 1rem 0', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginRight: '4px' }}>Filter by Duty:</span>
+              
+              <button
+                type="button"
+                onClick={() => { setDutyFilter('all'); setDocPage(1); }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  border: dutyFilter === 'all' ? '1.5px solid #087d43' : '1px solid #e2e8f0',
+                  background: dutyFilter === 'all' ? '#eaf7f0' : '#ffffff',
+                  color: dutyFilter === 'all' ? '#087d43' : '#64748b',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>All Doctors</span>
+                <span style={{ background: dutyFilter === 'all' ? '#087d43' : '#f1f5f9', color: dutyFilter === 'all' ? '#ffffff' : '#64748b', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>{docMetrics.total}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setDutyFilter('online'); setDocPage(1); }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  border: dutyFilter === 'online' ? '1.5px solid #10b981' : '1px solid #e2e8f0',
+                  background: dutyFilter === 'online' ? '#ecfdf5' : '#ffffff',
+                  color: dutyFilter === 'online' ? '#047857' : '#64748b',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 0 2.5px rgba(16,185,129,0.25)' }} />
+                <span>🟢 Online Now</span>
+                <span style={{ background: dutyFilter === 'online' ? '#047857' : '#f1f5f9', color: dutyFilter === 'online' ? '#ffffff' : '#64748b', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>{docMetrics.onlineNow}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setDutyFilter('attended'); setDocPage(1); }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  border: dutyFilter === 'attended' ? '1.5px solid #3b82f6' : '1px solid #e2e8f0',
+                  background: dutyFilter === 'attended' ? '#eff6ff' : '#ffffff',
+                  color: dutyFilter === 'attended' ? '#1d4ed8' : '#64748b',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>🔵 Attended Today</span>
+                <span style={{ background: dutyFilter === 'attended' ? '#1d4ed8' : '#f1f5f9', color: dutyFilter === 'attended' ? '#ffffff' : '#64748b', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>{docMetrics.attendedToday}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setDutyFilter('not_logged_in'); setDocPage(1); }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  border: dutyFilter === 'not_logged_in' ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+                  background: dutyFilter === 'not_logged_in' ? '#fffbeb' : '#ffffff',
+                  color: dutyFilter === 'not_logged_in' ? '#b45309' : '#64748b',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span>⚪ Not Logged In Today</span>
+                <span style={{ background: dutyFilter === 'not_logged_in' ? '#b45309' : '#f1f5f9', color: dutyFilter === 'not_logged_in' ? '#ffffff' : '#64748b', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>{docMetrics.notLoggedInToday}</span>
+              </button>
             </div>
 
             {/* Filter & Search Bar (Reset button removed as requested) */}
@@ -1409,44 +1857,38 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Doctors Table Card */}
+            {/* Manage Doctors Table */}
             <div className="doc-table-card">
-              <div className="admin-table-wrap">
+              <div className="doc-table-wrap">
                 <table className="doc-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '40px' }}>#</th>
+                      <th style={{ width: '45px' }}>#</th>
                       <th>Doctor Name</th>
                       <th>Department</th>
                       <th>Specialization</th>
                       <th>Professional ID</th>
-                      <th>Status</th>
-                      <th>Last Login</th>
-                      <th style={{ textAlign: 'center', width: '70px' }}>Actions</th>
+                      <th>Duty Status</th>
+                      <th>Last Activity / Shift</th>
+                      <th style={{ textAlign: 'center', width: '80px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedDoctors.length === 0 ? (
-                      <tr>
-                        <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
-                          <Users size={32} color="#087d43" style={{ marginBottom: '8px' }} />
-                          <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: '#0f172a' }}>
-                            No doctors match the selected search & filter criteria.
-                          </p>
-                        </td>
-                      </tr>
-                    ) : (
+                    {paginatedDoctors.length > 0 ? (
                       paginatedDoctors.map((doc, idx) => {
                         const rowNum = (docPage - 1) * docPageSize + idx + 1;
-                        const initials = (doc.name || 'DR')
-                          .replace(/^Dr\.\s*/i, '')
-                          .split(' ')
-                          .map(n => n[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase() || 'DR';
+                        const initials = doc.name
+                          ? doc.name
+                              .replace(/^Dr\.\s*/i, '')
+                              .split(' ')
+                              .map(n => n[0])
+                              .join('')
+                              .slice(0, 2)
+                              .toUpperCase()
+                          : 'DR';
 
                         const deptClass =
+                          doc.department?.toLowerCase() === 'ayurveda' ||
                           (doc.system === 'Ayurveda' || doc.speciality?.toLowerCase().includes('ayur'))
                             ? 'ayurveda'
                             : 'allopathy';
@@ -1457,11 +1899,10 @@ export default function AdminDashboard() {
                           doc.username ||
                           `dr${doc.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@swasthyasetu.ac.in`;
 
-                        const lastLoginStr = '30 Aug 2026\n10:15 AM';
                         const isMenuOpen = openMenuDocId === (doc.id || idx);
 
-                        const docLoginInfo = doctorLogins[doc.id] || doctorLogins[doc.doctor_id] || null;
-                        const isDoctorLoggedInToday = docLoginInfo?.loggedInToday === true;
+                        const docLoginInfo = getDoctorLoginState(doc, doctorLogins);
+                        const dutyInfo = calculateDoctorDuty(docLoginInfo);
 
                         return (
                           <tr key={doc.id || idx}>
@@ -1516,50 +1957,118 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td>
-                              <span
-                                className={`doc-status-badge ${doc.is_active === false ? 'inactive' : isDoctorLoggedInToday ? 'on-duty' : ''}`}
-                                style={
-                                  doc.is_active === false
-                                    ? { background: '#f1f5f9', color: '#64748b' }
-                                    : isDoctorLoggedInToday
-                                    ? { background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }
-                                    : { background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }
+                              {(() => {
+                                const todayKey = (() => {
+                                  const d = new Date();
+                                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                })();
+                                const cleanDocId = String(doc.id || doc.doctor_id || '').toLowerCase().trim();
+                                const cleanDocName = String(doc.name || '').toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim();
+                                const onLeaveToday = (doctorLeavesList || []).find(l => {
+                                  if (l.date !== todayKey) return false;
+                                  const lDocId = String(l.doctor_id || l.doctorId || '').toLowerCase().trim();
+                                  const lDocName = String(l.doctor_name || l.doctorName || '').toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim();
+                                  return lDocId === cleanDocId || lDocName === cleanDocName || cleanDocId.includes(lDocId) || (lDocId && cleanDocId.includes(lDocId));
+                                });
+
+                                if (onLeaveToday) {
+                                  return (
+                                    <span
+                                      className="doc-status-badge"
+                                      style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', fontWeight: '700' }}
+                                      title={`On Leave: ${onLeaveToday.reason || 'Scheduled Holiday'}`}
+                                    >
+                                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#dc2626' }} />
+                                      On Leave ({onLeaveToday.reason || 'Holiday'})
+                                    </span>
+                                  );
                                 }
-                              >
-                                <span
-                                  style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    background:
+
+                                return (
+                                  <span
+                                    className={`doc-status-badge ${doc.is_active === false ? 'inactive' : dutyInfo.isOnline ? 'on-duty' : ''}`}
+                                    style={
                                       doc.is_active === false
-                                        ? '#94a3b8'
-                                        : isDoctorLoggedInToday
-                                        ? '#10b981'
-                                        : '#94a3b8',
-                                  }}
-                                />
-                                {doc.is_active === false
-                                  ? 'Deactivated'
-                                  : isDoctorLoggedInToday
-                                  ? 'Logged In (On Duty)'
-                                  : 'Offline (Not Logged In)'}
-                              </span>
-                            </td>
-                            <td style={{ fontSize: '12px', color: '#475569', whiteSpace: 'pre-line' }}>
-                              {isDoctorLoggedInToday ? (
-                                <span style={{ color: '#047857', fontWeight: 600 }}>
-                                  🟢 Logged In Today
-                                  <br />
-                                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 400 }}>
-                                    {formatDateTime(docLoginInfo.lastLoginAt)}
+                                        ? { background: '#f1f5f9', color: '#64748b' }
+                                        : dutyInfo.isOnline
+                                        ? { background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }
+                                        : dutyInfo.attendedToday
+                                        ? { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }
+                                        : { background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }
+                                    }
+                                  >
+                                    <span
+                                      style={{
+                                        width: '7px',
+                                        height: '7px',
+                                        borderRadius: '50%',
+                                        background:
+                                          doc.is_active === false
+                                            ? '#94a3b8'
+                                            : dutyInfo.isOnline
+                                            ? '#10b981'
+                                            : dutyInfo.attendedToday
+                                            ? '#3b82f6'
+                                            : '#cbd5e1',
+                                        boxShadow: dutyInfo.isOnline ? '0 0 0 3px rgba(16,185,129,0.25)' : 'none'
+                                      }}
+                                    />
+                                    {doc.is_active === false
+                                      ? 'Deactivated'
+                                      : dutyInfo.isOnline
+                                      ? 'Online Now'
+                                      : dutyInfo.attendedToday
+                                      ? 'Shift Attended'
+                                      : 'Not Logged In'}
                                   </span>
-                                </span>
-                              ) : docLoginInfo?.lastLoginAt ? (
-                                <span>{formatDateTime(docLoginInfo.lastLoginAt)}</span>
-                              ) : (
-                                <span style={{ color: '#94a3b8' }}>Not logged in today</span>
-                              )}
+                                );
+                              })()}
+                            </td>
+                            <td style={{ fontSize: '12px', color: '#334155', minWidth: '240px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span style={{ 
+                                    fontSize: '12px', 
+                                    fontWeight: '700', 
+                                    color: dutyInfo.isOnline ? '#047857' : dutyInfo.shiftCompletionPct >= 80 ? '#1d4ed8' : dutyInfo.attendedToday ? '#b45309' : '#64748b' 
+                                  }}>
+                                    {dutyInfo.shiftStatus}
+                                  </span>
+                                  {dutyInfo.attendedToday && (
+                                    <span style={{ 
+                                      fontSize: '10.5px', 
+                                      fontWeight: '700', 
+                                      padding: '1px 6px', 
+                                      borderRadius: '10px',
+                                      background: dutyInfo.shiftCompletionPct >= 80 ? '#dbeafe' : dutyInfo.isOnline ? '#d1fae5' : '#fef3c7',
+                                      color: dutyInfo.shiftCompletionPct >= 80 ? '#1e40af' : dutyInfo.isOnline ? '#065f46' : '#92400e'
+                                    }}>
+                                      {dutyInfo.dutyHoursFormatted}
+                                    </span>
+                                  )}
+                                  {dutyInfo.sessions && dutyInfo.sessions.length > 1 && (
+                                    <span style={{ 
+                                      fontSize: '10px', 
+                                      fontWeight: '600', 
+                                      padding: '1px 5px', 
+                                      borderRadius: '8px',
+                                      background: '#f1f5f9',
+                                      color: '#475569'
+                                    }}>
+                                      {dutyInfo.sessions.length} sessions
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ fontSize: '11.5px', color: '#334155', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                  <Clock size={12} color={dutyInfo.isOnline ? '#10b981' : '#64748b'} />
+                                  <span style={{ fontWeight: 600 }}>{dutyInfo.timeRangeStr}</span>
+                                </div>
+
+                                <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '500' }}>
+                                  <span style={{ color: '#0f766e', fontWeight: '600' }}>OPD Slot Window:</span> {dutyInfo.shiftType}
+                                </div>
+                              </div>
                             </td>
                             <td>
                               <div className="doc-actions-cell" style={{ justifyContent: 'center' }}>
@@ -1578,6 +2087,20 @@ export default function AdminDashboard() {
 
                                   {isMenuOpen && (
                                     <div className="doc-action-menu-dropdown">
+                                      <button
+                                        type="button"
+                                        className="doc-action-menu-item"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          setManagingLeaveDoctor(doc);
+                                          setOpenMenuDocId(null);
+                                          setShowLeaveModal(true);
+                                        }}
+                                      >
+                                        <Calendar size={14} color="#0284c7" />
+                                        <span>Manage Leave</span>
+                                      </button>
+
                                       <button
                                         type="button"
                                         className="doc-action-menu-item"
@@ -1635,6 +2158,15 @@ export default function AdminDashboard() {
                           </tr>
                         );
                       })
+                    ) : (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
+                          <Users size={32} color="#087d43" style={{ marginBottom: '8px' }} />
+                          <p style={{ margin: 0, fontSize: '13.5px', fontWeight: 600, color: '#0f172a' }}>
+                            No doctors match the selected search & filter criteria.
+                          </p>
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
@@ -2370,6 +2902,277 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+         MODAL 2B: MANAGE DOCTOR LEAVE / HOLIDAY
+         ══════════════════════════════════════════════════════════════════════ */}
+      {showLeaveModal && managingLeaveDoctor && (
+        <div
+          className="admin-modal-overlay"
+          onClick={e => {
+            if (e.target === e.currentTarget) setShowLeaveModal(false);
+          }}
+        >
+          <div className="admin-modal-card admin-modal-card-lg" style={{ maxWidth: '620px' }}>
+            <button
+              type="button"
+              className="admin-modal-close-btn"
+              onClick={() => setShowLeaveModal(false)}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '12px',
+                background: '#e0f2fe', color: '#0284c7', display: 'grid', placeItems: 'center'
+              }}>
+                <Calendar size={22} />
+              </div>
+              <div>
+                <h2 className="admin-modal-title" style={{ margin: 0, fontSize: '1.25rem' }}>
+                  Manage Leave & Holiday Roster
+                </h2>
+                <p className="admin-modal-desc" style={{ margin: '2px 0 0 0' }}>
+                  Dr. {managingLeaveDoctor.name?.replace(/^dr\.\s*|^dr\s*/i, '')} • {managingLeaveDoctor.speciality || 'General Medicine'}
+                </p>
+              </div>
+            </div>
+
+            {/* Explanatory banner */}
+            <div style={{
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '12px',
+              padding: '10px 14px',
+              fontSize: '12.5px',
+              color: '#0369a1',
+              margin: '12px 0 18px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <AlertCircle size={16} color="#0284c7" style={{ flexShrink: 0 }} />
+              <span>
+                When a doctor is on leave, their appointment slots in the <b>Patient Dashboard</b> automatically become blocked and unclickable with a holiday notice.
+              </span>
+            </div>
+
+            {/* Schedule New Leave Form */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Plus size={14} color="#0284c7" />
+                <span>Schedule New Doctor Leave</span>
+              </div>
+
+              <form
+                onSubmit={async e => {
+                  e.preventDefault();
+                  if (!newLeaveDate) return;
+                  const res = await db.doctorLeaves.setLeave({
+                    doctorId: managingLeaveDoctor.id || managingLeaveDoctor.doctor_id,
+                    doctorName: managingLeaveDoctor.name,
+                    hospitalId: managingLeaveDoctor.hospital_id || hospital?.id,
+                    hospitalName: managingLeaveDoctor.hospitalName || managingLeaveDoctor.hospital_name || hospital?.name,
+                    date: newLeaveDate,
+                    reason: newLeaveReason,
+                    notes: newLeaveNotes,
+                  });
+                  if (res.error) {
+                    alert('Error scheduling leave: ' + (res.error.message || res.error));
+                    return;
+                  }
+                  const { data: updated } = await db.doctorLeaves.getAll();
+                  setDoctorLeavesList(updated || []);
+                  setNewLeaveNotes('');
+                  alert(`Leave scheduled for Dr. ${managingLeaveDoctor.name} on ${newLeaveDate}. Slots are now blocked for patients.`);
+                }}
+              >
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                    Leave Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()}
+                    value={newLeaveDate}
+                    onChange={e => setNewLeaveDate(e.target.value)}
+                    className="admin-form-input"
+                    style={{ width: '100%', padding: '8px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 800, color: '#334155', marginBottom: '8px' }}>
+                    Select Leave Reason *
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '8px' }}>
+                    {[
+                      { val: 'Annual Leave', label: 'Annual Leave', icon: '🏖️' },
+                      { val: 'Sick / Medical Leave', label: 'Medical Leave', icon: '💊' },
+                      { val: 'Academic Conference', label: 'Conference', icon: '🎓' },
+                      { val: 'Official Hospital Holiday', label: 'Hospital Off', icon: '🏛️' },
+                      { val: 'Personal Emergency', label: 'Emergency', icon: '🚨' }
+                    ].map(r => {
+                      const isSel = newLeaveReason === r.val;
+                      return (
+                        <button
+                          key={r.val}
+                          type="button"
+                          onClick={() => setNewLeaveReason(r.val)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            border: isSel ? '2px solid #0284c7' : '1px solid #cbd5e1',
+                            background: isSel ? '#eff6ff' : '#ffffff',
+                            color: isSel ? '#0369a1' : '#334155',
+                            fontWeight: isSel ? '800' : '600',
+                            fontSize: '11.5px',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.2s ease',
+                            boxShadow: isSel ? '0 2px 8px rgba(2, 132, 199, 0.15)' : 'none'
+                          }}
+                        >
+                          <span style={{ fontSize: '14px' }}>{r.icon}</span>
+                          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</span>
+                          {isSel && <Check size={13} color="#0284c7" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                    Remarks / Public Notice (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Attending National Pulmonology Symposium"
+                    value={newLeaveNotes}
+                    onChange={e => setNewLeaveNotes(e.target.value)}
+                    className="admin-form-input"
+                    style={{ width: '100%', padding: '7px 10px', fontSize: '12.5px' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="admin-btn-primary"
+                  style={{ width: '100%', padding: '9px', fontSize: '13px', justifyContent: 'center' }}
+                >
+                  <Calendar size={15} />
+                  <span>Confirm & Block Patient Slots for Date</span>
+                </button>
+              </form>
+            </div>
+
+            {/* List of active leaves for this doctor */}
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', marginBottom: '10px' }}>
+                Scheduled Leaves for Dr. {managingLeaveDoctor.name?.replace(/^dr\.\s*|^dr\s*/i, '')}
+              </div>
+
+              {(() => {
+                const cleanDocId = String(managingLeaveDoctor.id || managingLeaveDoctor.doctor_id || '').toLowerCase().trim();
+                const cleanDocName = String(managingLeaveDoctor.name || '').toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim();
+                const docLeaves = (doctorLeavesList || []).filter(l => {
+                  const lDocId = String(l.doctor_id || l.doctorId || '').toLowerCase().trim();
+                  const lDocName = String(l.doctor_name || l.doctorName || '').toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim();
+                  return lDocId === cleanDocId || lDocName === cleanDocName || cleanDocId.includes(lDocId) || (lDocId && cleanDocId.includes(lDocId));
+                });
+
+                if (docLeaves.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '20px', background: '#f8fafc', borderRadius: '12px', color: '#64748b', fontSize: '12.5px' }}>
+                      No upcoming leaves scheduled. Doctor is on full active duty.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                    {docLeaves.map(leave => (
+                      <div
+                        key={leave.id || leave.date}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '10px',
+                          padding: '10px 14px',
+                          fontSize: '12.5px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontWeight: 800, color: '#0f172a' }}>{leave.date}</span>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '8px',
+                            background: '#fee2e2',
+                            color: '#991b1b'
+                          }}>
+                            {leave.reason || 'Leave'}
+                          </span>
+                          {leave.notes && (
+                            <span style={{ color: '#64748b', fontSize: '11.5px' }}>— {leave.notes}</span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm(`Cancel leave for ${leave.date} and unlock slots?`)) return;
+                            await db.doctorLeaves.cancelLeave(leave.id, leave.doctor_id, leave.date);
+                            const { data: updated } = await db.doctorLeaves.getAll();
+                            setDoctorLeavesList(updated || []);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                          title="Revoke Leave & Reopen Slots"
+                        >
+                          <Trash2 size={13} />
+                          <span>Cancel Leave</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="admin-modal-actions" style={{ marginTop: '20px' }}>
+              <button
+                type="button"
+                className="admin-btn-secondary"
+                onClick={() => setShowLeaveModal(false)}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { useSession } from '../context/SessionContext';
 import { useLanguage } from '../context/LanguageContext';
 import domTranslator from '../engine/DOMTranslator';
 import { db } from '../lib/db';
+import { recordConsultationStart, recordConsultationEnd, getDoctorPacingStatus } from '../engine/SlotEngine';
 import SwasthyaLogo from '../components/SwasthyaLogo';
 import DoctorCommunities from '../components/DoctorCommunities';
 import HelpSupportTab from '../components/HelpSupportTab';
@@ -242,8 +243,9 @@ const ENGLISH_DOCTOR_NAMES = {
 };
 
 const getEnglishDoctorName = name => {
+  if (!name) return '';
   const normalized = String(name || '').trim();
-  return ENGLISH_DOCTOR_NAMES[normalized] || normalized || 'Dr. Ananya Sharma';
+  return ENGLISH_DOCTOR_NAMES[normalized] || normalized;
 };
 
 const ENGLISH_HOSPITAL_NAMES_BY_ID = {
@@ -313,10 +315,35 @@ const getEnglishHospitalName = doctor => {
 function DoctorProfileModal({ doctor, onClose, onLogout }) {
   const [copied, setCopied] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [showLeaveSection, setShowLeaveSection] = useState(false);
+  const [doctorLeavesList, setDoctorLeavesList] = useState([]);
+  const [leaveDate, setLeaveDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [leaveReason, setLeaveReason] = useState('Annual Leave');
+  const [leaveNotes, setLeaveNotes] = useState('');
+  const [leaveMsg, setLeaveMsg] = useState({ text: '', type: '' });
   const [avatarUrl, setAvatarUrl] = useState(
     doctor?.avatar_url || getDoctorAvatar(doctor?.name)
   );
   const fileInputRef = useRef(null);
+
+  // Load doctor leaves
+  useEffect(() => {
+    const fetchLeaves = async () => {
+      const { data } = await db.doctorLeaves.getDoctorLeaves(doctor?.id || doctor?.name);
+      setDoctorLeavesList(data || []);
+    };
+    fetchLeaves();
+    const handleSync = () => fetchLeaves();
+    window.addEventListener('swasthya_doctor_leave_changed', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('swasthya_doctor_leave_changed', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [doctor]);
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -587,6 +614,154 @@ function DoctorProfileModal({ doctor, onClose, onLogout }) {
             Change Password
           </button>
         </form>
+      )}
+
+      {/* Leave & Holiday Schedule Accordion */}
+      <button
+        type="button"
+        className="dp-profile-accordion-btn"
+        onClick={() => setShowLeaveSection(!showLeaveSection)}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CalendarDays size={15} /> My Leave & Holiday Schedule
+        </span>
+        {showLeaveSection ? <ChevronUp size={16} /> : <ChevronRight size={16} />}
+      </button>
+
+      {showLeaveSection && (
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', marginTop: '6px' }}>
+          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '10px' }}>
+            Schedule your off-duty dates. All patient consultation slots on these dates will be automatically locked and marked unavailable.
+          </div>
+
+          <form
+            onSubmit={async e => {
+              e.preventDefault();
+              if (!leaveDate) return;
+              const res = await db.doctorLeaves.setLeave({
+                doctorId: doctor?.id || doctor?.doctor_id,
+                doctorName: doctor?.name,
+                hospitalId: doctor?.hospital_id || doctor?.hospitals?.id,
+                hospitalName: doctor?.hospitalName || doctor?.hospital_name,
+                date: leaveDate,
+                reason: leaveReason,
+                notes: leaveNotes,
+              });
+              if (res.error) {
+                setLeaveMsg({ text: res.error.message || 'Could not schedule leave.', type: 'error' });
+                return;
+              }
+              const { data } = await db.doctorLeaves.getDoctorLeaves(doctor?.id || doctor?.name);
+              setDoctorLeavesList(data || []);
+              setLeaveNotes('');
+              setLeaveMsg({ text: `Leave set for ${leaveDate}! Patient slots are now locked.`, type: 'success' });
+              setTimeout(() => setLeaveMsg({ text: '', type: '' }), 3000);
+            }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
+                  Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()}
+                  value={leaveDate}
+                  onChange={e => setLeaveDate(e.target.value)}
+                  style={{ width: '100%', padding: '5px 8px', fontSize: '11px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#475569', marginBottom: '2px' }}>
+                  Reason
+                </label>
+                <select
+                  value={leaveReason}
+                  onChange={e => setLeaveReason(e.target.value)}
+                  style={{ width: '100%', padding: '5px 8px', fontSize: '11px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                >
+                  <option value="Annual Leave">Annual Leave 🏖️</option>
+                  <option value="Sick / Medical Leave">Medical Leave 💊</option>
+                  <option value="Academic Conference">Conference 🎓</option>
+                  <option value="Emergency Off">Emergency Off 🚨</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '8px' }}>
+              <input
+                type="text"
+                placeholder="Remarks / Note (Optional)"
+                value={leaveNotes}
+                onChange={e => setLeaveNotes(e.target.value)}
+                style={{ width: '100%', padding: '5px 8px', fontSize: '11px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+              />
+            </div>
+
+            {leaveMsg.text && (
+              <div style={{ fontSize: '11px', fontWeight: '700', color: leaveMsg.type === 'error' ? '#dc2626' : '#059669', marginBottom: '6px', textAlign: 'center' }}>
+                {leaveMsg.text}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '7px',
+                background: '#0c4e47',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              Set On Leave & Lock Slots
+            </button>
+          </form>
+
+          {/* List of active leaves */}
+          {doctorLeavesList && doctorLeavesList.length > 0 && (
+            <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ fontSize: '11px', fontWeight: '800', color: '#0f172a' }}>My Scheduled Leaves:</div>
+              {doctorLeavesList.map(l => (
+                <div
+                  key={l.id || l.date}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '5px 8px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '11px'
+                  }}
+                >
+                  <div>
+                    <b style={{ color: '#0f172a' }}>{l.date}</b> • <span style={{ color: '#dc2626', fontWeight: 600 }}>{l.reason}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Cancel leave for ${l.date}?`)) return;
+                      await db.doctorLeaves.cancelLeave(l.id, l.doctor_id, l.date);
+                      const { data } = await db.doctorLeaves.getDoctorLeaves(doctor?.id || doctor?.name);
+                      setDoctorLeavesList(data || []);
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700, fontSize: '10.5px' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <button type="button" className="dp-profile-logout-btn" onClick={onLogout}>
@@ -997,18 +1172,17 @@ function Top({ doctor, onLogout }) {
         tabIndex={0}
       >
         <div className="dp-doc-avatar">
-          {doctor?.avatar_url ? (
-            <img src={doctor.avatar_url} alt="" />
+          {doctor?.avatar_url || (doctor?.name && getDoctorAvatar(doctor.name)) ? (
+            <img src={doctor?.avatar_url || getDoctorAvatar(doctor.name)} alt="" />
           ) : (
-            <img
-              src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=256"
-              alt=""
-            />
+            <div style={{ width: '100%', height: '100%', background: '#087d43', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+              {initials(doctor?.name || 'Doctor')}
+            </div>
           )}
         </div>
         <div className="dp-doc-info">
-          <b translate="no" className="notranslate">{getEnglishDoctorName(doctor?.name)}</b>
-          <small className="notranslate" translate="no">{doctor?.speciality || doctor?.department || 'General Physician'}</small>
+          <b translate="no" className="notranslate">{doctor?.name || 'Doctor'}</b>
+          <small className="notranslate" translate="no">{doctor?.speciality || doctor?.department || 'Doctor'}</small>
         </div>
         {showProfile ? (
           <X size={14} className="dp-doc-chevron" />
@@ -3225,19 +3399,103 @@ export default function PhysicianDashboard() {
   }, [currentLang]);
 
   const [activeTab, setActiveTab] = useState('appointments');
-  const [doctor, setDoctor] = useState(null);
+
+  // Synchronously compute initial doctor from active session / storage to eliminate flickering
+  const cachedStaff = useMemo(() => {
+    return session?.staff || (() => {
+      try {
+        return JSON.parse(localStorage.getItem('swasthya_session') || '{}').staff;
+      } catch {
+        return null;
+      }
+    })();
+  }, [session?.staff]);
+
+  const initialDoctor = useMemo(() => {
+    if (!cachedStaff) return null;
+    const resolvedName = getEnglishDoctorName(cachedStaff.name) || cachedStaff.name || 'Doctor';
+    return {
+      id: cachedStaff.doctor_id || cachedStaff.id || 'doctor',
+      doctor_id: cachedStaff.doctor_id || cachedStaff.id,
+      name: resolvedName,
+      username: cachedStaff.username || resolvedName.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      speciality: cachedStaff.department || cachedStaff.speciality || 'General Physician',
+      degrees: cachedStaff.degrees || 'MBBS, MD',
+      experience: cachedStaff.experience || 10,
+      age: cachedStaff.age ?? null,
+      gender: cachedStaff.gender ?? null,
+      hospitalName: cachedStaff.hospital_name || cachedStaff.hospital || 'Hospital',
+      hospital_id: cachedStaff.hospital_id,
+      email: cachedStaff.email || `${resolvedName.toLowerCase().replace(/[^a-z]/g, '')}@swasthyasetu.ac.in`,
+      avatar_url: cachedStaff.avatar_url || getDoctorAvatar(resolvedName),
+    };
+  }, [cachedStaff]);
+
+  const [doctor, setDoctor] = useState(initialDoctor);
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [intake, setIntake] = useState(null);
   const [reports, setReports] = useState([]);
   const [consult, setConsult] = useState(false);
 
-  const did = session.staff?.doctor_id || null;
+  const did = cachedStaff?.doctor_id || session.staff?.doctor_id || null;
 
   const leave = () => {
+    try {
+      db.staff.recordLogout(cachedStaff || session.staff || doctor);
+    } catch (e) {}
     logout();
     nav('/auth?role=doctor');
   };
+
+  // Real-time Presence Heartbeat: Keeps active duty seconds and exact duration live
+  useEffect(() => {
+    const staffObj = cachedStaff || session.staff || doctor;
+    if (!staffObj) return;
+
+    const runHeartbeat = () => {
+      try {
+        const loginMap = JSON.parse(localStorage.getItem('swasthya_doctor_logins') || '{}');
+        const keys = [
+          staffObj.doctor_id,
+          staffObj.id,
+          staffObj.username,
+          staffObj.name ? staffObj.name.toLowerCase().trim() : null,
+          staffObj.name ? staffObj.name.toLowerCase().replace(/^dr\.\s*|^dr\s*/i, '').trim() : null,
+          staffObj.email ? staffObj.email.toLowerCase().trim() : null,
+        ].filter(Boolean);
+
+        let prev = null;
+        for (const k of keys) {
+          if (loginMap[k]) { prev = loginMap[k]; break; }
+        }
+
+        if (prev && prev.lastLoginAt) {
+          const nowMs = Date.now();
+          const loginMs = new Date(prev.lastLoginAt).getTime();
+          const sessionSecs = Math.max(1, Math.round((nowMs - loginMs) / 1000));
+          const baseSecs = (prev.sessionsToday || []).reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+          const totalSecs = baseSecs + sessionSecs;
+
+          const updated = {
+            ...prev,
+            isOnline: true,
+            dutySecondsToday: totalSecs,
+            dutyMinutesToday: Math.round(totalSecs / 60),
+            lastHeartbeatAt: new Date().toISOString()
+          };
+
+          keys.forEach(k => { loginMap[k] = updated; });
+          localStorage.setItem('swasthya_doctor_logins', JSON.stringify(loginMap));
+          window.dispatchEvent(new CustomEvent('swasthya_doctor_status_changed'));
+        }
+      } catch (e) {}
+    };
+
+    runHeartbeat();
+    const interval = setInterval(runHeartbeat, 5000);
+    return () => clearInterval(interval);
+  }, [cachedStaff, session.staff, doctor]);
 
   // Load doctor details from DB / session
   useEffect(() => {
@@ -3251,41 +3509,43 @@ export default function PhysicianDashboard() {
         }
 
         // If no doctor by id, check if staff name matches any doctor in database
-        if (!docData && session.staff?.name) {
-          const resName = await db.doctors.getByName(session.staff.name);
+        if (!docData && cachedStaff?.name) {
+          const resName = await db.doctors.getByName(cachedStaff.name);
           if (resName?.data) docData = resName.data;
         }
 
-        // Default to primary doctor catalog record if not logged in with specific doctor
-        if (!docData) {
-          const res = await db.doctors.getById('d0000001-0002-0002-0002-000000000001');
-          docData = res.data || {
-            name: 'Dr. Ananya Sharma',
-            speciality: 'General Physician',
-            degrees: 'MBBS, MD (Internal Medicine)',
-            experience: 12,
-            age: 36,
-            gender: 'Female',
-            hospitalName: 'Sawai Man Singh Hospital',
-            email: 'drananyasharma@swasthyasetu.ac.in',
-            avatar_url: 'https://randomuser.me/api/portraits/women/44.jpg'
+        // If still no doctor in DB, use cachedStaff directly
+        if (!docData && cachedStaff) {
+          docData = {
+            id: cachedStaff.doctor_id || cachedStaff.id,
+            name: cachedStaff.name,
+            speciality: cachedStaff.department || cachedStaff.speciality || 'General Physician',
+            degrees: cachedStaff.degrees || 'MBBS, MD',
+            experience: cachedStaff.experience || 10,
+            age: cachedStaff.age ?? null,
+            gender: cachedStaff.gender ?? null,
+            hospitalName: cachedStaff.hospital_name || cachedStaff.hospital || 'Hospital',
+            hospital_id: cachedStaff.hospital_id,
+            email: cachedStaff.email,
+            avatar_url: cachedStaff.avatar_url || getDoctorAvatar(cachedStaff.name),
           };
         }
 
         if (isMounted && docData) {
-          const resolvedAvatar = docData.avatar_url || getDoctorAvatar(docData.name);
+          const resolvedName = getEnglishDoctorName(docData.name || cachedStaff?.name) || docData.name || 'Doctor';
+          const resolvedAvatar = docData.avatar_url || cachedStaff?.avatar_url || getDoctorAvatar(resolvedName);
           const finalDoc = {
             ...docData,
-            name: getEnglishDoctorName(docData.name || session.staff?.name),
-            username: session.staff?.username || docData.username || docData.email?.split('@')[0] || String(docData.name || 'doctor').toLowerCase().replace(/[^a-z0-9]/g, ''),
+            name: resolvedName,
+            username: cachedStaff?.username || docData.username || docData.email?.split('@')[0] || String(resolvedName).toLowerCase().replace(/[^a-z0-9]/g, ''),
             avatar_url: resolvedAvatar,
             degrees: docData.degrees || docData.degree || 'MBBS, MD (Internal Medicine)',
             speciality: docData.speciality || docData.specialty || docData.department || 'General Physician',
-            hospitalName: getEnglishHospitalName(docData),
-            age: docData.age ?? null,
-            gender: docData.gender ?? null,
-            experience: docData.experience ?? docData.exp ?? null,
-            email: docData.email || `${String(docData.name || 'doctor').toLowerCase().replace(/[^a-z]/g, '')}@swasthyasetu.ac.in`,
+            hospitalName: getEnglishHospitalName(docData) || cachedStaff?.hospital_name || 'Hospital',
+            age: docData.age ?? cachedStaff?.age ?? null,
+            gender: docData.gender ?? cachedStaff?.gender ?? null,
+            experience: docData.experience ?? docData.exp ?? cachedStaff?.experience ?? null,
+            email: docData.email || cachedStaff?.email || `${String(resolvedName).toLowerCase().replace(/[^a-z]/g, '')}@swasthyasetu.ac.in`,
           };
           setDoctor(finalDoc);
         }
@@ -3298,7 +3558,7 @@ export default function PhysicianDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [did, session.staff]);
+  }, [did, cachedStaff]);
 
   // Load real appointments for this specific doctor's queue only
   useEffect(() => {
@@ -3362,6 +3622,8 @@ export default function PhysicianDashboard() {
 
   const start = async () => {
     if (!selected) return;
+    const targetDocId = did || doctor?.id || selected.doctorId || null;
+    if (targetDocId) recordConsultationStart(targetDocId, selected.id);
     try {
       if (selected.id) {
         db.appointments.updateStatus(selected.id, 'in_consultation').catch(err => {
@@ -3377,6 +3639,8 @@ export default function PhysicianDashboard() {
 
   const end = async extra => {
     if (!selected) return;
+    const targetDocId = did || doctor?.id || selected.doctorId || null;
+    if (targetDocId) recordConsultationEnd(targetDocId, selected.id);
     try {
       if (selected.id) {
         await db.appointments.updateStatus(selected.id, 'completed', extra);
