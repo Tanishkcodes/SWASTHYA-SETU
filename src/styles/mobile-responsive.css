@@ -1,533 +1,155 @@
 /* ==========================================================================
-   SWASTHYA SETU — Premium Universal Mobile Responsiveness Stylesheet
-   Pure CSS Media Queries (@media max-width: 768px & 1024px)
-   100% ZERO changes to laptop/desktop screens — completely dedicated to mobile perfection.
+   SWASTHYA SETU — Mobile & Tablet Horizontal Scroll & Layout Stylesheet
+   Pure CSS Media Queries (@media max-width: 1024px)
+   100% ZERO changes to laptop/desktop screens (> 1024px).
+   
+   Behavior:
+   1. Preserves the full layout, sidebar, and hamburger button on Patient Dashboard.
+   2. Enables smooth horizontal scrolling (left and right) with the scrollbar 
+      positioned at the very BOTTOM of the screen (not at the top).
+   3. Applies across EVERY page and dashboard.
    ========================================================================== */
 
-/* ── Prevent Accidental Horizontal Spills on Mobile ── */
-@media (max-width: 768px) {
-  html, body {
-    max-width: 100vw !important;
-    overflow-x: hidden !important;
-    -webkit-text-size-adjust: 100% !important;
-  }
+@media (max-width: 1024px) {
 
-  * {
-    box-sizing: border-box !important;
-  }
-}
-
-/* ==========================================================================
-   TABLET RESPONSIVENESS (769px to 1024px)
-   ========================================================================== */
-@media (max-width: 1024px) and (min-width: 769px) {
-  /* Patient Dashboard 2-Column Grid */
-  div[style*="gridTemplateColumns: '1.65fr 1fr'"],
-  div[style*="grid-template-columns: 1.65fr 1fr"] {
-    grid-template-columns: 1fr !important;
-    gap: 1.5rem !important;
-  }
-
-  /* Doctor Portal Work Area */
-  .dp-work.open {
-    grid-template-columns: 1fr !important;
-  }
-
-  .dp-main {
-    padding: 20px 24px 40px !important;
-  }
-
-  /* Admin Grid */
-  .admin-grid {
-    grid-template-columns: 1fr 1fr !important;
-  }
-}
-
-/* ==========================================================================
-   SMARTPHONE RESPONSIVENESS (<= 768px)
-   ========================================================================== */
-@media (max-width: 768px) {
-
-  /* ─────────────────────────────────────────────────────────
-     1. GLOBAL APP HEADER (Zero markup edit needed in Header.jsx)
-     ───────────────────────────────────────────────────────── */
-  header {
-    height: 60px !important;
-  }
-
-  header > div {
-    padding: 0 12px !important;
-    gap: 8px !important;
-  }
-
-  /* Logo */
-  header svg[width="46"],
-  header svg[height="46"],
-  header img[width="46"] {
-    width: 32px !important;
-    height: 32px !important;
-  }
-
-  /* Brand Title text scaling */
-  header a > div > div:first-child,
-  header h1 {
-    font-size: 1.05rem !important;
-    letter-spacing: -0.2px !important;
-  }
-
-  /* Hide tagline on small mobile phones to prevent overflow */
-  header a > div > div:last-child,
-  header a > div > small,
-  header p[class*="tagline"] {
-    display: none !important;
-  }
-
-  /* Language Selector Button */
-  header button {
-    padding: 6px 10px !important;
-    font-size: 0.8rem !important;
-    gap: 4px !important;
-    border-radius: 18px !important;
-  }
-
-  header button svg {
-    width: 14px !important;
-    height: 14px !important;
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     2. FLOATING VOICE ASSISTANT INDICATOR
-     ───────────────────────────────────────────────────────── */
-  .voicenav-container {
-    bottom: 16px !important;
-    right: 14px !important;
-    gap: 4px !important;
-  }
-
-  .voicenav-orb {
-    width: 50px !important;
-    height: 50px !important;
-    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.35) !important;
-  }
-
-  .voicenav-orb svg {
-    width: 22px !important;
-    height: 22px !important;
-  }
-
-  .voicenav-transcript {
-    max-width: 220px !important;
-    min-width: 140px !important;
-    font-size: 11.5px !important;
-    padding: 6px 10px !important;
-    bottom: calc(100% + 8px) !important;
-    right: 0 !important;
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     3. PATIENT DASHBOARD & APPOINTMENT BOOKING
-     ───────────────────────────────────────────────────────── */
-  /* Dashboard Main Content Container */
-  main,
-  .patient-dashboard-shell,
-  div[style*="padding: '1.5rem 2.5rem'"],
-  div[style*="padding: 1.5rem 2.5rem"] {
-    padding: 10px 10px 48px !important;
-  }
-
-  /* Top Navigation Tabs on Patient Dashboard */
-  nav[style*="display: 'flex'"],
-  div[style*="borderBottom: '1px solid #e2e8f0'"] {
+  /* ── 1. Page-Level Bottom Horizontal Scrollbar Across ALL Pages ── */
+  html {
     overflow-x: auto !important;
-    white-space: nowrap !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    gap: 4px !important;
-    padding-bottom: 2px !important;
-  }
-
-  nav button,
-  div[style*="borderBottom: '1px solid #e2e8f0'"] button {
-    padding: 8px 12px !important;
-    font-size: 0.82rem !important;
-    flex-shrink: 0 !important;
-  }
-
-  /* Hero Greeting Banner */
-  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] {
-    padding: 1.15rem 1rem !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 0.85rem !important;
-  }
-
-  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] h2 {
-    font-size: 1.25rem !important;
-  }
-
-  /* Hide decorative SVG on mobile to save screen height */
-  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] svg {
-    display: none !important;
-  }
-
-  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] > div[style*="flex: '0 1 285px'"] {
     width: 100% !important;
-    flex: 1 1 100% !important;
   }
 
-  /* Two Column Main Grid -> 1 Column on Mobile */
-  div[style*="gridTemplateColumns: '1.65fr 1fr'"],
-  div[style*="grid-template-columns: 1.65fr 1fr"] {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1.25rem !important;
-  }
-
-  /* Hospital Card in Patient Dashboard */
-  div[style*="padding: '1.25rem'"][style*="borderRadius: '16px'"] {
-    padding: 1rem !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 12px !important;
-  }
-
-  div[style*="padding: '1.25rem'"][style*="borderRadius: '16px'"] > div:last-child {
-    width: 100% !important;
-    text-align: left !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-  }
-
-  /* Booking Step Stepper (Steps 1 to 5) */
-  div[style*="maxWidth: '860px'"] {
+  body {
     overflow-x: auto !important;
-    white-space: nowrap !important;
+    overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
-    padding: 6px 4px 12px 4px !important;
-    gap: 8px !important;
+    min-width: 1080px !important;
+    width: max-content !important;
+    position: relative !important;
   }
 
-  div[style*="maxWidth: '860px'"] > div {
-    min-width: 65px !important;
+  #root {
+    min-width: 1080px !important;
+    width: max-content !important;
   }
 
-  /* Doctor & Hospital Header Card during Booking */
-  div[style*="padding: '1.35rem 1.85rem'"] {
-    padding: 1rem !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 10px !important;
+  /* ── 2. Sleek, Touch-Optimized Bottom Scrollbar ── */
+  ::-webkit-scrollbar {
+    height: 10px !important;
+    width: 8px !important;
   }
 
-  /* Booking Step 1: Date Tiles */
-  div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))'"] {
-    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)) !important;
-    gap: 8px !important;
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9 !important;
+    border-top: 1px solid #e2e8f0 !important;
   }
 
-  /* Booking Step 2: Time Slots */
-  div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))'"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
+  ::-webkit-scrollbar-thumb {
+    background: #0d9488 !important;
+    border-radius: 6px !important;
   }
 
-  /* Booking Step 3 & 4 Container */
-  div[style*="padding: '2.25rem 2.5rem'"] {
-    padding: 1.15rem 0.9rem !important;
-    border-radius: 16px !important;
+  ::-webkit-scrollbar-thumb:hover {
+    background: #0f766e !important;
   }
 
-  /* Step 3: Clinical Anamnesis Chat Messages */
-  .chat-bubble-patient,
-  .chat-bubble-doctor {
-    max-width: 92% !important;
-    font-size: 0.88rem !important;
-  }
-
-  /* Appointment History Table Scroll */
-  div[style*="gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr'"] {
-    min-width: 650px !important;
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     4. PHYSICIAN / DOCTOR DASHBOARD & CONSULTATION
-     ───────────────────────────────────────────────────────── */
-  .dp-shell {
-    flex-direction: column !important;
-    min-height: 100vh !important;
-  }
-
-  /* Doctor Sidebar Mobile Bar */
-  .dp-side,
-  .dp-side.collapsed {
-    width: 100% !important;
-    flex: 0 0 auto !important;
-    min-height: auto !important;
-    border-right: none !important;
-    border-bottom: 1px solid #eef2f6 !important;
-    padding: 10px 14px !important;
-  }
-
-  .dp-brand {
-    margin-bottom: 0 !important;
-    min-height: 38px !important;
-  }
-
-  .dp-brand-logo svg {
-    width: 28px !important;
-    height: 28px !important;
-  }
-
-  .dp-nav {
+  /* ── 3. Patient Dashboard: Hamburger & Left Sidebar Preserved ── */
+  /* Keep sidebar on the left with sticky position and visible hamburger button */
+  div[style*="minHeight: '100vh'"][style*="display: 'flex'"],
+  div[style*="min-height: 100vh"][style*="display: flex"] {
     display: flex !important;
     flex-direction: row !important;
-    overflow-x: auto !important;
-    gap: 6px !important;
-    padding: 6px 0 !important;
-    -webkit-overflow-scrolling: touch !important;
+    min-width: 1080px !important;
   }
 
-  .dp-nav button {
-    white-space: nowrap !important;
-    padding: 6px 12px !important;
-    font-size: 0.8rem !important;
-    margin-bottom: 0 !important;
-    border-radius: 8px !important;
-  }
-
-  .dp-side-foot {
-    display: none !important;
-  }
-
-  /* Doctor Main Area */
-  .dp-main {
-    padding: 12px 10px 48px !important;
-  }
-
-  .dp-top {
-    margin-bottom: 12px !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
-  }
-
-  .dp-greeting {
-    font-size: 1.3rem !important;
-    margin-bottom: 14px !important;
-    letter-spacing: -0.2px !important;
-  }
-
-  /* Metrics Cards Grid */
-  .dp-metrics {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-    margin-bottom: 16px !important;
-  }
-
-  .dp-metric-card {
-    padding: 12px 14px !important;
-    border-radius: 14px !important;
-  }
-
-  .dp-metric-num {
-    font-size: 24px !important;
-  }
-
-  .dp-metric-title {
-    font-size: 13px !important;
-  }
-
-  /* Schedule Header & Date Selector */
-  .dp-schedule-header {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 8px !important;
-  }
-
-  .dp-schedule-header > div:last-child {
-    width: 100% !important;
+  div[style*="minHeight: '100vh'"] > aside,
+  div[style*="min-height: 100vh"] > aside {
+    position: sticky !important;
+    top: 0 !important;
+    height: 100vh !important;
     display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-    justify-content: space-between !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    z-index: 40 !important;
   }
 
-  /* Schedule Table Row Touch Scroll */
-  .dp-schedule {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    border-radius: 14px !important;
-  }
-
-  .dp-th,
-  .dp-tr {
-    min-width: 620px !important;
-    padding: 10px 14px !important;
-  }
-
-  /* Patient Details Drawer (Bottom Slide-Up Sheet on Mobile) */
-  .dp-drawer {
-    width: 100% !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    top: auto !important;
-    max-height: 85vh !important;
-    border-radius: 20px 20px 0 0 !important;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3) !important;
-    z-index: 1050 !important;
+  div[style*="minHeight: '100vh'"] > aside nav,
+  div[style*="min-height: 100vh"] > aside nav {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: visible !important;
     overflow-y: auto !important;
-    padding: 18px 16px 36px !important;
-    background: #ffffff !important;
-    border-top: 2px solid #059669 !important;
-    animation: slideUpMobile 0.28s ease-out forwards !important;
+    white-space: normal !important;
   }
 
-  @keyframes slideUpMobile {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+  div[style*="minHeight: '100vh'"] > main,
+  div[style*="min-height: 100vh"] > main {
+    flex: 1 !important;
+    min-width: 840px !important;
   }
 
-  /* Consultation 3-Column Screen (Ayurvedic / Allopathic) */
-  .consultation-portal-shell,
-  .dp-consult-grid,
-  div[style*="gridTemplateColumns: '1.2fr 1.5fr 1.3fr'"],
-  div[style*="grid-template-columns: 1.2fr 1.5fr 1.3fr"] {
+  /* ── 4. Doctor / Physician Dashboard Preserved ── */
+  .dp-shell {
+    display: flex !important;
+    flex-direction: row !important;
+    min-width: 1080px !important;
+  }
+
+  .dp-side {
+    position: sticky !important;
+    top: 0 !important;
+    height: 100vh !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 14px !important;
+    flex-shrink: 0 !important;
+    z-index: 40 !important;
   }
 
-  /* ─────────────────────────────────────────────────────────
-     5. ADMIN / HOSPITAL DASHBOARD
-     ───────────────────────────────────────────────────────── */
+  .dp-main {
+    flex: 1 !important;
+    min-width: 820px !important;
+  }
+
+  /* ── 5. Admin / Hospital Dashboard Preserved ── */
   .admin-shell {
-    flex-direction: column !important;
+    display: flex !important;
+    flex-direction: row !important;
+    min-width: 1080px !important;
   }
 
   .admin-sidebar {
-    width: 100% !important;
-    height: auto !important;
-    position: relative !important;
-    top: auto !important;
-    padding: 10px 14px !important;
-    border-right: none !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-  }
-
-  .admin-sidebar-nav {
+    position: sticky !important;
+    top: 0 !important;
+    height: 100vh !important;
     display: flex !important;
-    flex-direction: row !important;
-    overflow-x: auto !important;
-    gap: 6px !important;
-    padding: 6px 0 !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  .admin-nav-item {
-    white-space: nowrap !important;
-    padding: 6px 12px !important;
-    font-size: 0.8rem !important;
+    flex-direction: column !important;
+    flex-shrink: 0 !important;
+    z-index: 40 !important;
   }
 
   .admin-main {
-    padding: 12px 10px 40px !important;
+    flex: 1 !important;
+    min-width: 830px !important;
   }
 
-  .admin-stats-row {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-
-  .admin-grid {
-    grid-template-columns: 1fr !important;
-    gap: 12px !important;
-  }
-
-  .admin-table {
-    min-width: 640px !important;
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     6. AUTH & LANDING PAGES
-     ───────────────────────────────────────────────────────── */
+  /* ── 6. Landing & Auth Pages Preserved ── */
+  .landing-page,
+  .hero-section,
+  .features-section,
   .auth-page {
-    padding-top: calc(var(--header-height, 60px) + 1.25rem) !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    min-width: 1080px !important;
   }
 
-  .auth-container {
-    max-width: 100% !important;
+  header {
+    min-width: 1080px !important;
   }
 
-  .auth-tabs {
-    gap: 4px !important;
-    padding: 4px !important;
-  }
-
-  .auth-tab {
-    font-size: 0.82rem !important;
-    padding: 8px 4px !important;
-  }
-
-  .hero-section {
-    padding: 60px 14px 30px !important;
-    min-height: auto !important;
-  }
-
-  .hero-title {
-    font-size: 1.85rem !important;
-    line-height: 1.18 !important;
-  }
-
-  .hero-subtitle {
-    font-size: 0.95rem !important;
-  }
-
-  .stats-container {
-    flex-direction: column !important;
-    gap: 14px !important;
-    padding: 16px !important;
-    width: 100% !important;
-  }
-
-  .stat-counter {
-    min-width: 100% !important;
-  }
-
-  /* ─────────────────────────────────────────────────────────
-     7. GLOBAL MODALS (Digital Pass, ABHA, OCR Scans)
-     ───────────────────────────────────────────────────────── */
-  div[style*="position: 'fixed'"],
-  div[style*="position: fixed"] {
-    padding: 8px !important;
-  }
-
-  div[style*="maxWidth: '520px'"],
-  div[style*="max-width: 520px"],
-  div[style*="maxWidth: '460px'"],
-  div[style*="max-width: 460px"],
-  div[style*="maxWidth: '440px'"],
-  div[style*="max-width: 440px"] {
-    max-width: 95vw !important;
-    width: 95vw !important;
-    max-height: 88vh !important;
-    overflow-y: auto !important;
-    padding: 1.25rem !important;
-    border-radius: 18px !important;
-  }
-}
-
-/* ==========================================================================
-   EXTRA COMPACT SMARTPHONES (<= 380px)
-   ========================================================================== */
-@media (max-width: 380px) {
-  .admin-stats-row {
-    grid-template-columns: 1fr !important;
-  }
-
-  header a > div > div:first-child {
-    font-size: 0.95rem !important;
+  /* ── 7. Floating Voice Indicator: Stays Fixed to Viewport Bottom-Right ── */
+  .voicenav-container {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 9999 !important;
   }
 }

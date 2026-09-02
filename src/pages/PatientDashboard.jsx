@@ -2148,7 +2148,7 @@ const HOSPITAL_LOCALIZATION = {
       { name: 'Dr. Neha Gupta', specialty: 'General Medicine', exp: '11 yrs' }
     ]
   },
-    'fortis-jaipur': {
+  'fortis-jaipur': {
     name: {
       en: 'Fortis Escorts Hospital Jaipur',
       hi: 'फोर्टिस एस्कॉर्ट्स अस्पताल जयपुर',
@@ -2212,7 +2212,7 @@ const HOSPITAL_LOCALIZATION = {
       { name: 'Dr. Ananya Sharma', specialty: 'General Medicine', exp: '13 yrs' }
     ]
   },
-'jaipur-hospital': {
+  'jaipur-hospital': {
     name: {
       en: 'Jaipur Hospital',
       hi: 'जयपुर अस्पताल',
@@ -2247,15 +2247,15 @@ const HOSPITAL_LOCALIZATION = {
 };
 
 const PATIENT_VOICE_COMMANDS = {
-  bookAppointment: ['book appointment','appointment book karo','अपॉइंटमेंट बुक करें','முன்பதிவு செய்யுங்கள்','అపాయింట్‌మెంట్ బుక్ చేయండి','অ্যাপয়েন্টমেন্ট বুক করুন','अपॉइंटमेंट बुक करा','એપોઇન્ટમેન્ટ બુક કરો','ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಬುಕ್ ಮಾಡಿ','അപ്പോയിന്റ്മെന്റ് ബുക്ക് ചെയ്യുക'],
-  viewAppointments: ['appointments','मेरे अपॉइंटमेंट','எனது முன்பதிவுகள்','నా అపాయింట్‌మెంట్లు','আমার অ্যাপয়েন্টমেন্ট','माझ्या अपॉइंटमेंट','મારી એપોઇન્ટમેન્ટ','ನನ್ನ ಅಪಾಯಿಂಟ್ಮೆಂಟ್‌ಗಳು','എന്റെ അപ്പോയിന്റ്മെന്റുകൾ'],
-  viewHistory: ['appointment history','पुराने अपॉइंटमेंट','முன்பதிவு வரலாறு','అపాయింట్‌మెంట్ చరిత్ర','অ্যাপয়েন্টমেন্ট ইতিহাস','अपॉइंटमेंट इतिहास','એપોઇન્ટમેન્ટ ઇતિહાસ','ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಇತಿಹಾಸ','അപ്പോയിന്റ്മെന്റ് ചരിത്രം'],
-  viewReports: ['medical reports','मेरी रिपोर्ट','மருத்துவ அறிக்கைகள்','వైద్య నివేదికలు','মেডিকেল রিপোর্ট','वैद्यकीय अहवाल','મેડિકલ રિપોર્ટ','ವೈದ್ಯಕೀಯ ವರದಿಗಳು','മെഡിക്കൽ റിപ്പോർട്ടുകൾ'],
-  viewDonations: ['donations','दान खोलें','நன்கொடைகள்','విరాళాలు','দান','देणगी','દાન','ದೇಣಿಗೆಗಳು','സംഭാവനകൾ'],
-  viewCommunities: ['communities','समुदाय खोलें','சமூகங்கள்','సంఘాలు','কমিউনিটি','समुदाय उघडा','સમુદાયો','ಸಮುದಾಯಗಳು','സമൂഹങ്ങൾ'],
-  help: ['help','support','मदद','सहायता','உதவி','సహాయం','সাহায্য','मदत','મદદ','ಸಹಾಯ','സഹായം'],
-  scanRecord: ['scan report','रिपोर्ट स्कैन करें','அறிக்கையை ஸ்கேன் செய்','నివేదిక స్కాన్ చేయండి','রিপোর্ট স্ক্যান করুন','अहवाल स्कॅन करा','રિપોર્ટ સ્કેન કરો','ವರದಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ','റിപ്പോർട്ട് സ്കാൻ ചെയ്യുക'],
-  toggleAyush: ['toggle ayush','आयुष मोड','ஆயுஷ் முறை','ఆయుష్ మోడ్','আয়ুষ মোড','आयुष मोड','આયુષ મોડ','ಆಯುಷ್ ಮೋಡ್','ആയുഷ് മോഡ്'],
+  bookAppointment: ['book appointment', 'appointment book karo', 'अपॉइंटमेंट बुक करें', 'முன்பதிவு செய்யுங்கள்', 'అపాయింట్‌మెంట్ బుక్ చేయండి', 'অ্যাপয়েন্টমেন্ট বুক করুন', 'अपॉइंटमेंट बुक करा', 'એપોઇન્ટમેન્ટ બુક કરો', 'ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಬುಕ್ ಮಾಡಿ', 'അപ്പോയിന്റ്മെന്റ് ബുക്ക് ചെയ്യുക'],
+  viewAppointments: ['appointments', 'मेरे अपॉइंटमेंट', 'எனது முன்பதிவுகள்', 'నా అపాయింట్‌మెంట్లు', 'আমার অ্যাপয়েন্টমেন্ট', 'माझ्या अपॉइंटमेंट', 'મારી એપોઇન્ટમેન્ટ', 'ನನ್ನ ಅಪಾಯಿಂಟ್ಮೆಂಟ್‌ಗಳು', 'എന്റെ അപ്പോയിന്റ്മെന്റുകൾ'],
+  viewHistory: ['appointment history', 'पुराने अपॉइंटमेंट', 'முன்பதிவு வரலாறு', 'అపాయింట్‌మెంట్ చరిత్ర', 'অ্যাপয়েন্টমেন্ট ইতিহাস', 'अपॉइंटमेंट इतिहास', 'એપોઇન્ટમેન્ટ ઇતિહાસ', 'ಅಪಾಯಿಂಟ್ಮೆಂಟ್ ಇತಿಹಾಸ', 'അപ്പോയിന്റ്മെന്റ് ചരിത്രം'],
+  viewReports: ['medical reports', 'मेरी रिपोर्ट', 'மருத்துவ அறிக்கைகள்', 'వైద్య నివేదికలు', 'মেডিকেল রিপোর্ট', 'वैद्यकीय अहवाल', 'મેડિકલ રિપોર્ટ', 'ವೈದ್ಯಕೀಯ ವರದಿಗಳು', 'മെഡിക്കൽ റിപ്പോർട്ടുകൾ'],
+  viewDonations: ['donations', 'दान खोलें', 'நன்கொடைகள்', 'విరాళాలు', 'দান', 'देणगी', 'દાન', 'ದೇಣಿಗೆಗಳು', 'സംഭാവനകൾ'],
+  viewCommunities: ['communities', 'समुदाय खोलें', 'சமூகங்கள்', 'సంఘాలు', 'কমিউনিটি', 'समुदाय उघडा', 'સમુદાયો', 'ಸಮುದಾಯಗಳು', 'സമൂഹങ്ങൾ'],
+  help: ['help', 'support', 'मदद', 'सहायता', 'உதவி', 'సహాయం', 'সাহায্য', 'मदत', 'મદદ', 'ಸಹಾಯ', 'സഹായം'],
+  scanRecord: ['scan report', 'रिपोर्ट स्कैन करें', 'அறிக்கையை ஸ்கேன் செய்', 'నివేదిక స్కాన్ చేయండి', 'রিপোর্ট স্ক্যান করুন', 'अहवाल स्कॅन करा', 'રિપોર્ટ સ્કેન કરો', 'ವರದಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ', 'റിപ്പോർട്ട് സ്കാൻ ചെയ്യുക'],
+  toggleAyush: ['toggle ayush', 'आयुष मोड', 'ஆயுஷ் முறை', 'ఆయుష్ మోడ్', 'আয়ুষ মোড', 'आयुष मोड', 'આયુષ મોડ', 'ಆಯುಷ್ ಮೋಡ್', 'ആയുഷ് മോഡ്'],
 };
 
 export default function PatientDashboard() {
@@ -2865,22 +2865,22 @@ export default function PatientDashboard() {
 
     registerPage('patientDashboard', {
       // ── Tab navigation ─────────────────────────────────────────────────
-      appointments:     () => setActiveTab('appointments'),
+      appointments: () => setActiveTab('appointments'),
       viewAppointments: () => setActiveTab('appointments'),
-      history:          () => setActiveTab('history'),
-      viewHistory:      () => setActiveTab('history'),
-      records:          () => setActiveTab('reports'),
-      viewReports:      () => setActiveTab('reports'),
-      prescriptions:    () => setActiveTab('reports'),
-      donations:        () => setActiveTab('donations'),
-      viewDonations:    () => setActiveTab('donations'),
-      communities:      () => setActiveTab('communities'),
-      viewCommunities:  () => setActiveTab('communities'),
-      help:             () => setActiveTab('help'),
-      viewHelp:         () => setActiveTab('help'),
+      history: () => setActiveTab('history'),
+      viewHistory: () => setActiveTab('history'),
+      records: () => setActiveTab('reports'),
+      viewReports: () => setActiveTab('reports'),
+      prescriptions: () => setActiveTab('reports'),
+      donations: () => setActiveTab('donations'),
+      viewDonations: () => setActiveTab('donations'),
+      communities: () => setActiveTab('communities'),
+      viewCommunities: () => setActiveTab('communities'),
+      help: () => setActiveTab('help'),
+      viewHelp: () => setActiveTab('help'),
 
       // ── Booking actions ───────────────────────────────────────────────
-      bookAppointment:  result => {
+      bookAppointment: result => {
         if (openNamedHospital(result)) return;
         setActiveTab('appointments');
         setBookingFlowView('main');
@@ -2894,7 +2894,7 @@ export default function PatientDashboard() {
         }
       },
       startConsultation: () => navigate('/language'),
-      scanRecord:        () => navigate('/scan'),
+      scanRecord: () => navigate('/scan'),
 
       // ── Booking flow step navigation ──────────────────────────────────
       next: () => {
@@ -2948,16 +2948,16 @@ export default function PatientDashboard() {
       },
 
       // ── Profile & ID ──────────────────────────────────────────────────
-      viewProfile:  () => setProfileDropdownOpen(true),
+      viewProfile: () => setProfileDropdownOpen(true),
       showAbhaCard: () => setShowAbhaModal(true),
 
       // ── AYUSH toggle ──────────────────────────────────────────────────
       toggleAyush: () => setAyushMode(!isAyushMode),
 
       // ── App-level ─────────────────────────────────────────────────────
-      home:    () => navigate('/'),
-      logout:  () => { logout?.(); navigate('/'); },
-      triage:  () => navigate('/language'),
+      home: () => navigate('/'),
+      logout: () => { logout?.(); navigate('/'); },
+      triage: () => navigate('/language'),
 
       // ── Option selection (e.g., select doctor 1, 2, 3) ───────────────
       selectOption: ({ value }) => {
@@ -3040,176 +3040,176 @@ export default function PatientDashboard() {
   // Comprehensive Localized Hospital Database
   const hospitals = useMemo(() => {
     const baseList = [
-    {
-      id: 'aiims-delhi',
-      name: HOSPITAL_LOCALIZATION['aiims-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['aiims-delhi'].name.en,
-      badge: tr('popular'),
-      address: HOSPITAL_LOCALIZATION['aiims-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['aiims-delhi'].address.en,
-      rating: '4.9',
-      distance: `0.8 ${tr('kmAway')}`,
-      departmentsCount: `45 ${tr('departments')}`,
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: tr('today'),
-      logoBg: '#1e3a8a',
-      doctors: getDoctorsForHospital('aiims-delhi', HOSPITAL_LOCALIZATION['aiims-delhi'].doctors)
-    },
-    {
-      id: 'sms-jaipur',
-      name: HOSPITAL_LOCALIZATION['sms-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['sms-jaipur'].name.en,
-      badge: tr('popular'),
-      address: HOSPITAL_LOCALIZATION['sms-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['sms-jaipur'].address.en,
-      rating: '4.6',
-      distance: `1.8 ${tr('kmAway')}`,
-      departmentsCount: `32 ${tr('departments')}`,
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: tr('tomorrow'),
-      logoBg: '#0f766e',
-      doctors: getDoctorsForHospital('sms-jaipur', HOSPITAL_LOCALIZATION['sms-jaipur'].doctors)
-    },
-    {
-      id: 'apollo-delhi',
-      name: HOSPITAL_LOCALIZATION['apollo-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['apollo-delhi'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['apollo-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['apollo-delhi'].address.en,
-      rating: '4.8',
-      distance: `3.5 ${tr('kmAway')}`,
-      departmentsCount: `38 ${tr('departments')}`,
-      type: tr('private'),
-      typeColor: '#0284c7',
-      nextAvailable: tr('today'),
-      logoBg: '#0369a1',
-      doctors: getDoctorsForHospital('apollo-delhi', HOSPITAL_LOCALIZATION['apollo-delhi'].doctors)
-    },
-    {
-      id: 'shalby-jaipur',
-      name: HOSPITAL_LOCALIZATION['shalby-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['shalby-jaipur'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['shalby-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['shalby-jaipur'].address.en,
-      rating: '4.7',
-      distance: `4.2 ${tr('kmAway')}`,
-      departmentsCount: `24 ${tr('departments')}`,
-      type: tr('private'),
-      typeColor: '#0284c7',
-      nextAvailable: tr('today'),
-      logoBg: '#0284c7',
-      doctors: getDoctorsForHospital('shalby-jaipur', HOSPITAL_LOCALIZATION['shalby-jaipur'].doctors)
-    },
-    {
-      id: 'aiia-delhi',
-      name: HOSPITAL_LOCALIZATION['aiia-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['aiia-delhi'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['aiia-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['aiia-delhi'].address.en,
-      rating: '4.8',
-      distance: tr('ayush'),
-      departmentsCount: 'Ayurveda & Panchakarma',
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: '03 Sep',
-      logoBg: '#15803d',
-      isAyush: true,
-      doctors: getDoctorsForHospital('aiia-delhi', HOSPITAL_LOCALIZATION['aiia-delhi'].doctors)
-    },
-    {
-      id: 'nia-jaipur',
-      name: HOSPITAL_LOCALIZATION['nia-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['nia-jaipur'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['nia-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['nia-jaipur'].address.en,
-      rating: '4.9',
-      distance: tr('ayush'),
-      departmentsCount: 'Ayurveda, Rasashastra & Yoga',
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: tr('tomorrow'),
-      logoBg: '#166534',
-      isAyush: true,
-      doctors: getDoctorsForHospital('nia-jaipur', HOSPITAL_LOCALIZATION['nia-jaipur'].doctors)
-    },
-    {
-      id: 'narayana-bangalore',
-      name: HOSPITAL_LOCALIZATION['narayana-bangalore'].name[currentLang] || HOSPITAL_LOCALIZATION['narayana-bangalore'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['narayana-bangalore'].address[currentLang] || HOSPITAL_LOCALIZATION['narayana-bangalore'].address.en,
-      rating: '4.8',
-      distance: `6.4 ${tr('kmAway')}`,
-      departmentsCount: `36 ${tr('departments')}`,
-      type: tr('private'),
-      typeColor: '#0284c7',
-      nextAvailable: '01 Sep',
-      logoBg: '#0e7490',
-      doctors: getDoctorsForHospital('narayana-bangalore', HOSPITAL_LOCALIZATION['narayana-bangalore'].doctors)
-    },
-    {
-      id: 'fortis-jaipur',
-      name: HOSPITAL_LOCALIZATION['fortis-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['fortis-jaipur'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['fortis-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['fortis-jaipur'].address.en,
-      rating: '4.7',
-      distance: `5.0 ${tr('kmAway')}`,
-      departmentsCount: `28 ${tr('departments')}`,
-      type: tr('private'),
-      typeColor: '#0284c7',
-      nextAvailable: tr('today'),
-      logoBg: '#4338ca',
-      doctors: getDoctorsForHospital('fortis-jaipur', HOSPITAL_LOCALIZATION['fortis-jaipur'].doctors)
-    },
-    {
-      id: 'tata-mumbai',
-      name: HOSPITAL_LOCALIZATION['tata-mumbai'].name[currentLang] || HOSPITAL_LOCALIZATION['tata-mumbai'].name.en,
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['tata-mumbai'].address[currentLang] || HOSPITAL_LOCALIZATION['tata-mumbai'].address.en,
-      rating: '4.9',
-      distance: `8.2 ${tr('kmAway')}`,
-      departmentsCount: `30 ${tr('departments')}`,
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: '04 Sep',
-      logoBg: '#b91c1c',
-      doctors: getDoctorsForHospital('tata-mumbai', HOSPITAL_LOCALIZATION['tata-mumbai']?.doctors || [])
-    },
-    {
-      id: 'jaipur-hospital',
-      name: HOSPITAL_LOCALIZATION['jaipur-hospital']?.name[currentLang] || HOSPITAL_LOCALIZATION['jaipur-hospital']?.name.en || 'Jaipur Hospital',
-      badge: null,
-      address: HOSPITAL_LOCALIZATION['jaipur-hospital']?.address[currentLang] || HOSPITAL_LOCALIZATION['jaipur-hospital']?.address.en || 'Lal Kothi, Jaipur',
-      rating: '4.4',
-      distance: `5.1 ${tr('kmAway')}`,
-      departmentsCount: `18 ${tr('departments')}`,
-      type: tr('government'),
-      typeColor: '#15803d',
-      nextAvailable: '30 Aug',
-      logoBg: '#0d9488',
-      doctors: getDoctorsForHospital('jaipur-hospital', HOSPITAL_LOCALIZATION['jaipur-hospital']?.doctors || [])
-    }
-  ];
-
-  const existingIds = new Set(baseList.map(h => h.id));
-  if (dbHospitalsList && dbHospitalsList.length > 0) {
-    dbHospitalsList.forEach(dbHosp => {
-      if (dbHosp && dbHosp.id && !existingIds.has(dbHosp.id)) {
-        existingIds.add(dbHosp.id);
-        baseList.push({
-          id: dbHosp.id,
-          name: dbHosp.name,
-          badge: null,
-          address: dbHosp.address || `${dbHosp.city || 'India'}`,
-          rating: dbHosp.rating ? String(dbHosp.rating) : '4.8',
-          distance: `2.5 ${tr('kmAway')}`,
-          departmentsCount: `25 ${tr('departments')}`,
-          type: dbHosp.type === 'Government' ? tr('government') : tr('private'),
-          typeColor: dbHosp.type === 'Government' ? '#15803d' : '#0284c7',
-          nextAvailable: tr('today'),
-          logoBg: '#0f766e',
-          isAyush: dbHosp.isAyush || /ayush|ayurved/i.test(dbHosp.name || ''),
-          doctors: getDoctorsForHospital(dbHosp.id, [])
-        });
+      {
+        id: 'aiims-delhi',
+        name: HOSPITAL_LOCALIZATION['aiims-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['aiims-delhi'].name.en,
+        badge: tr('popular'),
+        address: HOSPITAL_LOCALIZATION['aiims-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['aiims-delhi'].address.en,
+        rating: '4.9',
+        distance: `0.8 ${tr('kmAway')}`,
+        departmentsCount: `45 ${tr('departments')}`,
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: tr('today'),
+        logoBg: '#1e3a8a',
+        doctors: getDoctorsForHospital('aiims-delhi', HOSPITAL_LOCALIZATION['aiims-delhi'].doctors)
+      },
+      {
+        id: 'sms-jaipur',
+        name: HOSPITAL_LOCALIZATION['sms-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['sms-jaipur'].name.en,
+        badge: tr('popular'),
+        address: HOSPITAL_LOCALIZATION['sms-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['sms-jaipur'].address.en,
+        rating: '4.6',
+        distance: `1.8 ${tr('kmAway')}`,
+        departmentsCount: `32 ${tr('departments')}`,
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: tr('tomorrow'),
+        logoBg: '#0f766e',
+        doctors: getDoctorsForHospital('sms-jaipur', HOSPITAL_LOCALIZATION['sms-jaipur'].doctors)
+      },
+      {
+        id: 'apollo-delhi',
+        name: HOSPITAL_LOCALIZATION['apollo-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['apollo-delhi'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['apollo-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['apollo-delhi'].address.en,
+        rating: '4.8',
+        distance: `3.5 ${tr('kmAway')}`,
+        departmentsCount: `38 ${tr('departments')}`,
+        type: tr('private'),
+        typeColor: '#0284c7',
+        nextAvailable: tr('today'),
+        logoBg: '#0369a1',
+        doctors: getDoctorsForHospital('apollo-delhi', HOSPITAL_LOCALIZATION['apollo-delhi'].doctors)
+      },
+      {
+        id: 'shalby-jaipur',
+        name: HOSPITAL_LOCALIZATION['shalby-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['shalby-jaipur'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['shalby-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['shalby-jaipur'].address.en,
+        rating: '4.7',
+        distance: `4.2 ${tr('kmAway')}`,
+        departmentsCount: `24 ${tr('departments')}`,
+        type: tr('private'),
+        typeColor: '#0284c7',
+        nextAvailable: tr('today'),
+        logoBg: '#0284c7',
+        doctors: getDoctorsForHospital('shalby-jaipur', HOSPITAL_LOCALIZATION['shalby-jaipur'].doctors)
+      },
+      {
+        id: 'aiia-delhi',
+        name: HOSPITAL_LOCALIZATION['aiia-delhi'].name[currentLang] || HOSPITAL_LOCALIZATION['aiia-delhi'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['aiia-delhi'].address[currentLang] || HOSPITAL_LOCALIZATION['aiia-delhi'].address.en,
+        rating: '4.8',
+        distance: tr('ayush'),
+        departmentsCount: 'Ayurveda & Panchakarma',
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: '03 Sep',
+        logoBg: '#15803d',
+        isAyush: true,
+        doctors: getDoctorsForHospital('aiia-delhi', HOSPITAL_LOCALIZATION['aiia-delhi'].doctors)
+      },
+      {
+        id: 'nia-jaipur',
+        name: HOSPITAL_LOCALIZATION['nia-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['nia-jaipur'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['nia-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['nia-jaipur'].address.en,
+        rating: '4.9',
+        distance: tr('ayush'),
+        departmentsCount: 'Ayurveda, Rasashastra & Yoga',
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: tr('tomorrow'),
+        logoBg: '#166534',
+        isAyush: true,
+        doctors: getDoctorsForHospital('nia-jaipur', HOSPITAL_LOCALIZATION['nia-jaipur'].doctors)
+      },
+      {
+        id: 'narayana-bangalore',
+        name: HOSPITAL_LOCALIZATION['narayana-bangalore'].name[currentLang] || HOSPITAL_LOCALIZATION['narayana-bangalore'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['narayana-bangalore'].address[currentLang] || HOSPITAL_LOCALIZATION['narayana-bangalore'].address.en,
+        rating: '4.8',
+        distance: `6.4 ${tr('kmAway')}`,
+        departmentsCount: `36 ${tr('departments')}`,
+        type: tr('private'),
+        typeColor: '#0284c7',
+        nextAvailable: '01 Sep',
+        logoBg: '#0e7490',
+        doctors: getDoctorsForHospital('narayana-bangalore', HOSPITAL_LOCALIZATION['narayana-bangalore'].doctors)
+      },
+      {
+        id: 'fortis-jaipur',
+        name: HOSPITAL_LOCALIZATION['fortis-jaipur'].name[currentLang] || HOSPITAL_LOCALIZATION['fortis-jaipur'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['fortis-jaipur'].address[currentLang] || HOSPITAL_LOCALIZATION['fortis-jaipur'].address.en,
+        rating: '4.7',
+        distance: `5.0 ${tr('kmAway')}`,
+        departmentsCount: `28 ${tr('departments')}`,
+        type: tr('private'),
+        typeColor: '#0284c7',
+        nextAvailable: tr('today'),
+        logoBg: '#4338ca',
+        doctors: getDoctorsForHospital('fortis-jaipur', HOSPITAL_LOCALIZATION['fortis-jaipur'].doctors)
+      },
+      {
+        id: 'tata-mumbai',
+        name: HOSPITAL_LOCALIZATION['tata-mumbai'].name[currentLang] || HOSPITAL_LOCALIZATION['tata-mumbai'].name.en,
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['tata-mumbai'].address[currentLang] || HOSPITAL_LOCALIZATION['tata-mumbai'].address.en,
+        rating: '4.9',
+        distance: `8.2 ${tr('kmAway')}`,
+        departmentsCount: `30 ${tr('departments')}`,
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: '04 Sep',
+        logoBg: '#b91c1c',
+        doctors: getDoctorsForHospital('tata-mumbai', HOSPITAL_LOCALIZATION['tata-mumbai']?.doctors || [])
+      },
+      {
+        id: 'jaipur-hospital',
+        name: HOSPITAL_LOCALIZATION['jaipur-hospital']?.name[currentLang] || HOSPITAL_LOCALIZATION['jaipur-hospital']?.name.en || 'Jaipur Hospital',
+        badge: null,
+        address: HOSPITAL_LOCALIZATION['jaipur-hospital']?.address[currentLang] || HOSPITAL_LOCALIZATION['jaipur-hospital']?.address.en || 'Lal Kothi, Jaipur',
+        rating: '4.4',
+        distance: `5.1 ${tr('kmAway')}`,
+        departmentsCount: `18 ${tr('departments')}`,
+        type: tr('government'),
+        typeColor: '#15803d',
+        nextAvailable: '30 Aug',
+        logoBg: '#0d9488',
+        doctors: getDoctorsForHospital('jaipur-hospital', HOSPITAL_LOCALIZATION['jaipur-hospital']?.doctors || [])
       }
-    });
-  }
+    ];
 
-  return baseList;
-}, [currentLang, dbDoctorsList, dbHospitalsList]);
+    const existingIds = new Set(baseList.map(h => h.id));
+    if (dbHospitalsList && dbHospitalsList.length > 0) {
+      dbHospitalsList.forEach(dbHosp => {
+        if (dbHosp && dbHosp.id && !existingIds.has(dbHosp.id)) {
+          existingIds.add(dbHosp.id);
+          baseList.push({
+            id: dbHosp.id,
+            name: dbHosp.name,
+            badge: null,
+            address: dbHosp.address || `${dbHosp.city || 'India'}`,
+            rating: dbHosp.rating ? String(dbHosp.rating) : '4.8',
+            distance: `2.5 ${tr('kmAway')}`,
+            departmentsCount: `25 ${tr('departments')}`,
+            type: dbHosp.type === 'Government' ? tr('government') : tr('private'),
+            typeColor: dbHosp.type === 'Government' ? '#15803d' : '#0284c7',
+            nextAvailable: tr('today'),
+            logoBg: '#0f766e',
+            isAyush: dbHosp.isAyush || /ayush|ayurved/i.test(dbHosp.name || ''),
+            doctors: getDoctorsForHospital(dbHosp.id, [])
+          });
+        }
+      });
+    }
+
+    return baseList;
+  }, [currentLang, dbDoctorsList, dbHospitalsList]);
 
   // Keep voice handlers connected to the same live/localized catalog rendered
   // by the dashboard without forcing a second source of hospital truth.
@@ -4974,7 +4974,7 @@ export default function PatientDashboard() {
               {/* ═══════════════════════════════════════════════════════════
                   VIEW 3: MAIN OVERVIEW (Hospitals List & Upcoming Appointments)
                   ═══════════════════════════════════════════════════════════ */}
-              
+
               {/* ═══════════════════════════════════════════════════════════
                   VIEW 3: STEP-BY-STEP APPOINTMENT BOOKING FLOW (Exact Match to User Reference Images)
                   ═══════════════════════════════════════════════════════════ */}
@@ -5546,25 +5546,25 @@ export default function PatientDashboard() {
                               const bgColor = isSelected
                                 ? '#059669'
                                 : isThrottled || isConsultationBlocked ? '#fffbeb'
-                                : isDisabled ? '#f8fafc' : '#ffffff';
+                                  : isDisabled ? '#f8fafc' : '#ffffff';
                               const borderColor = isSelected
                                 ? '#059669'
                                 : isThrottled || isConsultationBlocked ? '#fde68a'
-                                : slot.state === 'fast' ? '#fed7aa'
-                                : isDisabled ? '#e2e8f0' : '#e2e8f0';
+                                  : slot.state === 'fast' ? '#fed7aa'
+                                    : isDisabled ? '#e2e8f0' : '#e2e8f0';
                               const textColor = isSelected ? '#ffffff' : isThrottled || isConsultationBlocked ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
 
                               const statusLabel = isSelected ? ui('Selected')
-                                : isConsultationBlocked      ? ui('Doctor attending current patient')
-                                : isThrottled             ? ui('Paused (High OPD Load)')
-                                : slot.state === 'full'   ? ui('Fully Booked')
-                                : slot.state === 'closed' ? ui('Closed')
-                                : slot.state === 'fast'   ? ui(`${slot.slotsLeft} slot left`)
-                                : ui(`${slot.slotsLeft} slots left`);
+                                : isConsultationBlocked ? ui('Doctor attending current patient')
+                                  : isThrottled ? ui('Paused (High OPD Load)')
+                                    : slot.state === 'full' ? ui('Fully Booked')
+                                      : slot.state === 'closed' ? ui('Closed')
+                                        : slot.state === 'fast' ? ui(`${slot.slotsLeft} slot left`)
+                                          : ui(`${slot.slotsLeft} slots left`);
                               const statusColor = isSelected ? '#ccfbf1'
                                 : isThrottled || isConsultationBlocked ? '#b45309'
-                                : slot.state === 'full' || slot.state === 'closed' ? '#94a3b8'
-                                : slot.state === 'fast' ? '#ea580c' : '#059669';
+                                  : slot.state === 'full' || slot.state === 'closed' ? '#94a3b8'
+                                    : slot.state === 'fast' ? '#ea580c' : '#059669';
 
                               return (
                                 <button
@@ -5744,9 +5744,9 @@ export default function PatientDashboard() {
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.85rem', marginBottom: '2.25rem' }}>
-                            {renderSlotGroup(liveSlots.morning,   '☀️', 'Morning Slots')}
+                            {renderSlotGroup(liveSlots.morning, '☀️', 'Morning Slots')}
                             {renderSlotGroup(liveSlots.afternoon, '🌤️', 'Afternoon Slots')}
-                            {renderSlotGroup(liveSlots.evening,   '🌙', 'Evening Slots')}
+                            {renderSlotGroup(liveSlots.evening, '🌙', 'Evening Slots')}
 
                             {/* All sessions empty message */}
                             {[...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast).length === 0 && (
@@ -5792,7 +5792,7 @@ export default function PatientDashboard() {
 
                           {/* Real-time Badge */}
                           <div style={{
-                            backgroundColor: liveSlots.onLeave ? 'rgba(254, 242, 242, 0.9)' : 'rgba(240, 253, 249, 0.9)', 
+                            backgroundColor: liveSlots.onLeave ? 'rgba(254, 242, 242, 0.9)' : 'rgba(240, 253, 249, 0.9)',
                             border: liveSlots.onLeave ? '1px solid #fca5a5' : '1px solid #ccfbf1',
                             borderRadius: '20px', padding: '8px 18px', display: 'flex', alignItems: 'center',
                             gap: '8px', fontSize: '0.825rem', color: liveSlots.onLeave ? '#991b1b' : '#0f766e', fontWeight: '700',
@@ -6413,533 +6413,881 @@ export default function PatientDashboard() {
 
             </div>
           )}
-              {activeTab === 'history' && (
-                <div>
-                  {/* Header */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
-                      {tr('history')}
-                    </h1>
-                    <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
-                      {tr('historyDesc')}
+          {activeTab === 'history' && (
+            <div>
+              {/* Header */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
+                  {tr('history')}
+                </h1>
+                <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
+                  {tr('historyDesc')}
+                </p>
+              </div>
+
+              {/* Filter & Search Bar Card */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                padding: '1.25rem 1.5rem',
+                marginBottom: '1.75rem',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: '1rem',
+                flexWrap: 'wrap'
+              }}>
+                {/* Search Bar */}
+                <div style={{ flex: '1 1 280px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="text"
+                      value={historySearch}
+                      onChange={e => setHistorySearch(e.target.value)}
+                      placeholder={ui('Search by doctor, hospital or department…')}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 38px',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        fontSize: '0.875rem',
+                        color: '#0f172a',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        backgroundColor: '#f8fafc'
+                      }}
+                      onFocus={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                      onBlur={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                    />
+                  </div>
+                </div>
+
+                {/* Date Range Dropdown */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Date range')}</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={historyDateFilter}
+                      onChange={e => setHistoryDateFilter(e.target.value)}
+                      style={{
+                        appearance: 'none',
+                        padding: '10px 34px 10px 36px',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#334155',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="all">{ui('All time')}</option>
+                      <option value="last30">{ui('Last 30 days')}</option>
+                      <option value="last6m">{ui('Last 6 months')}</option>
+                      <option value="2026">2026</option>
+                    </select>
+                    <Calendar size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                {/* Hospital Type Dropdown */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Hospital type')}</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={historyTypeFilter}
+                      onChange={e => setHistoryTypeFilter(e.target.value)}
+                      style={{
+                        appearance: 'none',
+                        padding: '10px 32px 10px 14px',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        minWidth: '120px'
+                      }}
+                    >
+                      <option value="all">{tr('all')}</option>
+                      <option value="Government">{tr('government')}</option>
+                      <option value="Private">{tr('private')}</option>
+                      <option value="AYUSH">AYUSH</option>
+                    </select>
+                    <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                {/* Status Dropdown */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Status')}</label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={historyStatusFilter}
+                      onChange={e => setHistoryStatusFilter(e.target.value)}
+                      style={{
+                        appearance: 'none',
+                        padding: '10px 32px 10px 14px',
+                        borderRadius: '12px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        minWidth: '110px'
+                      }}
+                    >
+                      <option value="all">{tr('all')}</option>
+                      <option value="Completed">{ui('Completed')}</option>
+                      <option value="Confirmed">{tr('confirmed')}</option>
+                      <option value="Cancelled">{ui('Cancelled')}</option>
+                      <option value="No Show">{ui('No show')}</option>
+                    </select>
+                    <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <button
+                    onClick={() => {
+                      setHistorySearch('');
+                      setHistoryDateFilter('all');
+                      setHistoryTypeFilter('all');
+                      setHistoryStatusFilter('all');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      borderRadius: '12px',
+                      border: '1px solid #e2e8f0',
+                      backgroundColor: '#ffffff',
+                      color: '#0f766e',
+                      fontSize: '0.875rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                  >
+                    <RotateCcw size={14} />
+                    <span>{ui('Clear filters')}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Table Container Card */}
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '18px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                overflow: 'hidden'
+              }}>
+                {/* Column Headers */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr',
+                  padding: '14px 1.75rem',
+                  borderBottom: '1px solid #f1f5f9',
+                  backgroundColor: '#fafbfc',
+                  fontSize: '0.8rem',
+                  fontWeight: '700',
+                  color: '#64748b',
+                  letterSpacing: '0.3px'
+                }}>
+                  <div>{ui('Date and time')}</div>
+                  <div>{ui('Doctor and department')}</div>
+                  <div>{ui('Hospital')}</div>
+                  <div>{ui('Status')}</div>
+                  <div style={{ textAlign: 'right' }}>{ui('Action')}</div>
+                </div>
+
+                {/* Data Rows or Empty State */}
+                {filteredHistory.length > 0 ? (
+                  <div>
+                    {filteredHistory.map((item, idx) => {
+                      const localizedDoc = localizeDoctor(item.doctorName || item.doctor, currentLang);
+                      const localizedSpec = localizeSpecialty(item.specialty || item.dept, currentLang);
+                      const localizedHosp = localizeHospitalName(item.hospital, currentLang);
+                      const statusLower = (item.status || 'completed').toLowerCase();
+
+                      let statusBg = '#dcfce7';
+                      let statusColor = '#15803d';
+                      if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
+                        statusBg = '#fef2f2';
+                        statusColor = '#dc2626';
+                      } else if (statusLower.includes('cancel')) {
+                        statusBg = '#ffedd5';
+                        statusColor = '#c2410c';
+                      } else if (statusLower.includes('no show')) {
+                        statusBg = '#fee2e2';
+                        statusColor = '#b91c1c';
+                      } else if (statusLower.includes('confirm')) {
+                        statusBg = '#ccfbf1';
+                        statusColor = '#0f766e';
+                      }
+
+                      let dateTileBg = '#e6f7f3';
+                      let dateTileColor = '#0f766e';
+                      let dateTileBorder = '#bbf7d0';
+                      if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
+                        dateTileBg = '#fef2f2';
+                        dateTileColor = '#dc2626';
+                        dateTileBorder = '#fecaca';
+                      } else if (statusLower.includes('cancel')) {
+                        dateTileBg = '#fff7ed';
+                        dateTileColor = '#ea580c';
+                        dateTileBorder = '#fed7aa';
+                      } else if (statusLower.includes('no show')) {
+                        dateTileBg = '#fee2e2';
+                        dateTileColor = '#ef4444';
+                        dateTileBorder = '#fecaca';
+                      }
+
+                      return (
+                        <div
+                          key={item.id || idx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr',
+                            padding: '1.25rem 1.75rem',
+                            borderBottom: idx !== filteredHistory.length - 1 ? '1px solid #f1f5f9' : 'none',
+                            alignItems: 'center',
+                            transition: 'background 0.15s ease'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                        >
+                          {/* Date & Time */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                              width: '54px',
+                              padding: '6px 4px',
+                              textAlign: 'center',
+                              borderRadius: '10px',
+                              backgroundColor: dateTileBg,
+                              border: `1px solid ${dateTileBorder}`,
+                              flexShrink: 0
+                            }}>
+                              <div style={{ fontSize: '1.25rem', fontWeight: '900', color: dateTileColor, lineHeight: 1 }}>
+                                {item.day}
+                              </div>
+                              <div style={{ fontSize: '0.62rem', fontWeight: '800', color: dateTileColor, marginTop: '2px', letterSpacing: '0.4px' }}>
+                                {item.monthYear || `${item.month || ''} ${item.year || ''}`}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>
+                              {item.time || ui('Time not set')}
+                            </span>
+                          </div>
+
+                          {/* Doctor & Department */}
+                          <div>
+                            <h4 style={{ margin: '0 0 2px 0', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>
+                              {localizedDoc}
+                            </h4>
+                            <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
+                              {localizedSpec}
+                            </span>
+                          </div>
+
+                          {/* Hospital & Location */}
+                          <div>
+                            <h4 style={{ margin: '0 0 2px 0', fontSize: '0.925rem', fontWeight: '700', color: '#0f172a' }}>
+                              {localizedHosp}
+                            </h4>
+                            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              {item.location || ''}
+                            </span>
+                          </div>
+
+                          {/* Status Badge */}
+                          <div>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '4px 12px',
+                              borderRadius: '14px',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              backgroundColor: statusBg,
+                              color: statusColor
+                            }}>
+                              {ui(item.status || 'Completed')}
+                            </span>
+                          </div>
+
+                          {/* Action Button */}
+                          <div style={{ textAlign: 'right' }}>
+                            <button
+                              onClick={() => setSelectedAppointment(item)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '7px 16px',
+                                borderRadius: '10px',
+                                border: '1px solid #cbd5e1',
+                                backgroundColor: '#ffffff',
+                                color: '#0f766e',
+                                fontSize: '0.825rem',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.backgroundColor = '#f0fdf4';
+                                e.currentTarget.style.borderColor = '#99f6e4';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.backgroundColor = '#ffffff';
+                                e.currentTarget.style.borderColor = '#cbd5e1';
+                              }}
+                            >
+                              <Eye size={14} />
+                              <span>{ui('View details')}</span>
+                            </button>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
+                    <CalendarCheck size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
+                      {ui('No past appointments found')}
+                    </h3>
+                    <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
+                      {ui('Completed appointments, prescriptions and digital records will appear here automatically.')}
                     </p>
+                    <button
+                      onClick={() => setActiveTab('appointments')}
+                      style={{
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        padding: '10px 22px',
+                        fontSize: '0.875rem',
+                        fontWeight: '700',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {tr('bookAppointmentBtn')}
+                    </button>
+                  </div>
+                )}
+
+                {/* Footer Pagination */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '1rem 1.75rem',
+                  borderTop: '1px solid #f1f5f9',
+                  backgroundColor: '#ffffff'
+                }}>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
+                    {ui('Showing')} {filteredHistory.length} {ui('of')} {patientHistory.length} {ui('appointments')}
                   </div>
 
-                  {/* Filter & Search Bar Card */}
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '16px',
-                    border: '1px solid #e2e8f0',
-                    padding: '1.25rem 1.5rem',
-                    marginBottom: '1.75rem',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
-                    display: 'flex',
-                    alignItems: 'flex-end',
-                    gap: '1rem',
-                    flexWrap: 'wrap'
-                  }}>
-                    {/* Search Bar */}
-                    <div style={{ flex: '1 1 280px' }}>
-                      <div style={{ position: 'relative' }}>
-                        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                        <input
-                          type="text"
-                          value={historySearch}
-                          onChange={e => setHistorySearch(e.target.value)}
-                          placeholder={ui('Search by doctor, hospital or department…')}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px 10px 38px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '0.875rem',
-                            color: '#0f172a',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                            backgroundColor: '#f8fafc'
-                          }}
-                          onFocus={e => e.currentTarget.style.backgroundColor = '#ffffff'}
-                          onBlur={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                        />
-                      </div>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      disabled={historyPage <= 1}
+                      onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: historyPage > 1 ? 'pointer' : 'default',
+                        opacity: historyPage > 1 ? 1 : 0.5
+                      }}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
 
-                    {/* Date Range Dropdown */}
-                    <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Date range')}</label>
-                      <div style={{ position: 'relative' }}>
-                        <select
-                          value={historyDateFilter}
-                          onChange={e => setHistoryDateFilter(e.target.value)}
-                          style={{
-                            appearance: 'none',
-                            padding: '10px 34px 10px 36px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            color: '#334155',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <option value="all">{ui('All time')}</option>
-                          <option value="last30">{ui('Last 30 days')}</option>
-                          <option value="last6m">{ui('Last 6 months')}</option>
-                          <option value="2026">2026</option>
-                        </select>
-                        <Calendar size={15} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                        <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                      </div>
-                    </div>
-
-                    {/* Hospital Type Dropdown */}
-                    <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Hospital type')}</label>
-                      <div style={{ position: 'relative' }}>
-                        <select
-                          value={historyTypeFilter}
-                          onChange={e => setHistoryTypeFilter(e.target.value)}
-                          style={{
-                            appearance: 'none',
-                            padding: '10px 32px 10px 14px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            color: '#334155',
-                            cursor: 'pointer',
-                            minWidth: '120px'
-                          }}
-                        >
-                          <option value="all">{tr('all')}</option>
-                          <option value="Government">{tr('government')}</option>
-                          <option value="Private">{tr('private')}</option>
-                          <option value="AYUSH">AYUSH</option>
-                        </select>
-                        <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                      </div>
-                    </div>
-
-                    {/* Status Dropdown */}
-                    <div style={{ flex: '0 0 auto' }}>
-                      <label style={{ fontSize: '0.78rem', fontWeight: '700', color: '#334155', display: 'block', marginBottom: '6px' }}>{ui('Status')}</label>
-                      <div style={{ position: 'relative' }}>
-                        <select
-                          value={historyStatusFilter}
-                          onChange={e => setHistoryStatusFilter(e.target.value)}
-                          style={{
-                            appearance: 'none',
-                            padding: '10px 32px 10px 14px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            fontSize: '0.875rem',
-                            fontWeight: '600',
-                            color: '#334155',
-                            cursor: 'pointer',
-                            minWidth: '110px'
-                          }}
-                        >
-                          <option value="all">{tr('all')}</option>
-                          <option value="Completed">{ui('Completed')}</option>
-                          <option value="Confirmed">{tr('confirmed')}</option>
-                          <option value="Cancelled">{ui('Cancelled')}</option>
-                          <option value="No Show">{ui('No show')}</option>
-                        </select>
-                        <ChevronDown size={14} color="#64748b" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                      </div>
-                    </div>
-
-                    {/* Clear Filters */}
-                    <div style={{ flex: '0 0 auto' }}>
+                    {[1, 2, 3].map(page => (
                       <button
-                        onClick={() => {
-                          setHistorySearch('');
-                          setHistoryDateFilter('all');
-                          setHistoryTypeFilter('all');
-                          setHistoryStatusFilter('all');
+                        key={page}
+                        onClick={() => setHistoryPage(page)}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          border: historyPage === page ? 'none' : '1px solid #e2e8f0',
+                          backgroundColor: historyPage === page ? '#059669' : '#ffffff',
+                          color: historyPage === page ? '#ffffff' : '#334155',
+                          fontSize: '0.85rem',
+                          fontWeight: '700',
+                          cursor: 'pointer'
                         }}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => setHistoryPage(p => p + 1)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        backgroundColor: '#ffffff',
+                        color: '#64748b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════
+              TAB 3: MEDICAL REPORTS (Exact Pixel-Perfect Match to Image 2)
+              ═══════════════════════════════════════════════════════════ */}
+          {activeTab === 'reports' && (
+            <div>
+              {/* Header */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
+                  {tr('reports')}
+                </h1>
+                <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
+                  {tr('reportsDesc')}
+                </p>
+              </div>
+
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '14px',
+                border: '1px solid #dfe6ee',
+                padding: '1.3rem 1.5rem 1.5rem',
+                boxShadow: '0 2px 10px rgba(15, 23, 42, 0.025)',
+                overflow: 'visible'
+              }}>
+                {/* Sub-Header / Controls */}
+                <div style={{
+                  backgroundColor: '#ffffff',
+                  padding: '0 0 1.35rem',
+                  marginBottom: '0.15rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1.25rem',
+                  flexWrap: 'wrap'
+                }}>
+                  {/* Left Title */}
+                  <div style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
+                    {ui('Your reports')} <span style={{ color: '#16a34a', fontWeight: '700' }}>({ui('Chronological order')})</span>
+                  </div>
+
+                  {/* Right Search & Filter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 360px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: '380px' }}>
+                      <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input
+                        type="text"
+                        value={reportsSearch}
+                        onChange={e => setReportsSearch(e.target.value)}
+                        placeholder={ui('Search reports by name, type or doctor…')}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '12px',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '0.875rem',
+                          color: '#0f172a',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          backgroundColor: '#f8fafc'
+                        }}
+                        onFocus={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                        onBlur={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      />
+                    </div>
+
+                    {/* Filter Button */}
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => setReportsFilterType(prev => prev === 'all' ? 'lab' : prev === 'lab' ? 'imaging' : prev === 'imaging' ? 'prescription' : 'all')}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
-                          padding: '10px 16px',
+                          padding: '10px 14px',
                           borderRadius: '12px',
                           border: '1px solid #e2e8f0',
                           backgroundColor: '#ffffff',
-                          color: '#0f766e',
+                          color: '#334155',
                           fontSize: '0.875rem',
                           fontWeight: '700',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
+                          cursor: 'pointer'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f0fdf4'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
                       >
-                        <RotateCcw size={14} />
-                        <span>{ui('Clear filters')}</span>
+                        <Filter size={15} color="#64748b" />
+                        <span>{ui('Filter')}: {ui(reportsFilterType)}</span>
+                        <ChevronDown size={14} color="#64748b" />
                       </button>
                     </div>
+
+                    <input
+                      type="file"
+                      ref={reportsFileInputRef}
+                      accept=".pdf,image/*,.png,.jpg,.jpeg"
+                      onChange={handleDirectReportUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      onClick={() => reportsFileInputRef.current?.click()}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        padding: '10px 16px',
+                        fontSize: '0.875rem',
+                        fontWeight: '700',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={16} />
+                      <span>{ui('Upload or scan')}</span>
+                    </button>
                   </div>
+                </div>
 
-                  {/* Table Container Card */}
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '18px',
-                    border: '1px solid #e2e8f0',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-                    overflow: 'hidden'
-                  }}>
-                    {/* Column Headers */}
+                {/* Reports Timeline & List */}
+                {filteredPatientReports.length > 0 ? (
+                  <div style={{ position: 'relative', paddingLeft: '0.75rem' }}>
+                    {/* Vertical Connecting Timeline Bar */}
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr',
-                      padding: '14px 1.75rem',
-                      borderBottom: '1px solid #f1f5f9',
-                      backgroundColor: '#fafbfc',
-                      fontSize: '0.8rem',
-                      fontWeight: '700',
-                      color: '#64748b',
-                      letterSpacing: '0.3px'
-                    }}>
-                      <div>{ui('Date and time')}</div>
-                      <div>{ui('Doctor and department')}</div>
-                      <div>{ui('Hospital')}</div>
-                      <div>{ui('Status')}</div>
-                      <div style={{ textAlign: 'right' }}>{ui('Action')}</div>
-                    </div>
+                      position: 'absolute',
+                      left: '42px',
+                      top: '20px',
+                      bottom: '20px',
+                      width: '2px',
+                      backgroundColor: '#e2e8f0',
+                      zIndex: 1
+                    }} />
 
-                    {/* Data Rows or Empty State */}
-                    {filteredHistory.length > 0 ? (
-                      <div>
-                        {filteredHistory.map((item, idx) => {
-                          const localizedDoc = localizeDoctor(item.doctorName || item.doctor, currentLang);
-                          const localizedSpec = localizeSpecialty(item.specialty || item.dept, currentLang);
-                          const localizedHosp = localizeHospitalName(item.hospital, currentLang);
-                          const statusLower = (item.status || 'completed').toLowerCase();
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {filteredPatientReports.slice(0, reportsPageLimit).map((report, idx) => {
+                        const categoryLower = (report.category || report.type || 'lab').toLowerCase();
+                        const isLab = categoryLower.includes('lab') || categoryLower.includes('blood') || categoryLower.includes('cbc') || categoryLower.includes('lipid');
+                        const isImaging = categoryLower.includes('image') || categoryLower.includes('x-ray') || categoryLower.includes('ultrasound') || categoryLower.includes('scan') || categoryLower.includes('mri');
+                        const isPrescription = categoryLower.includes('prescription') || categoryLower.includes('rx');
 
-                          let statusBg = '#dcfce7';
-                          let statusColor = '#15803d';
-                          if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
-                            statusBg = '#fef2f2';
-                            statusColor = '#dc2626';
-                          } else if (statusLower.includes('cancel')) {
-                            statusBg = '#ffedd5';
-                            statusColor = '#c2410c';
-                          } else if (statusLower.includes('no show')) {
-                            statusBg = '#fee2e2';
-                            statusColor = '#b91c1c';
-                          } else if (statusLower.includes('confirm')) {
-                            statusBg = '#ccfbf1';
-                            statusColor = '#0f766e';
-                          }
+                        // Theme colors
+                        let dotColor = '#15803d';
+                        let iconBg = '#166534';
+                        let iconColor = '#ffffff';
+                        let badgeBg = '#f0fdf4';
+                        let badgeColor = '#166534';
+                        let badgeBorder = '#bbf7d0';
+                        let badgeText = ui('Lab report');
 
-                          let dateTileBg = '#e6f7f3';
-                          let dateTileColor = '#0f766e';
-                          let dateTileBorder = '#bbf7d0';
-                          if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
-                            dateTileBg = '#fef2f2';
-                            dateTileColor = '#dc2626';
-                            dateTileBorder = '#fecaca';
-                          } else if (statusLower.includes('cancel')) {
-                            dateTileBg = '#fff7ed';
-                            dateTileColor = '#ea580c';
-                            dateTileBorder = '#fed7aa';
-                          } else if (statusLower.includes('no show')) {
-                            dateTileBg = '#fee2e2';
-                            dateTileColor = '#ef4444';
-                            dateTileBorder = '#fecaca';
-                          }
+                        if (isImaging) {
+                          dotColor = '#7c3aed';
+                          iconBg = '#6d28d9';
+                          iconColor = '#ffffff';
+                          badgeBg = '#faf5ff';
+                          badgeColor = '#6b21a8';
+                          badgeBorder = '#e9d5ff';
+                          badgeText = ui('Imaging report');
+                        } else if (isPrescription) {
+                          dotColor = '#ea580c';
+                          iconBg = '#ea580c';
+                          iconColor = '#ffffff';
+                          badgeBg = '#fff7ed';
+                          badgeColor = '#c2410c';
+                          badgeBorder = '#fed7aa';
+                          badgeText = ui('Prescription');
+                        }
 
-                          return (
-                            <div
-                              key={item.id || idx}
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr',
-                                padding: '1.25rem 1.75rem',
-                                borderBottom: idx !== filteredHistory.length - 1 ? '1px solid #f1f5f9' : 'none',
-                                alignItems: 'center',
-                                transition: 'background 0.15s ease'
-                              }}
-                              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                              onMouseLeave={e => e.currentTarget.style.backgroundColor = '#ffffff'}
+                        return (
+                          <div
+                            key={report.id || idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '2rem',
+                              position: 'relative',
+                              zIndex: activeReportMenu === (report.id || `report-${idx}`) ? 20 : 2
+                            }}
+                          >
+                            {/* Left Date Column & Timeline Dot */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              width: '80px',
+                              minWidth: '80px',
+                              justifyContent: 'space-between'
+                            }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '1.2rem', fontWeight: '900', color: dotColor, lineHeight: 1 }}>
+                                  {report.day || (report.uploaded_at ? new Date(report.uploaded_at).getDate() : '')}
+                                </div>
+                                <div style={{ fontSize: '0.68rem', fontWeight: '800', color: '#0f172a', marginTop: '2px', letterSpacing: '0.4px' }}>
+                                  {report.month || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleDateString(currentLang, { month: 'short' }) : '')}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', fontWeight: '700', color: '#64748b' }}>
+                                  {report.year || (report.uploaded_at ? new Date(report.uploaded_at).getFullYear() : '')}
+                                </div>
+                              </div>
+
+                              {/* Dot on Timeline */}
+                              <div style={{
+                                width: '12px',
+                                height: '12px',
+                                borderRadius: '50%',
+                                backgroundColor: dotColor,
+                                border: '3px solid #ffffff',
+                                boxShadow: '0 0 0 1px #cbd5e1'
+                              }} />
+                            </div>
+
+                            {/* Report Card */}
+                            <div style={{
+                              flex: 1,
+                              backgroundColor: '#ffffff',
+                              borderRadius: '16px',
+                              border: '1px solid #e2e8f0',
+                              padding: '1.25rem 1.5rem',
+                              boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '1.25rem',
+                              flexWrap: 'wrap',
+                              transition: 'all 0.2s ease'
+                            }}
+                              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.05)'}
+                              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.02)'}
                             >
-                              {/* Date & Time */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {/* Left Icon & Details */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                                 <div style={{
-                                  width: '54px',
-                                  padding: '6px 4px',
-                                  textAlign: 'center',
-                                  borderRadius: '10px',
-                                  backgroundColor: dateTileBg,
-                                  border: `1px solid ${dateTileBorder}`,
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '50%',
+                                  backgroundColor: iconBg,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: iconColor,
                                   flexShrink: 0
                                 }}>
-                                  <div style={{ fontSize: '1.25rem', fontWeight: '900', color: dateTileColor, lineHeight: 1 }}>
-                                    {item.day}
+                                  {isLab ? (
+                                    <FlaskConical size={22} />
+                                  ) : isImaging ? (
+                                    <Activity size={22} />
+                                  ) : (
+                                    <FileText size={22} />
+                                  )}
+                                </div>
+
+                                <div>
+                                  <h3 style={{ margin: '0 0 3px 0', fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
+                                    {report.title || report.name || ui('Medical report')}
+                                  </h3>
+                                  <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <span>{report.time || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleTimeString(currentLang, { hour: '2-digit', minute: '2-digit' }) : '')}</span>
+                                    <span>•</span>
+                                    <span>{ui('Record ID')}: {report.testId || report.id}</span>
                                   </div>
-                                  <div style={{ fontSize: '0.62rem', fontWeight: '800', color: dateTileColor, marginTop: '2px', letterSpacing: '0.4px' }}>
-                                    {item.monthYear || `${item.month || ''} ${item.year || ''}`}
+                                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
+                                    <User size={13} color="#64748b" />
+                                    <span>{report.doctor || ''}</span>
                                   </div>
                                 </div>
-                                <span style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>
-                                  {item.time || ui('Time not set')}
-                                </span>
                               </div>
 
-                              {/* Doctor & Department */}
-                              <div>
-                                <h4 style={{ margin: '0 0 2px 0', fontSize: '0.95rem', fontWeight: '800', color: '#0f172a' }}>
-                                  {localizedDoc}
-                                </h4>
-                                <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
-                                  {localizedSpec}
-                                </span>
-                              </div>
-
-                              {/* Hospital & Location */}
-                              <div>
-                                <h4 style={{ margin: '0 0 2px 0', fontSize: '0.925rem', fontWeight: '700', color: '#0f172a' }}>
-                                  {localizedHosp}
-                                </h4>
-                                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                                  {item.location || ''}
-                                </span>
-                              </div>
-
-                              {/* Status Badge */}
-                              <div>
+                              {/* Right Badge & Action Icons */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                {/* Category Badge */}
                                 <span style={{
-                                  display: 'inline-block',
-                                  padding: '4px 12px',
-                                  borderRadius: '14px',
+                                  padding: '5px 14px',
+                                  borderRadius: '12px',
                                   fontSize: '0.78rem',
                                   fontWeight: '800',
-                                  backgroundColor: statusBg,
-                                  color: statusColor
+                                  backgroundColor: badgeBg,
+                                  color: badgeColor,
+                                  border: `1px solid ${badgeBorder}`
                                 }}>
-                                  {ui(item.status || 'Completed')}
+                                  {badgeText}
                                 </span>
-                              </div>
 
-                              {/* Action Button */}
-                              <div style={{ textAlign: 'right' }}>
-                                <button
-                                  onClick={() => setSelectedAppointment(item)}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '7px 16px',
-                                    borderRadius: '10px',
-                                    border: '1px solid #cbd5e1',
-                                    backgroundColor: '#ffffff',
-                                    color: '#0f766e',
-                                    fontSize: '0.825rem',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
-                                  }}
-                                  onMouseEnter={e => {
-                                    e.currentTarget.style.backgroundColor = '#f0fdf4';
-                                    e.currentTarget.style.borderColor = '#99f6e4';
-                                  }}
-                                  onMouseLeave={e => {
-                                    e.currentTarget.style.backgroundColor = '#ffffff';
-                                    e.currentTarget.style.borderColor = '#cbd5e1';
-                                  }}
-                                >
-                                  <Eye size={14} />
-                                  <span>{ui('View details')}</span>
-                                </button>
+                                {/* Action Buttons: View, Download, More */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                                  <button
+                                    onClick={() => setSelectedDoc(report)}
+                                    title={ui('View report and OCR')}
+                                    style={{
+                                      width: '42px',
+                                      height: '42px',
+                                      borderRadius: '10px',
+                                      border: '1px solid #e2e8f0',
+                                      backgroundColor: '#ffffff',
+                                      color: '#07834f',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                                      e.currentTarget.style.color = '#0f766e';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = '#ffffff';
+                                      e.currentTarget.style.color = '#07834f';
+                                    }}
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+
+                                  <button
+                                    onClick={() => downloadReport(report)}
+                                    disabled={!(report.file_url || report.dataUrl)}
+                                    title={ui('Download report')}
+                                    style={{
+                                      width: '42px',
+                                      height: '42px',
+                                      borderRadius: '10px',
+                                      border: '1px solid #e2e8f0',
+                                      backgroundColor: '#ffffff',
+                                      color: '#07834f',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={e => {
+                                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                                      e.currentTarget.style.color = '#0f766e';
+                                    }}
+                                    onMouseLeave={e => {
+                                      e.currentTarget.style.backgroundColor = '#ffffff';
+                                      e.currentTarget.style.color = '#07834f';
+                                    }}
+                                  >
+                                    <Download size={16} />
+                                  </button>
+
+                                  <div data-report-menu style={{ position: 'relative' }}>
+                                    <button
+                                      type="button"
+                                      aria-haspopup="menu"
+                                      aria-expanded={activeReportMenu === (report.id || `report-${idx}`)}
+                                      onClick={event => {
+                                        event.stopPropagation();
+                                        const reportKey = report.id || `report-${idx}`;
+                                        setActiveReportMenu(activeReportMenu === reportKey ? null : reportKey);
+                                      }}
+                                      title={ui('More options')}
+                                      style={{
+                                        width: '42px',
+                                        height: '42px',
+                                        borderRadius: '11px',
+                                        border: '1px solid #dbe3ec',
+                                        backgroundColor: activeReportMenu === (report.id || `report-${idx}`) ? '#ecfdf5' : '#ffffff',
+                                        color: '#07834f',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      <MoreVertical size={19} />
+                                    </button>
+
+                                    {activeReportMenu === (report.id || `report-${idx}`) && (
+                                      <div
+                                        role="menu"
+                                        aria-label={ui('Report options')}
+                                        onClick={event => event.stopPropagation()}
+                                        style={{
+                                          position: 'absolute',
+                                          top: 'calc(100% + 8px)',
+                                          right: 0,
+                                          zIndex: 50,
+                                          width: '190px',
+                                          padding: '6px',
+                                          borderRadius: '12px',
+                                          border: '1px solid #dbe3ec',
+                                          backgroundColor: '#ffffff',
+                                          boxShadow: '0 14px 35px rgba(15, 23, 42, 0.16)'
+                                        }}
+                                      >
+                                        <button type="button" role="menuitem" onClick={() => { setSelectedDoc(report); setActiveReportMenu(null); }} style={reportMenuItemStyle}>
+                                          <Eye size={16} color="#07834f" />
+                                          <span>{ui('View details')}</span>
+                                        </button>
+                                        <button type="button" role="menuitem" disabled={!(report.file_url || report.dataUrl)} onClick={() => { downloadReport(report); setActiveReportMenu(null); }} style={{ ...reportMenuItemStyle, opacity: (report.file_url || report.dataUrl) ? 1 : 0.45 }}>
+                                          <Download size={16} color="#07834f" />
+                                          <span>{ui('Download report')}</span>
+                                        </button>
+                                        <button type="button" role="menuitem" onClick={() => copyReportId(report)} style={reportMenuItemStyle}>
+                                          <FileText size={16} color="#07834f" />
+                                          <span>{ui('Copy record ID')}</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
                               </div>
 
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '3.5rem 2rem' }}>
-                        <CalendarCheck size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
-                        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                          {ui('No past appointments found')}
-                        </h3>
-                        <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
-                          {ui('Completed appointments, prescriptions and digital records will appear here automatically.')}
-                        </p>
-                        <button
-                          onClick={() => setActiveTab('appointments')}
-                          style={{
-                            backgroundColor: '#059669',
-                            color: '#ffffff',
-                            borderRadius: '12px',
-                            padding: '10px 22px',
-                            fontSize: '0.875rem',
-                            fontWeight: '700',
-                            border: 'none',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {tr('bookAppointmentBtn')}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Footer Pagination */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '1rem 1.75rem',
-                      borderTop: '1px solid #f1f5f9',
-                      backgroundColor: '#ffffff'
-                    }}>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
-                        {ui('Showing')} {filteredHistory.length} {ui('of')} {patientHistory.length} {ui('appointments')}
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          disabled={historyPage <= 1}
-                          onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            color: '#64748b',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: historyPage > 1 ? 'pointer' : 'default',
-                            opacity: historyPage > 1 ? 1 : 0.5
-                          }}
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-
-                        {[1, 2, 3].map(page => (
-                          <button
-                            key={page}
-                            onClick={() => setHistoryPage(page)}
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              border: historyPage === page ? 'none' : '1px solid #e2e8f0',
-                              backgroundColor: historyPage === page ? '#059669' : '#ffffff',
-                              color: historyPage === page ? '#ffffff' : '#334155',
-                              fontSize: '0.85rem',
-                              fontWeight: '700',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {page}
-                          </button>
-                        ))}
-
-                        <button
-                          onClick={() => setHistoryPage(p => p + 1)}
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: '1px solid #e2e8f0',
-                            backgroundColor: '#ffffff',
-                            color: '#64748b',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                  </div>
-                </div>
-              )}
-
-              {/* ═══════════════════════════════════════════════════════════
-              TAB 3: MEDICAL REPORTS (Exact Pixel-Perfect Match to Image 2)
-              ═══════════════════════════════════════════════════════════ */}
-              {activeTab === 'reports' && (
-                <div>
-                  {/* Header */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
-                      {tr('reports')}
-                    </h1>
-                    <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
-                      {tr('reportsDesc')}
-                    </p>
-                  </div>
-
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '14px',
-                    border: '1px solid #dfe6ee',
-                    padding: '1.3rem 1.5rem 1.5rem',
-                    boxShadow: '0 2px 10px rgba(15, 23, 42, 0.025)',
-                    overflow: 'visible'
-                  }}>
-                  {/* Sub-Header / Controls */}
-                  <div style={{
-                    backgroundColor: '#ffffff',
-                    padding: '0 0 1.35rem',
-                    marginBottom: '0.15rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '1.25rem',
-                    flexWrap: 'wrap'
-                  }}>
-                    {/* Left Title */}
-                    <div style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a' }}>
-                      {ui('Your reports')} <span style={{ color: '#16a34a', fontWeight: '700' }}>({ui('Chronological order')})</span>
-                    </div>
-
-                    {/* Right Search & Filter */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 360px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      <div style={{ position: 'relative', flex: '1 1 240px', maxWidth: '380px' }}>
-                        <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                        <input
-                          type="text"
-                          value={reportsSearch}
-                          onChange={e => setReportsSearch(e.target.value)}
-                          placeholder={ui('Search reports by name, type or doctor…')}
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px 10px 38px',
-                            borderRadius: '12px',
-                            border: '1px solid #e2e8f0',
-                            fontSize: '0.875rem',
-                            color: '#0f172a',
-                            outline: 'none',
-                            boxSizing: 'border-box',
-                            backgroundColor: '#f8fafc'
-                          }}
-                          onFocus={e => e.currentTarget.style.backgroundColor = '#ffffff'}
-                          onBlur={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                        />
+                    {/* Load More Button */}
+                    <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '10px', fontWeight: '500' }}>
+                        {ui('Showing')} {Math.min(reportsPageLimit, filteredPatientReports.length)} {ui('of')} {filteredPatientReports.length} {ui('reports')}
                       </div>
-
-                      {/* Filter Button */}
-                      <div style={{ position: 'relative' }}>
+                      {filteredPatientReports.length > reportsPageLimit && (
                         <button
-                          onClick={() => setReportsFilterType(prev => prev === 'all' ? 'lab' : prev === 'lab' ? 'imaging' : prev === 'imaging' ? 'prescription' : 'all')}
+                          onClick={() => setReportsPageLimit(prev => prev + 5)}
                           style={{
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
                             gap: '6px',
-                            padding: '10px 14px',
+                            padding: '8px 20px',
                             borderRadius: '12px',
                             border: '1px solid #e2e8f0',
                             backgroundColor: '#ffffff',
@@ -6949,417 +7297,69 @@ export default function PatientDashboard() {
                             cursor: 'pointer'
                           }}
                         >
-                          <Filter size={15} color="#64748b" />
-                          <span>{ui('Filter')}: {ui(reportsFilterType)}</span>
-                          <ChevronDown size={14} color="#64748b" />
+                          <span>{ui('Load more')}</span>
+                          <ChevronDown size={15} />
                         </button>
-                      </div>
-
-                      <input
-                        type="file"
-                        ref={reportsFileInputRef}
-                        accept=".pdf,image/*,.png,.jpg,.jpeg"
-                        onChange={handleDirectReportUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <button
-                        onClick={() => reportsFileInputRef.current?.click()}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          backgroundColor: '#059669',
-                          color: '#ffffff',
-                          borderRadius: '12px',
-                          padding: '10px 16px',
-                          fontSize: '0.875rem',
-                          fontWeight: '700',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <Plus size={16} />
-                        <span>{ui('Upload or scan')}</span>
-                      </button>
+                      )}
                     </div>
                   </div>
-
-                  {/* Reports Timeline & List */}
-                  {filteredPatientReports.length > 0 ? (
-                    <div style={{ position: 'relative', paddingLeft: '0.75rem' }}>
-                      {/* Vertical Connecting Timeline Bar */}
-                      <div style={{
-                        position: 'absolute',
-                        left: '42px',
-                        top: '20px',
-                        bottom: '20px',
-                        width: '2px',
-                        backgroundColor: '#e2e8f0',
-                        zIndex: 1
-                      }} />
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        {filteredPatientReports.slice(0, reportsPageLimit).map((report, idx) => {
-                          const categoryLower = (report.category || report.type || 'lab').toLowerCase();
-                          const isLab = categoryLower.includes('lab') || categoryLower.includes('blood') || categoryLower.includes('cbc') || categoryLower.includes('lipid');
-                          const isImaging = categoryLower.includes('image') || categoryLower.includes('x-ray') || categoryLower.includes('ultrasound') || categoryLower.includes('scan') || categoryLower.includes('mri');
-                          const isPrescription = categoryLower.includes('prescription') || categoryLower.includes('rx');
-
-                          // Theme colors
-                          let dotColor = '#15803d';
-                          let iconBg = '#166534';
-                          let iconColor = '#ffffff';
-                          let badgeBg = '#f0fdf4';
-                          let badgeColor = '#166534';
-                          let badgeBorder = '#bbf7d0';
-                          let badgeText = ui('Lab report');
-
-                          if (isImaging) {
-                            dotColor = '#7c3aed';
-                            iconBg = '#6d28d9';
-                            iconColor = '#ffffff';
-                            badgeBg = '#faf5ff';
-                            badgeColor = '#6b21a8';
-                            badgeBorder = '#e9d5ff';
-                            badgeText = ui('Imaging report');
-                          } else if (isPrescription) {
-                            dotColor = '#ea580c';
-                            iconBg = '#ea580c';
-                            iconColor = '#ffffff';
-                            badgeBg = '#fff7ed';
-                            badgeColor = '#c2410c';
-                            badgeBorder = '#fed7aa';
-                            badgeText = ui('Prescription');
-                          }
-
-                          return (
-                            <div
-                              key={report.id || idx}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '2rem',
-                                position: 'relative',
-                                zIndex: activeReportMenu === (report.id || `report-${idx}`) ? 20 : 2
-                              }}
-                            >
-                              {/* Left Date Column & Timeline Dot */}
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                width: '80px',
-                                minWidth: '80px',
-                                justifyContent: 'space-between'
-                              }}>
-                                <div style={{ textAlign: 'center' }}>
-                                  <div style={{ fontSize: '1.2rem', fontWeight: '900', color: dotColor, lineHeight: 1 }}>
-                                    {report.day || (report.uploaded_at ? new Date(report.uploaded_at).getDate() : '')}
-                                  </div>
-                                  <div style={{ fontSize: '0.68rem', fontWeight: '800', color: '#0f172a', marginTop: '2px', letterSpacing: '0.4px' }}>
-                                    {report.month || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleDateString(currentLang, { month: 'short' }) : '')}
-                                  </div>
-                                  <div style={{ fontSize: '0.65rem', fontWeight: '700', color: '#64748b' }}>
-                                    {report.year || (report.uploaded_at ? new Date(report.uploaded_at).getFullYear() : '')}
-                                  </div>
-                                </div>
-
-                                {/* Dot on Timeline */}
-                                <div style={{
-                                  width: '12px',
-                                  height: '12px',
-                                  borderRadius: '50%',
-                                  backgroundColor: dotColor,
-                                  border: '3px solid #ffffff',
-                                  boxShadow: '0 0 0 1px #cbd5e1'
-                                }} />
-                              </div>
-
-                              {/* Report Card */}
-                              <div style={{
-                                flex: 1,
-                                backgroundColor: '#ffffff',
-                                borderRadius: '16px',
-                                border: '1px solid #e2e8f0',
-                                padding: '1.25rem 1.5rem',
-                                boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '1.25rem',
-                                flexWrap: 'wrap',
-                                transition: 'all 0.2s ease'
-                              }}
-                                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.05)'}
-                                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.02)'}
-                              >
-                                {/* Left Icon & Details */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                  <div style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    borderRadius: '50%',
-                                    backgroundColor: iconBg,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    color: iconColor,
-                                    flexShrink: 0
-                                  }}>
-                                    {isLab ? (
-                                      <FlaskConical size={22} />
-                                    ) : isImaging ? (
-                                      <Activity size={22} />
-                                    ) : (
-                                      <FileText size={22} />
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <h3 style={{ margin: '0 0 3px 0', fontSize: '1.05rem', fontWeight: '800', color: '#0f172a' }}>
-                                      {report.title || report.name || ui('Medical report')}
-                                    </h3>
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                      <span>{report.time || (report.uploaded_at ? new Date(report.uploaded_at).toLocaleTimeString(currentLang, { hour: '2-digit', minute: '2-digit' }) : '')}</span>
-                                      <span>•</span>
-                                      <span>{ui('Record ID')}: {report.testId || report.id}</span>
-                                    </div>
-                                    <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
-                                      <User size={13} color="#64748b" />
-                                      <span>{report.doctor || ''}</span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Right Badge & Action Icons */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                                  {/* Category Badge */}
-                                  <span style={{
-                                    padding: '5px 14px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.78rem',
-                                    fontWeight: '800',
-                                    backgroundColor: badgeBg,
-                                    color: badgeColor,
-                                    border: `1px solid ${badgeBorder}`
-                                  }}>
-                                    {badgeText}
-                                  </span>
-
-                                  {/* Action Buttons: View, Download, More */}
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-                                    <button
-                                      onClick={() => setSelectedDoc(report)}
-                                      title={ui('View report and OCR')}
-                                      style={{
-                                        width: '42px',
-                                        height: '42px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #e2e8f0',
-                                        backgroundColor: '#ffffff',
-                                        color: '#07834f',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                      }}
-                                      onMouseEnter={e => {
-                                        e.currentTarget.style.backgroundColor = '#f0fdf4';
-                                        e.currentTarget.style.color = '#0f766e';
-                                      }}
-                                      onMouseLeave={e => {
-                                        e.currentTarget.style.backgroundColor = '#ffffff';
-                                        e.currentTarget.style.color = '#07834f';
-                                      }}
-                                    >
-                                      <Eye size={16} />
-                                    </button>
-
-                                    <button
-                                      onClick={() => downloadReport(report)}
-                                      disabled={!(report.file_url || report.dataUrl)}
-                                      title={ui('Download report')}
-                                      style={{
-                                        width: '42px',
-                                        height: '42px',
-                                        borderRadius: '10px',
-                                        border: '1px solid #e2e8f0',
-                                        backgroundColor: '#ffffff',
-                                        color: '#07834f',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                      }}
-                                      onMouseEnter={e => {
-                                        e.currentTarget.style.backgroundColor = '#f0fdf4';
-                                        e.currentTarget.style.color = '#0f766e';
-                                      }}
-                                      onMouseLeave={e => {
-                                        e.currentTarget.style.backgroundColor = '#ffffff';
-                                        e.currentTarget.style.color = '#07834f';
-                                      }}
-                                    >
-                                      <Download size={16} />
-                                    </button>
-
-                                    <div data-report-menu style={{ position: 'relative' }}>
-                                      <button
-                                        type="button"
-                                        aria-haspopup="menu"
-                                        aria-expanded={activeReportMenu === (report.id || `report-${idx}`)}
-                                        onClick={event => {
-                                          event.stopPropagation();
-                                          const reportKey = report.id || `report-${idx}`;
-                                          setActiveReportMenu(activeReportMenu === reportKey ? null : reportKey);
-                                        }}
-                                        title={ui('More options')}
-                                        style={{
-                                          width: '42px',
-                                          height: '42px',
-                                          borderRadius: '11px',
-                                          border: '1px solid #dbe3ec',
-                                          backgroundColor: activeReportMenu === (report.id || `report-${idx}`) ? '#ecfdf5' : '#ffffff',
-                                          color: '#07834f',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          cursor: 'pointer'
-                                        }}
-                                      >
-                                        <MoreVertical size={19} />
-                                      </button>
-
-                                      {activeReportMenu === (report.id || `report-${idx}`) && (
-                                        <div
-                                          role="menu"
-                                          aria-label={ui('Report options')}
-                                          onClick={event => event.stopPropagation()}
-                                          style={{
-                                            position: 'absolute',
-                                            top: 'calc(100% + 8px)',
-                                            right: 0,
-                                            zIndex: 50,
-                                            width: '190px',
-                                            padding: '6px',
-                                            borderRadius: '12px',
-                                            border: '1px solid #dbe3ec',
-                                            backgroundColor: '#ffffff',
-                                            boxShadow: '0 14px 35px rgba(15, 23, 42, 0.16)'
-                                          }}
-                                        >
-                                          <button type="button" role="menuitem" onClick={() => { setSelectedDoc(report); setActiveReportMenu(null); }} style={reportMenuItemStyle}>
-                                            <Eye size={16} color="#07834f" />
-                                            <span>{ui('View details')}</span>
-                                          </button>
-                                          <button type="button" role="menuitem" disabled={!(report.file_url || report.dataUrl)} onClick={() => { downloadReport(report); setActiveReportMenu(null); }} style={{ ...reportMenuItemStyle, opacity: (report.file_url || report.dataUrl) ? 1 : 0.45 }}>
-                                            <Download size={16} color="#07834f" />
-                                            <span>{ui('Download report')}</span>
-                                          </button>
-                                          <button type="button" role="menuitem" onClick={() => copyReportId(report)} style={reportMenuItemStyle}>
-                                            <FileText size={16} color="#07834f" />
-                                            <span>{ui('Copy record ID')}</span>
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                </div>
-
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Load More Button */}
-                      <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                        <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '10px', fontWeight: '500' }}>
-                          {ui('Showing')} {Math.min(reportsPageLimit, filteredPatientReports.length)} {ui('of')} {filteredPatientReports.length} {ui('reports')}
-                        </div>
-                        {filteredPatientReports.length > reportsPageLimit && (
-                          <button
-                            onClick={() => setReportsPageLimit(prev => prev + 5)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '8px 20px',
-                              borderRadius: '12px',
-                              border: '1px solid #e2e8f0',
-                              backgroundColor: '#ffffff',
-                              color: '#334155',
-                              fontSize: '0.875rem',
-                              fontWeight: '700',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            <span>{ui('Load more')}</span>
-                            <ChevronDown size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '3.5rem 2rem',
-                      backgroundColor: '#ffffff',
-                      borderRadius: '20px',
-                      border: '1px dashed #cbd5e1'
-                    }}>
-                      <FileText size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
-                      <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
-                        {ui('No medical reports uploaded yet')}
-                      </h3>
-                      <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
-                        {ui('Upload or scan prescriptions, laboratory reports and radiology files. OCR text will be saved with the report when available.')}
-                      </p>
-                      <button
-                        onClick={() => reportsFileInputRef.current?.click()}
-                        style={{
-                          backgroundColor: '#059669',
-                          color: '#ffffff',
-                          borderRadius: '12px',
-                          padding: '10px 22px',
-                          fontSize: '0.875rem',
-                          fontWeight: '700',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <Plus size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
-                        <span>{ui('Upload report or PDF')}</span>
-                      </button>
-                    </div>
-                  )}
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '3.5rem 2rem',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '20px',
+                    border: '1px dashed #cbd5e1'
+                  }}>
+                    <FileText size={44} color="#94a3b8" style={{ marginBottom: '12px' }} />
+                    <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>
+                      {ui('No medical reports uploaded yet')}
+                    </h3>
+                    <p style={{ margin: '0 0 1.25rem 0', color: '#64748b', fontSize: '0.9rem', maxWidth: '440px', marginInline: 'auto' }}>
+                      {ui('Upload or scan prescriptions, laboratory reports and radiology files. OCR text will be saved with the report when available.')}
+                    </p>
+                    <button
+                      onClick={() => reportsFileInputRef.current?.click()}
+                      style={{
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        borderRadius: '12px',
+                        padding: '10px 22px',
+                        fontSize: '0.875rem',
+                        fontWeight: '700',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Plus size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px' }} />
+                      <span>{ui('Upload report or PDF')}</span>
+                    </button>
                   </div>
-                </div>
-              )}
-
-              {/* TAB 4: DONATIONS (Matching Exact Design with Full Working Donation/Blood Directory) */}
-              {activeTab === 'donations' && (
-                <DonationsTab
-                  patientId={session.patient?.id}
-                />
-              )}
-
-              {/* TAB 5: COMMUNITIES */}
-              {activeTab === 'communities' && (
-                <CommunitiesTab patientId={session.patient?.id} />
-              )}
-
-              {/* TAB 6: HELP & SUPPORT */}
-              {activeTab === 'help' && (
-                <HelpSupportTab patientId={session.patient?.id} language={currentLang || 'en'} />
-              )}
-
+                )}
+              </div>
             </div>
+          )}
 
-        </main>
+          {/* TAB 4: DONATIONS (Matching Exact Design with Full Working Donation/Blood Directory) */}
+          {activeTab === 'donations' && (
+            <DonationsTab
+              patientId={session.patient?.id}
+            />
+          )}
+
+          {/* TAB 5: COMMUNITIES */}
+          {activeTab === 'communities' && (
+            <CommunitiesTab patientId={session.patient?.id} />
+          )}
+
+          {/* TAB 6: HELP & SUPPORT */}
+          {activeTab === 'help' && (
+            <HelpSupportTab patientId={session.patient?.id} language={currentLang || 'en'} />
+          )}
+
+        </div>
+
+      </main>
 
       {/* ═══════════════════════════════════════════════════════════
           MODAL: ALL HOSPITALS DIRECTORY (Comprehensive List with Search & Direct Booking)
@@ -7923,20 +7923,6 @@ export default function PatientDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#64748b' }}>Patient ABHA:</span>
                 <strong style={{ color: '#0f172a' }}>{abhaId}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#64748b' }}>Status:</span>
-                <span style={{
-                  padding: '3px 10px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: '800',
-                  backgroundColor: selectedAppointment.isMissed ? '#fef2f2' : selectedAppointment.computedStatus === 'in_consultation' ? '#f3e8ff' : '#dcfce7',
-                  color: selectedAppointment.isMissed ? '#dc2626' : selectedAppointment.computedStatus === 'in_consultation' ? '#7c3aed' : '#15803d',
-                  border: selectedAppointment.isMissed ? '1px solid #fecaca' : 'none'
-                }}>
-                  {selectedAppointment.displayStatus || (selectedAppointment.isMissed ? 'Not Consulted (Missed)' : 'Confirmed')}
-                </span>
               </div>
             </div>
 
