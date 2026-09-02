@@ -204,7 +204,7 @@ TASK:
     }
 
     if (action === 'batch_translate' || (action === 'translate' && Array.isArray(payload.texts))) {
-      const texts = Array.isArray(payload.texts) ? payload.texts.map(t => String(t || '').trim()) : [];
+      const texts = Array.isArray(payload.texts) ? payload.texts.map((t: unknown) => String(t || '').trim()) : [];
       if (!texts.length) return json({ translations: [] });
       const langCode = CLINICAL_LANGUAGES[payload.targetLanguage] ? payload.targetLanguage : 'en';
       const targetLang = CLINICAL_LANGUAGES[langCode] || { name: payload.targetLanguage || 'English', script: 'Latin' };
