@@ -2477,6 +2477,55 @@ export default function PatientDashboard() {
   const appointmentForUi = (row) => {
     const date = new Date(`${row.date}T00:00:00`);
 
+    const parseSlotMins = (label, t24) => {
+      if (t24 && typeof t24 === 'string' && t24.includes(':')) {
+        const [h, m] = t24.split(':').map(Number);
+        if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+      }
+      if (label && typeof label === 'string') {
+        const match = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+        if (match) {
+          let h = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          const isPM = (match[3] || '').toUpperCase() === 'PM';
+          const isAM = (match[3] || '').toUpperCase() === 'AM';
+          if (isPM && h < 12) h += 12;
+          if (isAM && h === 12) h = 0;
+          return h * 60 + m;
+        }
+      }
+      return 600;
+    };
+
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+
+    const rowDate = row.date || todayKey;
+    const slotMins = parseSlotMins(row.time_label || row.time, row.time_24);
+    const isPastDateTime = (rowDate && rowDate < todayKey) || (rowDate === todayKey && slotMins <= currentMins);
+
+    const rawStatus = String(row.status || 'upcoming').toLowerCase().trim();
+
+    let computedStatus = 'upcoming';
+    let displayStatus = 'Confirmed';
+    let isMissed = false;
+
+    if (rawStatus === 'completed') {
+      computedStatus = 'completed';
+      displayStatus = 'Completed';
+    } else if (rawStatus === 'in_consultation' || rawStatus === 'in-progress') {
+      computedStatus = 'in_consultation';
+      displayStatus = 'In Consultation';
+    } else if (rawStatus === 'cancelled' || rawStatus === 'missed' || rawStatus === 'not_consulted' || isPastDateTime) {
+      computedStatus = isPastDateTime ? 'missed' : 'cancelled';
+      displayStatus = isPastDateTime ? 'Not Consulted (Missed)' : 'Cancelled';
+      isMissed = isPastDateTime;
+    } else {
+      computedStatus = 'upcoming';
+      displayStatus = 'Confirmed';
+    }
+
     return {
       id: row.id,
       doctorName: row.doctors?.name || 'Doctor',
@@ -2488,10 +2537,14 @@ export default function PatientDashboard() {
       month: date.toLocaleString('en-US', { month: 'short' }).toUpperCase(),
       year: date.getFullYear(),
       date: row.date,
-      time: row.time_label,
+      time: row.time_label || row.time,
+      time_24: row.time_24,
       token: row.token_number || row.token || 'Pending',
-      status: row.status === 'confirmed' ? 'Confirmed' : row.status,
-      statusType: row.status,
+      status: displayStatus,
+      statusType: computedStatus,
+      computedStatus,
+      displayStatus,
+      isMissed,
       room: row.opd_room || '',
       dept: row.doctors?.speciality || '',
       reason: row.reason || '',
@@ -2508,8 +2561,8 @@ export default function PatientDashboard() {
       if (!active) return;
       if (error) console.error('Unable to load appointments', error);
       const mapped = (data || []).map(appointmentForUi);
-      setAppointments(mapped.filter(a => !['completed', 'cancelled', 'no_show'].includes(a.statusType)));
-      setPatientHistory(mapped.filter(a => ['completed', 'cancelled', 'no_show'].includes(a.statusType)));
+      setAppointments(mapped.filter(a => a.computedStatus === 'upcoming' || a.computedStatus === 'in_consultation' || a.computedStatus === 'missed'));
+      setPatientHistory(mapped.filter(a => a.computedStatus === 'completed' || a.computedStatus === 'cancelled' || a.computedStatus === 'missed'));
     });
     return () => { active = false; };
   }, [session.patient?.id, session.patient?.phone, session.patient?.abhaId]);
@@ -6311,10 +6364,11 @@ export default function PatientDashboard() {
                                   borderRadius: '6px',
                                   fontSize: '0.68rem',
                                   fontWeight: '800',
-                                  backgroundColor: '#dcfce7',
-                                  color: '#15803d'
+                                  backgroundColor: apt.isMissed ? '#fef2f2' : apt.computedStatus === 'in_consultation' ? '#f3e8ff' : '#dcfce7',
+                                  color: apt.isMissed ? '#dc2626' : apt.computedStatus === 'in_consultation' ? '#7c3aed' : '#15803d',
+                                  border: apt.isMissed ? '1px solid #fecaca' : 'none'
                                 }}>
-                                  {tr('confirmed')}
+                                  {apt.isMissed ? 'Not Consulted (Missed)' : apt.computedStatus === 'in_consultation' ? 'In Consultation' : tr('confirmed')}
                                 </span>
                               </div>
                             );
@@ -6568,7 +6622,10 @@ export default function PatientDashboard() {
 
                           let statusBg = '#dcfce7';
                           let statusColor = '#15803d';
-                          if (statusLower.includes('cancel')) {
+                          if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
+                            statusBg = '#fef2f2';
+                            statusColor = '#dc2626';
+                          } else if (statusLower.includes('cancel')) {
                             statusBg = '#ffedd5';
                             statusColor = '#c2410c';
                           } else if (statusLower.includes('no show')) {
@@ -6582,12 +6639,16 @@ export default function PatientDashboard() {
                           let dateTileBg = '#e6f7f3';
                           let dateTileColor = '#0f766e';
                           let dateTileBorder = '#bbf7d0';
-                          if (statusLower.includes('cancel')) {
+                          if (statusLower.includes('missed') || statusLower.includes('not consulted') || item.isMissed) {
+                            dateTileBg = '#fef2f2';
+                            dateTileColor = '#dc2626';
+                            dateTileBorder = '#fecaca';
+                          } else if (statusLower.includes('cancel')) {
                             dateTileBg = '#fff7ed';
                             dateTileColor = '#ea580c';
                             dateTileBorder = '#fed7aa';
                           } else if (statusLower.includes('no show')) {
-                            dateTileBg = '#fef2f2';
+                            dateTileBg = '#fee2e2';
                             dateTileColor = '#ef4444';
                             dateTileBorder = '#fecaca';
                           }
@@ -7862,6 +7923,20 @@ export default function PatientDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#64748b' }}>Patient ABHA:</span>
                 <strong style={{ color: '#0f172a' }}>{abhaId}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#64748b' }}>Status:</span>
+                <span style={{
+                  padding: '3px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: '800',
+                  backgroundColor: selectedAppointment.isMissed ? '#fef2f2' : selectedAppointment.computedStatus === 'in_consultation' ? '#f3e8ff' : '#dcfce7',
+                  color: selectedAppointment.isMissed ? '#dc2626' : selectedAppointment.computedStatus === 'in_consultation' ? '#7c3aed' : '#15803d',
+                  border: selectedAppointment.isMissed ? '1px solid #fecaca' : 'none'
+                }}>
+                  {selectedAppointment.displayStatus || (selectedAppointment.isMissed ? 'Not Consulted (Missed)' : 'Confirmed')}
+                </span>
               </div>
             </div>
 
