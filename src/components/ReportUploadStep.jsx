@@ -152,14 +152,21 @@ export default function ReportUploadStep({
           source: 'Upload'
         };
 
-        // Quick OCR summary in background
-        if (!file.type.includes('pdf')) {
-          OCRProcessor.processImage(dataUrl).then(res => {
-            if (res && res.text) {
-              setReports(prev => prev.map(d => d.id === newDoc.id ? { ...d, ocrSummary: res.text.slice(0, 120) } : d));
+        // Extract and attach clinical OCR summary in background
+        const ocrPromise = OCRProcessor.processImage(dataUrl, file.type.includes('pdf') ? 'pdf' : 'lab', file.name)
+          .then(res => {
+            const extracted = res?.extractedText || res?.text || res?.summary || '';
+            if (extracted) {
+              setReports(prev => prev.map(d => d.id === newDoc.id ? {
+                ...d,
+                ocrSummary: extracted,
+                ocr_text: extracted,
+                extracted_data: res.structuredData || extracted,
+                reportType: res.category || 'lab'
+              } : d));
             }
-          }).catch(() => {});
-        }
+          })
+          .catch(err => console.warn('OCR processing note:', err));
 
         setReports(prev => [...prev, newDoc]);
       };
@@ -186,9 +193,13 @@ export default function ReportUploadStep({
     };
 
     try {
-      const res = await OCRProcessor.processImage(dataUrl);
-      if (res && res.text) {
-        newDoc.ocrSummary = res.text.slice(0, 120);
+      const res = await OCRProcessor.processImage(dataUrl, 'lab', fileName);
+      const extracted = res?.extractedText || res?.text || res?.summary || '';
+      if (extracted) {
+        newDoc.ocrSummary = extracted;
+        newDoc.ocr_text = extracted;
+        newDoc.extracted_data = res.structuredData || extracted;
+        newDoc.reportType = res.category || 'lab';
       }
     } catch (e) {
       console.warn("OCR skipped:", e);

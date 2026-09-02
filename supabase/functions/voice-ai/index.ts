@@ -39,7 +39,7 @@ async function generate(
   maxOutputTokens = 1200,
   thinkingLevel?: 'minimal' | 'low',
 ) {
-  const candidates = Array.from(new Set([model, 'gemini-3.1-flash-lite']));
+  const candidates = Array.from(new Set([model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']));
   let lastStatus = 500;
   for (const candidate of candidates) {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`, {
@@ -63,6 +63,54 @@ async function generate(
     if (![429, 500, 502, 503, 504].includes(response.status)) break;
   }
   throw new Error(`AI request failed (${lastStatus})`);
+}
+
+async function generateWithVision(
+  key: string,
+  model: string,
+  prompt: string,
+  imageDataUrl?: string,
+  schema?: unknown,
+  temperature = 0.1,
+  maxOutputTokens = 1500,
+) {
+  const parts: Array<Record<string, unknown>> = [];
+  if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+    const match = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      parts.push({
+        inline_data: {
+          mime_type: match[1],
+          data: match[2]
+        }
+      });
+    }
+  }
+  parts.push({ text: prompt });
+
+  const candidates = Array.from(new Set(['gemini-2.0-flash', 'gemini-1.5-flash', model, 'gemini-2.5-flash']));
+  let lastStatus = 500;
+  for (const candidate of candidates) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      signal: AbortSignal.timeout(20000),
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          ...(schema ? { responseMimeType: 'application/json', responseJsonSchema: schema } : {}),
+          temperature,
+          maxOutputTokens,
+        },
+      }),
+    });
+    if (response.ok) return response.json();
+    lastStatus = response.status;
+    const detail = await response.text();
+    console.error('Gemini Vision error', candidate, response.status, detail);
+    if (![429, 500, 502, 503, 504].includes(response.status)) break;
+  }
+  throw new Error(`AI Vision request failed (${lastStatus})`);
 }
 
 Deno.serve(async (request: Request) => {
@@ -96,13 +144,64 @@ Deno.serve(async (request: Request) => {
       }});
     }
 
-    if (!['intent','extract_registration','translate','batch_translate','anamnesis'].includes(action)) return json({ error: 'Unknown action' }, 400);
+    if (!['intent','extract_registration','translate','batch_translate','anamnesis','analyze_report'].includes(action)) return json({ error: 'Unknown action' }, 400);
     const key = Deno.env.get('GEMINI_API_KEY');
     if (!key) return json({ error: 'Gemini AI is not configured on the server' }, 503);
     // Flash-Lite is deliberately used for this interactive intake: patients
     // need the next tap choices in seconds, while the structured prompt/schema
     // still enforce the clinical and multilingual behaviour.
-    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash';
+
+    if (action === 'analyze_report') {
+      const imageData = String(payload.image || payload.dataUrl || payload.fileUrl || '').trim();
+      const fileName = String(payload.fileName || payload.title || '').trim();
+      const schema = {
+        type: 'object',
+        properties: {
+          isMedicalDocument: { type: 'boolean' },
+          documentType: { type: 'string' },
+          labOrHospitalName: { type: 'string' },
+          date: { type: 'string' },
+          detectedParameters: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                result: { type: 'string' },
+                unit: { type: 'string' },
+                ref: { type: 'string' },
+                flag: { type: 'string', enum: ['Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear'] }
+              },
+              required: ['name', 'result']
+            }
+          },
+          summary: { type: 'string' },
+          impression: { type: 'string' }
+        },
+        required: ['isMedicalDocument', 'documentType', 'summary'],
+        additionalProperties: false
+      };
+
+      const prompt = `You are an expert Clinical Vision OCR and Medical Intelligence system for Swasthya Setu.
+Carefully examine the visual contents and text in the attached image (File name: "${fileName}").
+
+TASK:
+1. Determine if this image is a genuine medical report, diagnostic lab panel, prescription, radiology scan (X-Ray/CT/MRI), or hospital document.
+2. If it IS a medical report:
+   - Extract the actual printed/written test parameters, results, units, and reference ranges.
+   - Assign appropriate clinical flags ('Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear').
+   - Provide a clear, concise 2-3 line clinical summary and diagnostic impression.
+3. If it is NOT a medical document (for example: a personal photo, selfie, random object, animal, nature, scenery, unrelated screenshot):
+   - Set "isMedicalDocument": false.
+   - Set "documentType": describe what is actually in the image (e.g. "Personal Photograph / Non-Medical Image").
+   - In "summary", write an accurate, helpful notice: "This uploaded image contains [describe what it is, e.g. a photograph of people/landscape]. No medical diagnostic data or clinical test parameters were detected in this image."
+   - Set "detectedParameters": [] (empty array).`;
+
+      const body = await generateWithVision(key, model, prompt, imageData, schema, 0.1, 1500);
+      const parsed = parseModelJson(body);
+      return json(parsed || { error: 'Failed to analyze report' });
+    }
 
     if (action === 'batch_translate' || (action === 'translate' && Array.isArray(payload.texts))) {
       const texts = Array.isArray(payload.texts) ? payload.texts.map(t => String(t || '').trim()) : [];

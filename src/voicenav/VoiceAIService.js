@@ -105,6 +105,100 @@ class VoiceAIService {
     }, 'application/json', 18000);
     return response.json();
   }
+
+  async analyzeReport(image, fileName = '') {
+    try {
+      const response = await this._request({
+        action: 'analyze_report',
+        image,
+        fileName,
+      }, 'application/json', 20000);
+      const data = await response.json();
+      if (data && !data.error && (data.isMedicalDocument !== undefined || data.summary)) return data;
+    } catch (e) {
+      console.warn('Edge function analyze_report notice, checking direct fallback:', e);
+    }
+
+    const clientKey = import.meta.env?.VITE_GEMINI_API_KEY;
+    if (clientKey && image && image.startsWith('data:image')) {
+      try {
+        const match = image.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          const mimeType = match[1];
+          const base64Data = match[2];
+          const prompt = `You are an expert Clinical Vision OCR and Medical Intelligence system for Swasthya Setu.
+Carefully examine the visual contents and text in the attached image (File name: "${fileName}").
+
+TASK:
+1. Determine if this image is a genuine medical report, diagnostic lab panel, prescription, radiology scan (X-Ray/CT/MRI), or hospital document.
+2. If it IS a medical report:
+   - Extract the actual printed/written test parameters, results, units, and reference ranges.
+   - Assign appropriate clinical flags ('Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear').
+   - Provide a clear, concise 2-3 line clinical summary and diagnostic impression.
+3. If it is NOT a medical document (for example: a personal photo, selfie, random object, animal, nature, scenery, unrelated screenshot):
+   - Set "isMedicalDocument": false.
+   - Set "documentType": describe what is actually in the image (e.g. "Personal Photograph / Non-Medical Image").
+   - In "summary", write an accurate, helpful notice: "This uploaded image contains [describe what it is, e.g. a photograph of people/landscape]. No medical diagnostic data or clinical test parameters were detected in this image."
+   - Set "detectedParameters": [] (empty array).`;
+
+          const schema = {
+            type: 'object',
+            properties: {
+              isMedicalDocument: { type: 'boolean' },
+              documentType: { type: 'string' },
+              labOrHospitalName: { type: 'string' },
+              date: { type: 'string' },
+              detectedParameters: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string' },
+                    result: { type: 'string' },
+                    unit: { type: 'string' },
+                    ref: { type: 'string' },
+                    flag: { type: 'string', enum: ['Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear'] }
+                  },
+                  required: ['name', 'result']
+                }
+              },
+              summary: { type: 'string' },
+              impression: { type: 'string' }
+            },
+            required: ['isMedicalDocument', 'documentType', 'summary']
+          };
+
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${clientKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { inline_data: { mime_type: mimeType, data: base64Data } },
+                  { text: prompt }
+                ]
+              }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                responseJsonSchema: schema,
+                temperature: 0.1,
+                maxOutputTokens: 1500
+              }
+            })
+          });
+          if (res.ok) {
+            const body = await res.json();
+            const textContent = body?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textContent) return JSON.parse(textContent);
+          }
+        }
+      } catch (err) {
+        console.warn('Direct Gemini Vision fallback failed:', err);
+      }
+    }
+
+    return null;
+  }
 }
 
 export default new VoiceAIService();

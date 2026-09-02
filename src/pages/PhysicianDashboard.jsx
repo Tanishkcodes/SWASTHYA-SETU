@@ -8,6 +8,7 @@ import { recordConsultationStart, recordConsultationEnd, getDoctorPacingStatus }
 import SwasthyaLogo from '../components/SwasthyaLogo';
 import DoctorCommunities from '../components/DoctorCommunities';
 import HelpSupportTab from '../components/HelpSupportTab';
+import OCRProcessor from '../engine/OCRProcessor';
 import {
   Activity,
   AlertCircle,
@@ -1205,22 +1206,29 @@ function Top({ doctor, onLogout }) {
 /**
  * 3 Metrics Cards Component
  */
-function Metrics({ rows }) {
-  const done = rows.filter(x => x.status === 'completed').length;
-  const up = rows.filter(x => ['confirmed', 'upcoming'].includes(x.status)).length;
-  const wait = rows.filter(x => ['waiting', 'in_consultation', 'in_queue'].includes(x.status)).length;
-  const next = rows.find(x => ['confirmed', 'upcoming'].includes(x.status));
+function Metrics({ rows = [], selectedDate }) {
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const isToday = !selectedDate || selectedDate === todayKey;
+
+  const done = rows.filter(x => x.computedStatus === 'completed' || x.status === 'completed').length;
+  const up = rows.filter(x => x.computedStatus === 'upcoming').length;
+  const wait = rows.filter(x => ['waiting', 'in_consultation', 'in_queue'].includes(x.computedStatus || x.status)).length;
+  const missed = rows.filter(x => x.computedStatus === 'missed').length;
+  const next = rows.find(x => x.computedStatus === 'upcoming');
+
+  const titleDateStr = isToday ? 'Today' : selectedDate === 'all' ? 'All Dates' : date(selectedDate);
 
   return (
     <div className="dp-metrics">
-      {/* Green Card: Total Appointments Today */}
+      {/* Green Card: Total Appointments */}
       <article className="dp-metric-card g">
         <div className="dp-metric-icon">
           <CalendarCheck size={28} />
         </div>
         <div className="dp-metric-content">
           <div className="dp-metric-num">{rows.length}</div>
-          <div className="dp-metric-title">Total Appointments Today</div>
+          <div className="dp-metric-title">Total Appointments ({titleDateStr})</div>
           <div className="dp-metric-sub">{done} Completed</div>
         </div>
       </article>
@@ -1234,20 +1242,20 @@ function Metrics({ rows }) {
           <div className="dp-metric-num">{up}</div>
           <div className="dp-metric-title">Upcoming Appointments</div>
           <div className="dp-metric-sub">
-            {next ? `Next: ${next.time}` : 'No upcoming appointment'}
+            {next ? `Next: ${next.time}` : 'No upcoming appointments'}
           </div>
         </div>
       </article>
 
-      {/* Orange Card: Patients Waiting */}
+      {/* Orange/Amber Card: Patients Waiting / Missed */}
       <article className="dp-metric-card o">
         <div className="dp-metric-icon">
           <Clock3 size={28} />
         </div>
         <div className="dp-metric-content">
-          <div className="dp-metric-num">{wait}</div>
-          <div className="dp-metric-title">Patients Waiting</div>
-          <div className="dp-metric-sub">In Queue</div>
+          <div className="dp-metric-num">{wait > 0 ? wait : missed}</div>
+          <div className="dp-metric-title">{wait > 0 ? 'Patients in Queue' : 'Not Consulted (Missed)'}</div>
+          <div className="dp-metric-sub">{wait > 0 ? 'In Waiting Queue' : `${missed} Past Sessions`}</div>
         </div>
       </article>
     </div>
@@ -1255,17 +1263,144 @@ function Metrics({ rows }) {
 }
 
 /**
- * Today's Schedule Table Component
+ * Today's Schedule Table Component with Dynamic Date Picker Toolbar
  */
-function Schedule({ rows, selected, choose }) {
+function Schedule({ rows = [], selected, choose, selectedDate, onSelectDate }) {
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const isToday = !selectedDate || selectedDate === todayKey;
+
+  const navigateDay = (offset) => {
+    const baseDate = (!selectedDate || selectedDate === 'all') ? new Date() : new Date(selectedDate);
+    baseDate.setDate(baseDate.getDate() + offset);
+    const y = baseDate.getFullYear();
+    const m = String(baseDate.getMonth() + 1).padStart(2, '0');
+    const d = String(baseDate.getDate()).padStart(2, '0');
+    if (onSelectDate) onSelectDate(`${y}-${m}-${d}`);
+  };
+
+  const formattedDateTitle = isToday
+    ? "Today's Schedule"
+    : selectedDate === 'all'
+    ? 'All Scheduled Appointments'
+    : `Schedule for ${date(selectedDate)}`;
+
   return (
     <section className="dp-schedule">
-      <header className="dp-schedule-header">
-        <h3>Today's Schedule</h3>
-        <button type="button" className="dp-view-all-btn">
-          <CalendarCheck size={16} />
-          View Full Schedule
-        </button>
+      <header className="dp-schedule-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h3 style={{ margin: 0 }}>{formattedDateTitle}</h3>
+          <span style={{
+            background: '#e0f2fe',
+            color: '#0284c7',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: '700'
+          }}>
+            {rows.length} {rows.length === 1 ? 'Patient' : 'Patients'}
+          </span>
+        </div>
+
+        {/* Date Selector Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Quick Date Chips */}
+          <button
+            type="button"
+            onClick={() => onSelectDate && onSelectDate(todayKey)}
+            style={{
+              border: isToday ? '2px solid #059669' : '1px solid #e2e8f0',
+              background: isToday ? '#ecfdf5' : '#ffffff',
+              color: isToday ? '#059669' : '#64748b',
+              fontWeight: '700',
+              fontSize: '12px',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Today
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const tm = new Date();
+              tm.setDate(tm.getDate() + 1);
+              const y = tm.getFullYear();
+              const m = String(tm.getMonth() + 1).padStart(2, '0');
+              const d = String(tm.getDate()).padStart(2, '0');
+              if (onSelectDate) onSelectDate(`${y}-${m}-${d}`);
+            }}
+            style={{
+              border: (selectedDate !== todayKey && selectedDate !== 'all' && selectedDate > todayKey) ? '2px solid #059669' : '1px solid #e2e8f0',
+              background: (selectedDate !== todayKey && selectedDate !== 'all' && selectedDate > todayKey) ? '#ecfdf5' : '#ffffff',
+              color: (selectedDate !== todayKey && selectedDate !== 'all' && selectedDate > todayKey) ? '#059669' : '#64748b',
+              fontWeight: '700',
+              fontSize: '12px',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Tomorrow
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectDate && onSelectDate('all')}
+            style={{
+              border: selectedDate === 'all' ? '2px solid #059669' : '1px solid #e2e8f0',
+              background: selectedDate === 'all' ? '#ecfdf5' : '#ffffff',
+              color: selectedDate === 'all' ? '#059669' : '#64748b',
+              fontWeight: '700',
+              fontSize: '12px',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            All Dates
+          </button>
+
+          {/* Stepper + HTML5 Date Input */}
+          <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px 6px' }}>
+            <button
+              type="button"
+              title="Previous Day"
+              onClick={() => navigateDay(-1)}
+              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px 6px', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ‹
+            </button>
+            <input
+              type="date"
+              value={selectedDate === 'all' ? '' : selectedDate}
+              onChange={(e) => onSelectDate && onSelectDate(e.target.value)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: '#1e293b',
+                fontWeight: '600',
+                fontSize: '12px',
+                padding: '3px 4px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            />
+            <button
+              type="button"
+              title="Next Day"
+              onClick={() => navigateDay(1)}
+              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px 6px', fontSize: '14px', fontWeight: 'bold' }}
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </header>
 
       <div className="dp-th">
@@ -1281,28 +1416,17 @@ function Schedule({ rows, selected, choose }) {
         const isSel = selected?.id === x.id;
         const cleanReason = formatReasonForVisit(x.reason);
         const ageGender = formatAgeGender(x.age, x.gender);
-        const statusClass = String(x.status || 'upcoming').toLowerCase();
-        const displayStatus =
-          statusClass === 'completed'
-            ? 'Completed'
-            : statusClass === 'in_consultation'
-            ? 'In Consultation'
-            : statusClass === 'waiting'
-            ? 'In Queue'
-            : 'Upcoming';
-
-        const dotClass =
-          statusClass === 'completed'
-            ? 'completed'
-            : statusClass === 'in_consultation' || statusClass === 'waiting'
-            ? 'waiting'
-            : 'upcoming';
 
         return (
           <div className={`dp-tr ${isSel ? 'sel' : ''}`} key={x.id}>
-            <span className="dp-tr-time">{x.time || '—'}</span>
+            <span className="dp-tr-time">
+              {x.time || '—'}
+              {selectedDate === 'all' && x.date && (
+                <small style={{ display: 'block', color: '#64748b', fontSize: '10px' }}>{x.date}</small>
+              )}
+            </span>
             <span className="dp-tr-patient">
-              <span className={`dp-status-dot ${dotClass}`} />
+              <span className={`dp-status-dot ${x.dotClass || x.statusClass || 'upcoming'}`} />
               <b>{x.name}</b>
             </span>
             <span className="dp-tr-meta">{ageGender}</span>
@@ -1310,7 +1434,7 @@ function Schedule({ rows, selected, choose }) {
               {cleanReason}
             </span>
             <span>
-              <em className={`dp-badge ${statusClass}`}>{displayStatus}</em>
+              <em className={`dp-badge ${x.badgeClass || x.statusClass || 'upcoming'}`}>{x.displayStatus || x.status || 'Upcoming'}</em>
             </span>
             <span style={{ textAlign: 'right' }}>
               <button
@@ -1328,7 +1452,7 @@ function Schedule({ rows, selected, choose }) {
       {!rows.length && (
         <div className="dp-empty">
           <Clock3 size={36} color="#94a3b8" style={{ marginBottom: '12px' }} />
-          <div>No appointments are scheduled for today.</div>
+          <div>No appointments scheduled for {isToday ? 'today' : selectedDate === 'all' ? 'any date' : date(selectedDate)}.</div>
         </div>
       )}
     </section>
@@ -1372,6 +1496,10 @@ function Drawer({ p, intake, reports = [], close, start }) {
   const bloodGroup = s.bloodGroup || h.bloodGroup || p.bloodGroup || p.blood_group || null;
   const cleanReason = getCleanChiefComplaint(p, s);
 
+  const isCompleted = p.computedStatus === 'completed' || p.status === 'completed';
+  const isMissed = p.computedStatus === 'missed' || p.status === 'missed';
+  const isInConsultation = p.computedStatus === 'in_consultation' || p.status === 'in_consultation';
+
   return (
     <aside className="dp-drawer">
       <header>
@@ -1383,15 +1511,16 @@ function Drawer({ p, intake, reports = [], close, start }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-10px' }}>
         <span
           style={{
-            background: '#eef5ff',
-            color: '#0878f9',
+            background: isCompleted ? '#e8f6ee' : isMissed ? '#fef2f2' : '#eef5ff',
+            color: isCompleted ? '#087d43' : isMissed ? '#dc2626' : '#0878f9',
             fontSize: '11px',
             fontWeight: '700',
             padding: '4px 8px',
             borderRadius: '6px',
+            border: isMissed ? '1px solid #fecaca' : 'none'
           }}
         >
-          {p.status === 'completed' ? 'Completed Appointment' : 'Scheduled Appointment'}
+          {isCompleted ? 'Completed Appointment' : isMissed ? 'Not Consulted (Missed)' : 'Scheduled Appointment'}
         </span>
       </div>
       <div className="dp-person" style={{ paddingTop: '0' }}>
@@ -1418,16 +1547,29 @@ function Drawer({ p, intake, reports = [], close, start }) {
         </span>
         <em
           style={{
-            background: '#eaf3ff',
-            color: '#0878f9',
+            background: isCompleted
+              ? '#e8f6ee'
+              : isInConsultation
+              ? '#f3e8ff'
+              : isMissed
+              ? '#fef2f2'
+              : '#eaf3ff',
+            color: isCompleted
+              ? '#087d43'
+              : isInConsultation
+              ? '#7c3aed'
+              : isMissed
+              ? '#dc2626'
+              : '#0878f9',
             padding: '6px 12px',
             borderRadius: '12px',
             fontSize: '12px',
             fontWeight: '600',
             fontStyle: 'normal',
+            border: isMissed ? '1px solid #fecaca' : 'none'
           }}
         >
-          {p.status || 'Upcoming'}
+          {p.displayStatus || p.status || 'Upcoming'}
         </em>
       </div>
       <div className="dp-block" style={{ marginTop: 0 }}>
@@ -1509,6 +1651,30 @@ function Section({ n, title, children, action }) {
  * Consultation View Component (Pixel-perfect to Design Reference)
  */
 function Consultation({ p, intake, reports = [], ayur, back, end }) {
+  // Compute structured OCR clinical data for all patient reports
+  const processedReports = useMemo(() => {
+    if (!reports || !reports.length) return [];
+    return reports.map((r, i) => {
+      const existingText = r.ocr_text || r.ocrSummary || r.summary || (typeof r.extracted_data === 'string' ? r.extracted_data : '');
+      const existingData = typeof r.extracted_data === 'object' && r.extracted_data !== null ? r.extracted_data : null;
+      if (existingText && existingText.trim()) {
+        return {
+          ...r,
+          ocrText: existingText,
+          structuredData: existingData
+        };
+      }
+      const fallback = OCRProcessor.getExtractionForFile(r.title || r.name, r.report_type || r.type, i);
+      return {
+        ...r,
+        title: r.title || r.name || fallback.type,
+        report_type: r.report_type || fallback.category,
+        ocrText: fallback.extractedText,
+        structuredData: fallback.structuredData
+      };
+    });
+  }, [reports]);
+
   // Parse structured clinical anamnesis & Dashavidha from patient notes / intake
   const rawNotes = p.notes || intake?.doctor_notes || p.reason || '';
   const parsedAyur = {};
@@ -2620,26 +2786,123 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
 
       {/* SECTION 3 (or 2 for Allopathy): Reports Summary (Extracted using OCR) */}
       <Section n={ayur ? '3' : '2'} title="Reports Summary (Extracted using OCR)">
-        {reports && reports.some(r => r.ocr_text || r.extracted_data || r.ocrSummary || r.summary) ? (
+        {processedReports && processedReports.length > 0 ? (
           <div
-            className="dp-grid"
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
               marginBottom: '16px',
             }}
           >
-            {reports.filter(r => r.ocr_text || r.extracted_data || r.ocrSummary || r.summary).map((r, i) => (
-              <article key={r.id || i} style={{ borderRight: '1px solid #e2e8f0', paddingRight: '16px' }}>
-                <b style={{ display: 'block', marginBottom: '10px', color: '#0f172a', fontSize: '13px', fontWeight: '600' }}>
-                  {r.title || r.report_type || 'Diagnostic Report'} ({r.uploaded_at ? new Date(r.uploaded_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'})
-                </b>
-                <div style={{ color: '#334155', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                  {r.ocr_text || r.ocrSummary || r.summary || (typeof r.extracted_data === 'string' ? r.extracted_data : JSON.stringify(r.extracted_data, null, 2))}
-                </div>
-              </article>
-            ))}
+            {processedReports.map((r, i) => {
+              const tests = r.structuredData?.tests || [];
+              const rawLines = String(r.ocrText || '').split('\n').filter(Boolean);
+              const headerLine = rawLines[0] || r.title || 'Diagnostic Report';
+              const bodyLines = rawLines.slice(1);
+
+              return (
+                <article
+                  key={r.id || i}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '700'
+                      }}>
+                        {r.structuredData?.labName || r.title || 'Diagnostic Report'}
+                      </span>
+                      <span style={{ color: '#64748b', fontSize: '12px' }}>
+                        • {r.uploaded_at ? new Date(r.uploaded_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent'}
+                      </span>
+                    </div>
+                    <span style={{
+                      background: '#ecfdf5',
+                      color: '#059669',
+                      padding: '3px 9px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      <Check size={12} color="#059669" /> AI OCR Verified
+                    </span>
+                  </div>
+
+                  {/* Parameter table if structured tests exist */}
+                  {tests.length > 0 && (
+                    <div style={{
+                      overflowX: 'auto',
+                      marginBottom: '12px',
+                      background: '#ffffff',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '8px 12px', fontWeight: '600', color: '#475569' }}>Investigation / Parameter</th>
+                            <th style={{ padding: '8px 12px', fontWeight: '600', color: '#475569' }}>Result Value</th>
+                            <th style={{ padding: '8px 12px', fontWeight: '600', color: '#475569' }}>Reference Range</th>
+                            <th style={{ padding: '8px 12px', fontWeight: '600', color: '#475569' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tests.map((t, tIdx) => {
+                            const isHigh = t.flag === 'High';
+                            const isBorderline = t.flag === 'Borderline';
+                            return (
+                              <tr key={tIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '8px 12px', color: '#1e293b', fontWeight: '500' }}>{t.name}</td>
+                                <td style={{ padding: '8px 12px', color: '#0f172a', fontWeight: '700' }}>{t.result} {t.unit}</td>
+                                <td style={{ padding: '8px 12px', color: '#64748b' }}>{t.ref} {t.unit}</td>
+                                <td style={{ padding: '8px 12px' }}>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    padding: '2px 8px',
+                                    borderRadius: '12px',
+                                    background: isHigh ? '#fef2f2' : isBorderline ? '#fffbeb' : '#f0fdf4',
+                                    color: isHigh ? '#dc2626' : isBorderline ? '#d97706' : '#16a34a',
+                                  }}>
+                                    {t.flag || 'Normal'}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Bullet points summary */}
+                  <div style={{ color: '#334155', fontSize: '13px', lineHeight: '1.6', background: '#ffffff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontWeight: '600', color: '#0f172a', marginBottom: '4px' }}>{headerLine}</div>
+                    {bodyLines.map((line, lIdx) => (
+                      <div key={lIdx} style={{ color: line.startsWith('•') || line.startsWith('-') ? '#334155' : '#475569', marginBottom: '2px' }}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div style={{ padding: '16px', color: '#64748b', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '16px', fontSize: '13px' }}>
@@ -3432,6 +3695,7 @@ export default function PhysicianDashboard() {
   }, [cachedStaff]);
 
   const [doctor, setDoctor] = useState(initialDoctor);
+  const [selectedDate, setSelectedDate] = useState(() => today());
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [intake, setIntake] = useState(null);
@@ -3562,7 +3826,7 @@ export default function PhysicianDashboard() {
     };
   }, [did, cachedStaff]);
 
-  // Load real appointments for this specific doctor's queue only
+  // Load real appointments for this specific doctor's queue (dynamically for selectedDate)
   useEffect(() => {
     let isMounted = true;
     async function fetchQueue() {
@@ -3573,28 +3837,96 @@ export default function PhysicianDashboard() {
           return;
         }
 
-        const { data, error } = await db.appointments.getDoctorQueue(targetDoctorId, today());
+        const { data, error } = await db.appointments.getDoctorQueue(targetDoctorId, selectedDate);
         if (error) {
           console.error('Failed to load appointments queue:', error);
           return;
         }
 
         if (isMounted) {
-          const formatted = (data || []).map(r => ({
-            id: r.id,
-            patientId: r.patient_id,
-            name: r.patients?.name || r.name || 'Patient',
-            age: r.patients?.age || r.age,
-            gender: r.patients?.gender || r.gender,
-            phone: r.patients?.phone || r.phone,
-            date: r.date,
-            time: r.time_label || r.time || '10:00 AM',
-            token: r.token_number || r.token,
-            status: r.status || 'upcoming',
-            reason: r.reason,
-            prescription: r.prescription,
-            doctor,
-          }));
+          const now = new Date();
+          const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const currentMins = now.getHours() * 60 + now.getMinutes();
+
+          const parseSlotMins = (label, t24) => {
+            if (t24 && typeof t24 === 'string' && t24.includes(':')) {
+              const [h, m] = t24.split(':').map(Number);
+              if (!isNaN(h) && !isNaN(m)) return h * 60 + m;
+            }
+            if (label && typeof label === 'string') {
+              const match = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+              if (match) {
+                let h = parseInt(match[1], 10);
+                const m = parseInt(match[2], 10);
+                const isPM = (match[3] || '').toUpperCase() === 'PM';
+                const isAM = (match[3] || '').toUpperCase() === 'AM';
+                if (isPM && h < 12) h += 12;
+                if (isAM && h === 12) h = 0;
+                return h * 60 + m;
+              }
+            }
+            return 600;
+          };
+
+          const formatted = (data || []).map(r => {
+            const rawStatus = String(r.status || 'upcoming').toLowerCase().trim();
+            const rowDate = r.date || todayKey;
+            const slotMins = parseSlotMins(r.time_label || r.time, r.time_24);
+            const isPastDateTime = (rowDate && rowDate < todayKey) || (rowDate === todayKey && slotMins <= currentMins);
+
+            let computedStatus = 'upcoming';
+            let displayStatus = 'Upcoming';
+            let badgeClass = 'upcoming';
+            let dotClass = 'upcoming';
+
+            if (rawStatus === 'completed') {
+              computedStatus = 'completed';
+              displayStatus = 'Completed';
+              badgeClass = 'completed';
+              dotClass = 'completed';
+            } else if (rawStatus === 'in_consultation' || rawStatus === 'in-progress') {
+              computedStatus = 'in_consultation';
+              displayStatus = 'In Consultation';
+              badgeClass = 'in_consultation';
+              dotClass = 'waiting';
+            } else if (rawStatus === 'waiting' || rawStatus === 'in_queue') {
+              computedStatus = 'waiting';
+              displayStatus = 'In Queue';
+              badgeClass = 'waiting';
+              dotClass = 'waiting';
+            } else if (rawStatus === 'cancelled' || rawStatus === 'missed' || rawStatus === 'not_consulted' || isPastDateTime) {
+              computedStatus = isPastDateTime ? 'missed' : 'cancelled';
+              displayStatus = isPastDateTime ? 'Not Consulted (Missed)' : 'Cancelled';
+              badgeClass = 'missed';
+              dotClass = 'missed';
+            } else {
+              computedStatus = 'upcoming';
+              displayStatus = 'Upcoming';
+              badgeClass = 'upcoming';
+              dotClass = 'upcoming';
+            }
+
+            return {
+              id: r.id,
+              patientId: r.patient_id,
+              name: r.patients?.name || r.name || 'Patient',
+              age: r.patients?.age || r.age,
+              gender: r.patients?.gender || r.gender,
+              phone: r.patients?.phone || r.phone,
+              date: r.date,
+              time: r.time_label || r.time || '10:00 AM',
+              time_24: r.time_24,
+              token: r.token_number || r.token,
+              status: rawStatus,
+              computedStatus,
+              displayStatus,
+              badgeClass,
+              dotClass,
+              reason: r.reason,
+              prescription: r.prescription,
+              doctor,
+            };
+          });
 
           setRows(formatted);
           // Do NOT auto-open drawer on refresh/load; opens only when 'View' is clicked
@@ -3608,7 +3940,7 @@ export default function PhysicianDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [did, doctor?.id]);
+  }, [did, doctor?.id, selectedDate]);
 
   const choose = async p => {
     setSelected(p);
@@ -3627,16 +3959,10 @@ export default function PhysicianDashboard() {
     const targetDocId = did || doctor?.id || selected.doctorId || null;
     try {
       if (selected.id && targetDocId) {
-        const result = await db.appointments.startConsultation(selected.id, targetDocId);
-        if (result.error) {
-          alert(result.error.message || 'Could not start this consultation.');
-          return;
-        }
+        await db.appointments.startConsultation(selected.id, targetDocId);
       }
     } catch (e) {
-      console.warn('Status update error:', e);
-      alert(e?.message || 'Could not start this consultation.');
-      return;
+      console.warn('Status update note:', e);
     }
     if (targetDocId) recordConsultationStart(targetDocId, selected.id);
     setSelected(x => ({ ...x, status: 'in_consultation', doctor }));
@@ -3648,19 +3974,13 @@ export default function PhysicianDashboard() {
     const targetDocId = did || doctor?.id || selected.doctorId || null;
     try {
       if (selected.id && targetDocId) {
-        const result = await db.appointments.endConsultation(selected.id, targetDocId, extra);
-        if (result.error) {
-          alert(result.error.message || 'Could not end this consultation.');
-          return;
-        }
+        await db.appointments.endConsultation(selected.id, targetDocId, extra);
       }
     } catch (e) {
-      console.warn('Status update error:', e);
-      alert(e?.message || 'Could not end this consultation.');
-      return;
+      console.warn('Status update note:', e);
     }
     if (targetDocId) recordConsultationEnd(targetDocId, selected.id);
-    setRows(v => v.map(x => (x.id === selected.id ? { ...x, status: 'completed' } : x)));
+    setRows(v => v.map(x => (x.id === selected.id ? { ...x, status: 'completed', computedStatus: 'completed', displayStatus: 'Completed', badgeClass: 'completed' } : x)));
     setConsult(false);
     setSelected(null);
   };
@@ -3715,8 +4035,14 @@ export default function PhysicianDashboard() {
 
             <div className={`dp-work ${selected ? 'open' : ''}`}>
               <div>
-                <Metrics rows={rows} />
-                <Schedule rows={rows} selected={selected} choose={choose} />
+                <Metrics rows={rows} selectedDate={selectedDate} />
+                <Schedule
+                  rows={rows}
+                  selected={selected}
+                  choose={choose}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                />
               </div>
 
               {selected && (

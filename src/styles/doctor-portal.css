@@ -742,6 +742,18 @@
   color: #7c3aed;
 }
 
+.dp-badge.missed,
+.dp-badge.cancelled {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.dp-status-dot.missed,
+.dp-status-dot.cancelled {
+  background: #ef4444;
+}
+
 .dp-btn-action {
   border: 1px solid var(--dp-green-border);
   color: var(--dp-green);
