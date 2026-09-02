@@ -163,7 +163,9 @@ function calculateDoctorDuty(docLoginInfo) {
   const targetSeconds = targetHours * 3600;
   const shiftCompletionPct = Math.min(100, Math.round((totalSeconds / targetSeconds) * 100));
 
-  const loginTime = docLoginInfo.lastLoginAt || docLoginInfo.firstLoginTodayAt;
+  const loginTime = docLoginInfo.firstLoginTodayAt
+    || docLoginInfo.sessionsToday?.[0]?.loginAt
+    || docLoginInfo.lastLoginAt;
   const loginTimeStr = formatExactTime(loginTime);
   const logoutTimeStr = formatExactTime(docLoginInfo.lastLogoutAt);
 
@@ -428,7 +430,7 @@ export default function AdminDashboard() {
         db.donations.getAllRequests(),
         db.hospitals.getAll(),
         db.staff.getAll(),
-        db.staff.getDoctorDailyLogins(),
+        db.staff.getDoctorDailyLogins(cachedStaff?.activity_session_id || cachedStaff?.activitySessionId),
         db.doctorLeaves.getAll(),
       ]);
 
@@ -535,12 +537,13 @@ export default function AdminDashboard() {
 
     const handleSync = async () => {
       try {
-        const { data } = await db.staff.getDoctorDailyLogins();
+        void db.staff.recordHeartbeat(cachedStaff).catch(() => {});
+        const { data } = await db.staff.getDoctorDailyLogins(cachedStaff?.activity_session_id || cachedStaff?.activitySessionId);
         if (data) setDoctorLogins(data);
       } catch (e) {}
     };
 
-    const interval = setInterval(handleSync, 2000);
+    const interval = setInterval(handleSync, 15000);
     window.addEventListener('swasthya_doctor_status_changed', handleSync);
     window.addEventListener('swasthya_doctor_leave_changed', handleSync);
     window.addEventListener('storage', handleSync);
@@ -550,7 +553,7 @@ export default function AdminDashboard() {
       window.removeEventListener('swasthya_doctor_leave_changed', handleSync);
       window.removeEventListener('storage', handleSync);
     };
-  }, []);
+  }, [cachedStaff?.activity_session_id, cachedStaff?.activitySessionId]);
 
   // Doctors Summary Metrics (Card 1: Total Doctors, Card 2: Online Now, Card 3: Attended Today, Card 4: Not Logged In Today)
   const docMetrics = useMemo(() => {
@@ -1659,7 +1662,7 @@ export default function AdminDashboard() {
                 <div>
                   <div className="doc-metric-val" style={{ color: '#047857' }}>{docMetrics.onlineNow}</div>
                   <div className="doc-metric-label">🟢 Online Now (Live)</div>
-                  <div className="doc-metric-subtext" style={{ color: '#059669', fontWeight: 600 }}>Active in consultation now</div>
+                  <div className="doc-metric-subtext" style={{ color: '#059669', fontWeight: 600 }}>Logged into the doctor portal now</div>
                 </div>
               </div>
 
@@ -2064,6 +2067,26 @@ export default function AdminDashboard() {
                                   <Clock size={12} color={dutyInfo.isOnline ? '#10b981' : '#64748b'} />
                                   <span style={{ fontWeight: 600 }}>{dutyInfo.timeRangeStr}</span>
                                 </div>
+
+                                {dutyInfo.sessions?.length > 1 && (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '17px' }}>
+                                    {dutyInfo.sessions.map((activitySession, sessionIndex) => {
+                                      const start = formatExactTime(activitySession.loginAt);
+                                      const active = activitySession.isOnline === true;
+                                      const end = active ? 'Active now' : formatExactTime(activitySession.logoutAt);
+                                      const duration = formatExactDuration(
+                                        active && activitySession.loginAt
+                                          ? Math.max(0, (Date.now() - new Date(activitySession.loginAt).getTime()) / 1000)
+                                          : Number(activitySession.durationSeconds || 0)
+                                      );
+                                      return (
+                                        <span key={`${activitySession.loginAt || sessionIndex}-${sessionIndex}`} style={{ fontSize: '10.5px', color: active ? '#047857' : '#64748b' }}>
+                                          Session {sessionIndex + 1}: {start || 'Unknown'} — {end || 'Unknown'} ({duration})
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                )}
 
                                 <div style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '500' }}>
                                   <span style={{ color: '#0f766e', fontWeight: '600' }}>OPD Slot Window:</span> {dutyInfo.shiftType}

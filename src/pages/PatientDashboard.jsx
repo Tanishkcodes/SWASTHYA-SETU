@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { useLanguage } from '../context/LanguageContext';
 import { db } from '../lib/db';
@@ -13,7 +13,6 @@ import CommunitiesTab from '../components/CommunitiesTab';
 import HelpSupportTab from '../components/HelpSupportTab';
 import aiTranslationService from '../engine/AiTranslationService';
 import aiCommandEngine from '../engine/AICommandEngine';
-import { acquireSlotHold, releaseSlotHold, countActiveHolds } from '../engine/SlotEngine';
 import {
   Calendar, Clock, FileText, User, Heart, Users, Headphones,
   Search, MapPin, Star, ChevronDown, Check, ArrowRight, ArrowLeft,
@@ -24,6 +23,9 @@ import {
   RotateCcw, FlaskConical, ChevronLeft, Share2, Printer, Lock,
   GraduationCap, Briefcase, Award, Edit3, Globe
 } from 'lucide-react';
+
+const createBookingRequestId = () => globalThis.crypto?.randomUUID?.()
+  || `req-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 /* =========================================================================
    COMPREHENSIVE MULTILINGUAL TRANSLATIONS FOR PATIENT DASHBOARD (9 LANGUAGES)
@@ -2258,11 +2260,14 @@ const PATIENT_VOICE_COMMANDS = {
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, setToken, setSubmitted, setAyushMode, addDocument, removeDocument, logout } = useSession();
   const isAyushMode = session.isAyushMode;
   const { currentLang, setCurrentLang, availableLanguages } = useLanguage();
   const { registerPage, unregisterPage, setOnTranscript, clearOnTranscript, speak } = useVoiceNav();
   const reportsFileInputRef = useRef(null);
+  const hospitalCatalogRef = useRef([]);
+  const bookingHospitalRef = useRef(null);
 
   // Translation helper
   const tr = (key) => {
@@ -2291,6 +2296,32 @@ export default function PatientDashboard() {
   // Header Dropdowns
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const languageDropdownRef = useRef(null);
+  const profileDropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!langDropdownOpen && !profileDropdownOpen) return undefined;
+
+    const closeHeaderDropdowns = event => {
+      const clickedLanguage = languageDropdownRef.current?.contains(event.target);
+      const clickedProfile = profileDropdownRef.current?.contains(event.target);
+      if (!clickedLanguage) setLangDropdownOpen(false);
+      if (!clickedProfile) setProfileDropdownOpen(false);
+    };
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') {
+        setLangDropdownOpen(false);
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', closeHeaderDropdowns);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeHeaderDropdowns);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [langDropdownOpen, profileDropdownOpen]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -2309,9 +2340,20 @@ export default function PatientDashboard() {
   // All Hospitals Modal View
   const [showAllHospitalsModal, setShowAllHospitalsModal] = useState(false);
 
+  // A booking command issued before this dashboard mounted (for example on
+  // the landing page) must produce a visible next step after navigation.
+  useEffect(() => {
+    if (location.state?.voiceAction !== 'bookAppointment') return;
+    setActiveTab('appointments');
+    setBookingFlowView('main');
+    setShowAllHospitalsModal(true);
+    navigate('/patient-dashboard', { replace: true, state: null });
+  }, [location.state, navigate]);
+
   // Appointment Booking Modal
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingHospital, setBookingHospital] = useState(null);
+  bookingHospitalRef.current = bookingHospital;
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [selectedDept, setSelectedDept] = useState('General Medicine');
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -2702,6 +2744,72 @@ export default function PatientDashboard() {
 
   // Voice navigation registration — comprehensive for all dashboard features
   useEffect(() => {
+    const normalizeEntity = value => String(value || '')
+      .normalize('NFKD')
+      .toLocaleLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim();
+    const catalog = hospitalCatalogRef.current || [];
+    const aliasesForHospital = hospital => {
+      const localizedNames = Object.values(HOSPITAL_LOCALIZATION[hospital.id]?.name || {});
+      const idWords = String(hospital.id || '').replace(/-/g, ' ');
+      const idPrefix = String(hospital.id || '').split('-')[0];
+      return Array.from(new Set([hospital.name, idWords, idPrefix, ...localizedNames].filter(Boolean)));
+    };
+    const matchNamedItem = (spoken, items, getAliases) => {
+      const query = normalizeEntity(spoken);
+      if (!query) return null;
+      const queryTokens = new Set(query.split(' ').filter(token => token.length > 1));
+      let best = null;
+      let bestScore = 0;
+      items.forEach(item => {
+        getAliases(item).forEach(rawAlias => {
+          const alias = normalizeEntity(rawAlias);
+          if (!alias || alias.length < 3) return;
+          const exactPhrase = query === alias || query.includes(` ${alias} `)
+            || query.startsWith(`${alias} `) || query.endsWith(` ${alias}`);
+          if (exactPhrase && alias.length >= 3) {
+            if (bestScore < 2) { best = item; bestScore = 2; }
+            return;
+          }
+          const aliasTokens = alias.split(' ').filter(token => token.length > 1);
+          const overlap = aliasTokens.filter(token => queryTokens.has(token)).length;
+          const score = aliasTokens.length ? overlap / aliasTokens.length : 0;
+          if (overlap >= 1 && score > bestScore) { best = item; bestScore = score; }
+        });
+      });
+      return bestScore >= 0.6 ? best : null;
+    };
+    const findHospital = result => matchNamedItem(
+      `${result?.value || ''} ${result?.raw || ''}`,
+      catalog,
+      aliasesForHospital
+    );
+    const openNamedHospital = result => {
+      const hospital = findHospital(result);
+      if (!hospital) return false;
+      setSearchQuery('');
+      setActiveTab('appointments');
+      handleOpenBooking(hospital);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return true;
+    };
+    const selectNamedDoctor = result => {
+      const currentHospital = bookingHospitalRef.current;
+      const doctors = currentHospital?.doctors || [];
+      const doctor = matchNamedItem(
+        `${result?.value || ''} ${result?.raw || ''}`,
+        doctors,
+        item => [item.name, item.specialty, item.speciality]
+      );
+      if (!doctor) return false;
+      handleSelectDoctorForBooking(doctor);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return true;
+    };
+    const hospitalNames = catalog.map(hospital => hospital.name).join(', ');
+    const currentDoctorNames = (bookingHospitalRef.current?.doctors || []).map(doctor => `${doctor.name} (${doctor.specialty || doctor.speciality || 'Doctor'})`).join(', ');
+
     registerPage('patientDashboard', {
       // ── Tab navigation ─────────────────────────────────────────────────
       appointments:     () => setActiveTab('appointments'),
@@ -2719,7 +2827,19 @@ export default function PatientDashboard() {
       viewHelp:         () => setActiveTab('help'),
 
       // ── Booking actions ───────────────────────────────────────────────
-      bookAppointment:  () => { setActiveTab('appointments'); setBookingFlowView('main'); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+      bookAppointment:  result => {
+        if (openNamedHospital(result)) return;
+        setActiveTab('appointments');
+        setBookingFlowView('main');
+        setShowAllHospitalsModal(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      },
+      bookHospital: result => {
+        if (!openNamedHospital(result)) {
+          setActiveTab('appointments');
+          setBookingFlowView('main');
+        }
+      },
       startConsultation: () => navigate('/language'),
       scanRecord:        () => navigate('/scan'),
 
@@ -2747,21 +2867,27 @@ export default function PatientDashboard() {
       },
 
       // ── Doctor / hospital selection by voice (number) ─────────────────
-      select_doctor: ({ value }) => {
-        const idx = typeof value === 'number' ? value : 0;
+      select_doctor: result => {
+        const value = result?.value;
+        if ((!/^\d+$/.test(String(value || '')) || result?.raw) && selectNamedDoctor(result)) return;
+        const idx = typeof value === 'number' ? value : Math.max(0, Number(value || 1) - 1);
         const doctorBtns = document.querySelectorAll('[data-voice-doctor]');
         if (doctorBtns[idx]) { doctorBtns[idx].click(); return; }
         const doctorCards = document.querySelectorAll('.doctor-card, [data-doctor-card]');
         if (doctorCards[idx]) doctorCards[idx].click();
       },
-      select_hospital: ({ value }) => {
-        const idx = typeof value === 'number' ? value : 0;
+      select_hospital: result => {
+        if (openNamedHospital(result)) return;
+        const value = result?.value;
+        const idx = typeof value === 'number' ? value : Math.max(0, Number(value || 1) - 1);
         const hospitalBtns = document.querySelectorAll('[data-voice-hospital]');
         if (hospitalBtns[idx]) { hospitalBtns[idx].click(); return; }
         const hospitalCards = document.querySelectorAll('.hospital-card, [data-hospital-card]');
         if (hospitalCards[idx]) hospitalCards[idx].click();
       },
-      searchHospital: ({ value }) => {
+      searchHospital: result => {
+        if (openNamedHospital(result)) return;
+        const value = result?.value;
         if (typeof value === 'string' && value.length > 2) {
           setSearchQuery(value);
           setActiveTab('appointments');
@@ -2786,13 +2912,19 @@ export default function PatientDashboard() {
           .filter(el => !el.disabled && el.getClientRects().length);
         if (options[value]) options[value].click();
       },
-    }, PATIENT_VOICE_COMMANDS);
+    }, {
+      ...PATIENT_VOICE_COMMANDS,
+      bookHospital: [`Book an appointment at a specifically named hospital. Available hospitals: ${hospitalNames}. Return the exact hospital name in value.`],
+      select_hospital: [`Open a specifically named hospital. Available hospitals: ${hospitalNames}. Return the exact hospital name or spoken list number in value.`],
+      select_doctor: [`Select or book a specifically named doctor or specialty from the current hospital. Available doctors: ${currentDoctorNames || 'shown doctors'}. Return the exact doctor name, specialty, or spoken list number in value.`],
+      searchHospital: [`Find a hospital by its name, city, or type. Prefer bookHospital when the user asks to book. Available hospitals: ${hospitalNames}. Return only the search entity in value.`],
+    });
 
     return () => {
       unregisterPage('patientDashboard');
       clearOnTranscript?.();
     };
-  }, [navigate, registerPage, unregisterPage, isAyushMode, setAyushMode, currentLang, logout, clearOnTranscript, showBookingModal, showAllHospitalsModal, bookingFlowView]);
+  }, [navigate, registerPage, unregisterPage, isAyushMode, setAyushMode, currentLang, logout, clearOnTranscript, showBookingModal, showAllHospitalsModal, bookingFlowView, dbHospitalsList.length, dbDoctorsList.length, bookingHospital?.id]);
 
   // ── Voice transcript callback for booking modal symptoms/reason ──────────
   useEffect(() => {
@@ -3026,6 +3158,10 @@ export default function PatientDashboard() {
   return baseList;
 }, [currentLang, dbDoctorsList, dbHospitalsList]);
 
+  // Keep voice handlers connected to the same live/localized catalog rendered
+  // by the dashboard without forcing a second source of hospital truth.
+  hospitalCatalogRef.current = hospitals;
+
   // Filtered Hospital List
   const filteredHospitals = useMemo(() => {
     return hospitals.filter(h => {
@@ -3096,28 +3232,12 @@ export default function PatientDashboard() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [liveSlots, setLiveSlots] = useState({ morning: [], afternoon: [], evening: [], onLeave: false, leaveReason: '' });
   const [doctorLeavesList, setDoctorLeavesList] = useState([]);
-  const [activeHold, setActiveHold] = useState(null);
-  const [holdRemainingSeconds, setHoldRemainingSeconds] = useState(0);
+  const bookingSubmitInFlightRef = useRef(false);
+  const bookingRequestIdRef = useRef(createBookingRequestId());
 
-  // Active Hold Countdown Timer (5-minute TTL proxy lock)
-  useEffect(() => {
-    if (!activeHold || !activeHold.expiresAt) {
-      setHoldRemainingSeconds(0);
-      return;
-    }
-    const updateTimer = () => {
-      const remaining = Math.max(0, Math.round((activeHold.expiresAt - Date.now()) / 1000));
-      setHoldRemainingSeconds(remaining);
-      if (remaining <= 0) {
-        setActiveHold(null);
-        setSelectedBookingSlot('');
-        alert('Your 5-minute temporary slot reservation has expired. Please select your slot again.');
-      }
-    };
-    updateTimer();
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
-  }, [activeHold]);
+  const releaseActiveBookingHold = () => {
+    setSelectedBookingSlot('');
+  };
 
   // Fetch doctor leaves whenever selected doctor changes
   useEffect(() => {
@@ -3144,8 +3264,8 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (!selectedDoctorObj || !bookingHospital) return;
     let active = true;
-    const load = async () => {
-      setSlotsLoading(true);
+    const load = async (silent = false) => {
+      if (!silent) setSlotsLoading(true);
       const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       const hospitalId = bookingHospital.id || slug(bookingHospital.name);
       const seededDoctorIds = {
@@ -3157,7 +3277,7 @@ export default function PatientDashboard() {
       const doctorId = selectedDoctorObj.id || seededDoctorIds[slug(selectedDoctorObj.name)] || `${hospitalId}-${slug(selectedDoctorObj.name)}`;
       const hospitalSave = await db.hospitals.ensure({ ...bookingHospital, id: hospitalId });
       const doctorSave = hospitalSave.error ? hospitalSave : await db.doctors.ensure({ ...selectedDoctorObj, id: doctorId, hospitalName: bookingHospital.name }, hospitalId);
-      const result = doctorSave.error ? { morning: [], afternoon: [], evening: [], onLeave: false } : await db.slots.getLive(doctorId, selectedBookingDate);
+      const result = doctorSave.error ? { morning: [], afternoon: [], evening: [], onLeave: false } : await db.slots.getLive(doctorId, selectedBookingDate, session.patient?.id || null);
       if (active) {
         setLiveSlots(result);
         const available = [...(result.morning || []), ...(result.afternoon || []), ...(result.evening || [])]
@@ -3167,51 +3287,33 @@ export default function PatientDashboard() {
       }
     };
     load();
+    // Cross-device bookings and consultation overruns do not emit this
+    // browser's local events, so refresh live availability quietly every 15s.
+    const serverRefresh = setInterval(() => load(true), 15000);
 
-    const handleHoldSync = () => load();
+    const handleHoldSync = () => load(true);
     window.addEventListener('swasthya_slot_hold_changed', handleHoldSync);
     window.addEventListener('storage', handleHoldSync);
     return () => {
       active = false;
+      clearInterval(serverRefresh);
       window.removeEventListener('swasthya_slot_hold_changed', handleHoldSync);
       window.removeEventListener('storage', handleHoldSync);
     };
   }, [bookingStep, selectedBookingDate, selectedDoctorObj, bookingHospital]);
 
-  // Handler for slot selection with proxy lock acquisition
-  const handleSelectSlotWithHold = (slot) => {
-    if (slot.state === 'full' || slot.state === 'closed') return;
-    const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const hospitalId = bookingHospital?.id || slug(bookingHospital?.name || '');
-    const doctorId = selectedDoctorObj?.id || `${hospitalId}-${slug(selectedDoctorObj?.name || '')}`;
-    const patientId = session.patient?.id || 'guest-patient';
-
-    const holdResult = acquireSlotHold({
-      doctorId,
-      dateStr: selectedBookingDate,
-      time24: slot.time24,
-      patientId,
-      patientName: session.patient?.full_name || session.patient?.name || 'Patient'
-    });
-
-    if (!holdResult.success) {
-      alert(holdResult.error || 'This slot was just temporarily reserved by another patient. Please select another slot.');
-      return;
-    }
-
+  // Slot selection is deliberately optimistic. Capacity is atomically checked
+  // only when the patient confirms, so intake time never blocks other patients.
+  const handleSelectSlotWithHold = async (slot) => {
+    if (slot.state === 'full' || slot.state === 'closed') return false;
     setSelectedBookingSlot(slot.label);
-    setActiveHold({
-      holdId: holdResult.holdId,
-      expiresAt: holdResult.expiresAt,
-      time24: slot.time24,
-      slotLabel: slot.label,
-      doctorId,
-      dateStr: selectedBookingDate
-    });
+    return true;
   };
 
   // Select Doctor opens the multi-step booking wizard (Exact Match to User Reference Images)
   const handleSelectDoctorForBooking = (doctor) => {
+    releaseActiveBookingHold();
+    bookingRequestIdRef.current = createBookingRequestId();
     const fullProfile = getDoctorFullProfile(doctor, bookingHospital);
     setSelectedDoctor(doctor.name);
     setSelectedDept(doctor.specialty || (doctor.isAyush ? 'Ayurveda & Panchakarma' : 'General Medicine'));
@@ -3276,6 +3378,11 @@ export default function PatientDashboard() {
     const schedule = await db.slots.getForDoctor(doctorId, effectiveDate);
     if (schedule.error) { alert(`Unable to load appointment slots: ${schedule.error.message}`); return; }
 
+    // Only one confirmation call may be in flight in this browser. The same
+    // stable request ID also makes server retries idempotent across reconnects.
+    if (bookingSubmitInFlightRef.current) return;
+    bookingSubmitInFlightRef.current = true;
+
     const booked = await db.appointments.book({
       patientId: session.patient.id,
       doctorId,
@@ -3284,9 +3391,17 @@ export default function PatientDashboard() {
       time24,
       timeLabel: effectiveSlot,
       reason: bookingReason || bookingCaseNotes || bookingCaseSymptoms.join(', '),
+      holdId: null,
+      bookingRequestId: bookingRequestIdRef.current,
     });
     if (booked.error || !booked.data) {
-      alert(`Appointment could not be booked: ${booked.error?.message || 'unknown error'}`);
+      bookingSubmitInFlightRef.current = false;
+      const bookingError = booked.error?.message || 'unknown error';
+      if (/slot|attending|passed|capacity|filled|closed/i.test(bookingError)) {
+        setSelectedBookingSlot('');
+        setBookingStep(2);
+      }
+      alert(`Appointment could not be booked: ${bookingError}`);
       return;
     }
     const effectiveDoctorName = selectedDoctorObj?.name || selectedDoctor || 'Dr. Ananya Sharma';
@@ -3294,6 +3409,7 @@ export default function PatientDashboard() {
 
     const tokenStr = booked.token;
     if (!tokenStr) {
+      bookingSubmitInFlightRef.current = false;
       alert('Appointment was saved without a token. Please contact the registration desk.');
       return;
     }
@@ -3318,11 +3434,7 @@ export default function PatientDashboard() {
       reason: bookingReason || bookingCaseNotes || 'General Consultation'
     };
 
-    // Release proxy hold upon successful booking
-    if (activeHold?.holdId) {
-      releaseSlotHold({ holdId: activeHold.holdId, patientId: session.patient.id });
-      setActiveHold(null);
-    }
+    bookingRequestIdRef.current = createBookingRequestId();
 
     setNewlyBookedToken(`${tr('tokenWord')} ${tokenStr}`);
     setAppointments(prev => [newApt, ...prev]);
@@ -3369,12 +3481,14 @@ export default function PatientDashboard() {
     }
 
     if (isWizard) {
+      bookingSubmitInFlightRef.current = false;
       setSelectedAppointment(newApt);
       setBookingFlowView('main');
       setBookingStep(1);
       return;
     }
     setBookingSuccess(true);
+    bookingSubmitInFlightRef.current = false;
     setTimeout(() => {
       setBookingSuccess(false);
       setShowBookingModal(false);
@@ -3787,7 +3901,7 @@ export default function PatientDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
 
             {/* Language Switcher Dropdown */}
-            <div style={{ position: 'relative' }} className="notranslate" translate="no">
+            <div ref={languageDropdownRef} style={{ position: 'relative' }} className="notranslate" translate="no">
               <button
                 onClick={() => {
                   setLangDropdownOpen(!langDropdownOpen);
@@ -3859,7 +3973,7 @@ export default function PatientDashboard() {
             </div>
 
             {/* Profile Avatar / Dropdown (REAL LOGGED IN USER DATA ONLY) */}
-            <div style={{ position: 'relative' }}>
+            <div ref={profileDropdownRef} style={{ position: 'relative' }}>
               <button
                 onClick={() => {
                   setProfileDropdownOpen(!profileDropdownOpen);
@@ -4341,10 +4455,11 @@ export default function PatientDashboard() {
 
                           {/* Select Button */}
                           <button
+                            data-voice-doctor={idx}
                             onClick={() => handleSelectDoctorForBooking(doc)}
                             style={{
                               width: '100%',
-                              backgroundColor: '#0c4e47',
+                              backgroundColor: '#059669',
                               color: '#ffffff',
                               border: 'none',
                               borderRadius: '10px',
@@ -4359,8 +4474,8 @@ export default function PatientDashboard() {
                               marginBottom: '10px',
                               transition: 'all 0.2s ease'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#083934'}
-                            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0c4e47'}
+                            onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
+                            onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
                           >
                             <span>{ui('Select')}</span>
                             <ArrowRight size={15} />
@@ -4428,7 +4543,10 @@ export default function PatientDashboard() {
                   {/* Top Back Navigation */}
                   <div style={{ marginBottom: '1.25rem' }}>
                     <button
-                      onClick={() => setBookingFlowView('doctor_select')}
+                      onClick={() => {
+                        releaseActiveBookingHold();
+                        setBookingFlowView('doctor_select');
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -4559,7 +4677,7 @@ export default function PatientDashboard() {
                         onClick={() => handleSelectDoctorForBooking(selectedDoctorObj)}
                         style={{
                           width: '100%',
-                          backgroundColor: '#0c4e47',
+                          backgroundColor: '#059669',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '12px',
@@ -4574,8 +4692,8 @@ export default function PatientDashboard() {
                           marginBottom: '8px',
                           transition: 'all 0.2s ease'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#083934'}
-                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0c4e47'}
+                        onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
+                        onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
                       >
                         <span>Select Doctor</span>
                         <ArrowRight size={15} />
@@ -4819,7 +4937,10 @@ export default function PatientDashboard() {
                     gap: '1rem'
                   }}>
                     <button
-                      onClick={() => setBookingFlowView('doctor_select')}
+                      onClick={() => {
+                        releaseActiveBookingHold();
+                        setBookingFlowView('doctor_select');
+                      }}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -4901,8 +5022,8 @@ export default function PatientDashboard() {
                                 width: '40px',
                                 height: '40px',
                                 borderRadius: '50%',
-                                backgroundColor: isCompleted || isCurrent ? '#0c4e47' : '#ffffff',
-                                border: isCompleted || isCurrent ? '2px solid #0c4e47' : '2px solid #cbd5e1',
+                                backgroundColor: isCompleted || isCurrent ? '#059669' : '#ffffff',
+                                border: isCompleted || isCurrent ? '2px solid #059669' : '2px solid #cbd5e1',
                                 color: isCompleted || isCurrent ? '#ffffff' : '#64748b',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -4912,7 +5033,7 @@ export default function PatientDashboard() {
                                 cursor: 'pointer',
                                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 marginBottom: '8px',
-                                boxShadow: isCurrent ? '0 0 0 5px rgba(12, 78, 71, 0.16)' : 'none',
+                                boxShadow: isCurrent ? '0 0 0 5px rgba(5, 150, 105, 0.16)' : 'none',
                                 transform: isCurrent ? 'scale(1.08)' : 'scale(1)'
                               }}
                             >
@@ -4923,7 +5044,7 @@ export default function PatientDashboard() {
                             <span style={{
                               fontSize: '0.8rem',
                               fontWeight: isCurrent ? '800' : '600',
-                              color: isCurrent ? '#0c4e47' : '#64748b',
+                              color: isCurrent ? '#059669' : '#64748b',
                               whiteSpace: 'nowrap',
                               transition: 'color 0.2s ease'
                             }}>
@@ -4939,7 +5060,7 @@ export default function PatientDashboard() {
                                 width: '100%',
                                 height: '3px',
                                 borderRadius: '2px',
-                                backgroundColor: bookingStep > item.step ? '#0c4e47' : '#e2e8f0',
+                                backgroundColor: bookingStep > item.step ? '#059669' : '#e2e8f0',
                                 zIndex: -1,
                                 transition: 'all 0.4s ease'
                               }} />
@@ -5016,7 +5137,7 @@ export default function PatientDashboard() {
                         width: '42px',
                         height: '42px',
                         borderRadius: '12px',
-                        backgroundColor: '#0c4e47',
+                        backgroundColor: '#059669',
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
@@ -5027,7 +5148,7 @@ export default function PatientDashboard() {
                         <Building2 size={22} />
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#0c4e47' }}>
+                        <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#059669' }}>
                           {bookingHospital?.name || 'Sawai Man Singh Hospital'}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1px' }}>
@@ -5060,7 +5181,7 @@ export default function PatientDashboard() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#0c4e47',
+                          color: '#059669',
                           boxShadow: '0 2px 8px rgba(12, 78, 71, 0.08)'
                         }}>
                           <Calendar size={24} />
@@ -5096,17 +5217,22 @@ export default function PatientDashboard() {
                           return (
                             <button
                               key={d.dateStr}
-                              onClick={() => setSelectedBookingDate(d.dateStr)}
+                              data-voice-option
+                              aria-label={`${d.weekday} ${d.day} ${d.month}`}
+                              onClick={() => {
+                                if (d.dateStr !== selectedBookingDate) releaseActiveBookingHold();
+                                setSelectedBookingDate(d.dateStr);
+                              }}
                               style={{
                                 backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.95)' : leaveOnThisDay ? '#fef2f2' : '#ffffff',
-                                border: isSelected ? '2px solid #0c4e47' : leaveOnThisDay ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
+                                border: isSelected ? '2px solid #059669' : leaveOnThisDay ? '1.5px solid #fca5a5' : '1px solid #e2e8f0',
                                 borderRadius: '18px',
                                 padding: '1.4rem 0.5rem 1.25rem 0.5rem',
                                 textAlign: 'center',
                                 cursor: 'pointer',
                                 transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                 boxShadow: isSelected
-                                  ? '0 10px 25px rgba(12, 78, 71, 0.18), 0 0 0 1px #0c4e47'
+                                  ? '0 10px 25px rgba(5, 150, 105, 0.18), 0 0 0 1px #059669'
                                   : '0 2px 6px rgba(0,0,0,0.02)',
                                 transform: isSelected ? 'translateY(-4px)' : 'translateY(0)',
                                 position: 'relative',
@@ -5135,14 +5261,14 @@ export default function PatientDashboard() {
                                   left: 0,
                                   right: 0,
                                   height: '4px',
-                                  backgroundColor: leaveOnThisDay ? '#dc2626' : '#0c4e47'
+                                  backgroundColor: leaveOnThisDay ? '#dc2626' : '#059669'
                                 }} />
                               )}
 
                               <div style={{
                                 fontSize: '0.72rem',
                                 fontWeight: '800',
-                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#0c4e47') : leaveOnThisDay ? '#dc2626' : '#94a3b8',
+                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#059669') : leaveOnThisDay ? '#dc2626' : '#94a3b8',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.6px',
                                 marginBottom: '4px'
@@ -5153,7 +5279,7 @@ export default function PatientDashboard() {
                               <div style={{
                                 fontSize: '2rem',
                                 fontWeight: '900',
-                                color: isSelected ? (leaveOnThisDay ? '#991b1b' : '#0c4e47') : leaveOnThisDay ? '#7f1d1d' : '#0f172a',
+                                color: isSelected ? (leaveOnThisDay ? '#991b1b' : '#059669') : leaveOnThisDay ? '#7f1d1d' : '#0f172a',
                                 lineHeight: 1.1,
                                 letterSpacing: '-0.5px'
                               }}>
@@ -5163,7 +5289,7 @@ export default function PatientDashboard() {
                               <div style={{
                                 fontSize: '0.85rem',
                                 fontWeight: '700',
-                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#0c4e47') : leaveOnThisDay ? '#991b1b' : '#64748b',
+                                color: isSelected ? (leaveOnThisDay ? '#b91c1c' : '#059669') : leaveOnThisDay ? '#991b1b' : '#64748b',
                                 marginTop: '4px'
                               }}>
                                 {d.month}
@@ -5225,6 +5351,7 @@ export default function PatientDashboard() {
                             } else if (custom < minimum) {
                               alert('Past dates cannot be selected.');
                             } else {
+                              if (custom !== selectedBookingDate) releaseActiveBookingHold();
                               setSelectedBookingDate(custom);
                             }
                           }}
@@ -5302,7 +5429,7 @@ export default function PatientDashboard() {
                               disabled={isBlocked}
                               data-voice-action="next"
                               style={{
-                                background: isBlocked ? '#94a3b8' : 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                                background: isBlocked ? '#94a3b8' : '#059669',
                                 color: '#ffffff',
                                 border: 'none',
                                 borderRadius: '14px',
@@ -5360,33 +5487,37 @@ export default function PatientDashboard() {
                             {visibleSlots.map((slot) => {
                               const isSelected = selectedBookingSlot === slot.label;
                               const isThrottled = Boolean(slot.isThrottled);
-                              const isDisabled = isThrottled || slot.state === 'full' || slot.state === 'closed';
+                              const isConsultationBlocked = Boolean(slot.consultationBlocked);
+                              const isDisabled = isThrottled || isConsultationBlocked || slot.state === 'full' || slot.state === 'closed';
 
                               const bgColor = isSelected
-                                ? '#0c4e47'
-                                : isThrottled ? '#fffbeb'
+                                ? '#059669'
+                                : isThrottled || isConsultationBlocked ? '#fffbeb'
                                 : isDisabled ? '#f8fafc' : '#ffffff';
                               const borderColor = isSelected
-                                ? '#0c4e47'
-                                : isThrottled ? '#fde68a'
+                                ? '#059669'
+                                : isThrottled || isConsultationBlocked ? '#fde68a'
                                 : slot.state === 'fast' ? '#fed7aa'
                                 : isDisabled ? '#e2e8f0' : '#e2e8f0';
-                              const textColor = isSelected ? '#ffffff' : isThrottled ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
+                              const textColor = isSelected ? '#ffffff' : isThrottled || isConsultationBlocked ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
 
                               const statusLabel = isSelected ? ui('Selected')
+                                : isConsultationBlocked      ? ui('Doctor attending current patient')
                                 : isThrottled             ? ui('Paused (High OPD Load)')
                                 : slot.state === 'full'   ? ui('Fully Booked')
                                 : slot.state === 'closed' ? ui('Closed')
                                 : slot.state === 'fast'   ? ui(`${slot.slotsLeft} slot left`)
                                 : ui(`${slot.slotsLeft} slots left`);
                               const statusColor = isSelected ? '#ccfbf1'
-                                : isThrottled ? '#b45309'
+                                : isThrottled || isConsultationBlocked ? '#b45309'
                                 : slot.state === 'full' || slot.state === 'closed' ? '#94a3b8'
                                 : slot.state === 'fast' ? '#ea580c' : '#059669';
 
                               return (
                                 <button
                                   key={slot.time24}
+                                  data-voice-option
+                                  aria-label={`${slot.label}, ${statusLabel}`}
                                   disabled={isDisabled}
                                   onClick={() => !isDisabled && handleSelectSlotWithHold(slot)}
                                   style={{
@@ -5396,7 +5527,7 @@ export default function PatientDashboard() {
                                     padding: '13px 10px',
                                     textAlign: 'center',
                                     cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                    opacity: isDisabled ? (isThrottled ? 0.75 : 0.5) : 1,
+                                    opacity: isDisabled ? (isThrottled || isConsultationBlocked ? 0.78 : 0.5) : 1,
                                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                                     color: textColor,
                                     boxShadow: isSelected ? '0 8px 20px rgba(12, 78, 71, 0.25)' : '0 2px 6px rgba(0,0,0,0.02)',
@@ -5404,7 +5535,7 @@ export default function PatientDashboard() {
                                   }}
                                   onMouseEnter={e => {
                                     if (!isSelected && !isDisabled) {
-                                      e.currentTarget.style.borderColor = '#0c4e47';
+                                      e.currentTarget.style.borderColor = '#059669';
                                       e.currentTarget.style.transform = 'translateY(-2px)';
                                       e.currentTarget.style.boxShadow = '0 6px 16px rgba(12, 78, 71, 0.1)';
                                     }
@@ -5445,7 +5576,7 @@ export default function PatientDashboard() {
                             width: '46px', height: '46px', borderRadius: '14px',
                             backgroundColor: '#f0fdf9', border: '1px solid #ccfbf1',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#0c4e47', boxShadow: '0 2px 8px rgba(12, 78, 71, 0.08)'
+                            color: '#059669', boxShadow: '0 2px 8px rgba(5, 150, 105, 0.08)'
                           }}>
                             <Clock size={24} />
                           </div>
@@ -5493,29 +5624,10 @@ export default function PatientDashboard() {
                             background: 'rgba(240, 253, 249, 0.7)', border: '1px solid #ccfbf1',
                             borderRadius: '12px', padding: '7px 16px'
                           }}>
-                            <Calendar size={16} color="#0c4e47" />
+                            <Calendar size={16} color="#059669" />
                             <span>{selectedBookingDate}</span>
                           </div>
 
-                          {activeHold && holdRemainingSeconds > 0 && (
-                            <div style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '8px',
-                              background: '#ecfdf5', border: '1.5px solid #a7f3d0',
-                              borderRadius: '12px', padding: '7px 14px',
-                              color: '#065f46', fontSize: '0.85rem', fontWeight: '700',
-                              boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
-                            }}>
-                              <span style={{ fontSize: '1rem' }}>🛡️</span>
-                              <span>Slot <b>{selectedBookingSlot}</b> Reserved:</span>
-                              <span style={{
-                                background: '#047857', color: '#ffffff',
-                                padding: '2px 8px', borderRadius: '6px',
-                                fontFamily: 'monospace', fontWeight: '800', fontSize: '0.825rem'
-                              }}>
-                                {Math.floor(holdRemainingSeconds / 60)}:{String(holdRemainingSeconds % 60).padStart(2, '0')}
-                              </span>
-                            </div>
-                          )}
                         </div>
 
                         {/* Loading State or On Leave State */}
@@ -5523,7 +5635,7 @@ export default function PatientDashboard() {
                           <div style={{ textAlign: 'center', padding: '3rem 0', color: '#64748b' }}>
                             <div style={{
                               width: '40px', height: '40px', border: '3px solid #ccfbf1',
-                              borderTop: '3px solid #0c4e47', borderRadius: '50%',
+                              borderTop: '3px solid #059669', borderRadius: '50%',
                               margin: '0 auto 12px', animation: 'spin 1s linear infinite'
                             }} />
                             <p style={{ fontSize: '0.9rem', fontWeight: '600' }}>{tr('loadingLiveSchedule')}</p>
@@ -5560,7 +5672,7 @@ export default function PatientDashboard() {
                             <button
                               onClick={() => setBookingStep(1)}
                               style={{
-                                backgroundColor: '#0c4e47',
+                                backgroundColor: '#059669',
                                 color: '#ffffff',
                                 border: 'none',
                                 borderRadius: '12px',
@@ -5615,7 +5727,7 @@ export default function PatientDashboard() {
                             onClick={() => setBookingStep(1)}
                             data-voice-action="back"
                             style={{
-                              backgroundColor: '#ffffff', color: '#334155', border: '1px solid #e2e8f0',
+                              backgroundColor: '#ffffff', color: '#059669', border: '1.5px solid #059669',
                               borderRadius: '14px', padding: '11px 24px', fontSize: '0.9rem', fontWeight: '700',
                               cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px',
                               boxShadow: '0 2px 6px rgba(0,0,0,0.02)', transition: 'all 0.25s ease'
@@ -5642,7 +5754,7 @@ export default function PatientDashboard() {
                           </div>
 
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (liveSlots.onLeave) {
                                 alert(`${selectedDoctorObj.name} is on leave on ${selectedBookingDate}. Please select another date.`);
                                 return;
@@ -5650,16 +5762,20 @@ export default function PatientDashboard() {
                               if (!selectedBookingSlot) {
                                 const firstOpen = liveSlots?.morning?.find(s => s.state === 'open' || s.state === 'fast')
                                   || liveSlots?.afternoon?.find(s => s.state === 'open' || s.state === 'fast')
-                                  || liveSlots?.evening?.find(s => s.state === 'open' || s.state === 'fast')
-                                  || { label: '09:00 AM' };
-                                setSelectedBookingSlot(firstOpen.label);
+                                  || liveSlots?.evening?.find(s => s.state === 'open' || s.state === 'fast');
+                                if (!firstOpen) {
+                                  alert('No appointment slot is currently available. Please choose another date.');
+                                  return;
+                                }
+                                const held = await handleSelectSlotWithHold(firstOpen);
+                                if (!held) return;
                               }
                               setBookingStep(3);
                             }}
                             disabled={Boolean(liveSlots.onLeave)}
                             data-voice-action="next"
                             style={{
-                              background: liveSlots.onLeave ? '#94a3b8' : 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                              background: liveSlots.onLeave ? '#94a3b8' : '#059669',
                               color: '#ffffff', border: 'none', borderRadius: '14px', padding: '13px 30px',
                               fontSize: '0.975rem', fontWeight: '800', cursor: liveSlots.onLeave ? 'not-allowed' : 'pointer',
                               display: 'inline-flex', alignItems: 'center', gap: '10px',
@@ -5684,6 +5800,7 @@ export default function PatientDashboard() {
                     <ClinicalAnamnesisChat
                       doctor={selectedDoctorObj}
                       hospital={bookingHospital}
+                      patient={session.patient}
                       initialSymptoms={bookingCaseSymptoms}
                       initialNotes={bookingCaseNotes}
                       language={currentLang || 'en'}
@@ -5812,41 +5929,48 @@ export default function PatientDashboard() {
                       </svg>
                     </div>
 
-                    {/* Right Action Badge ("Talk to Swasthya Setu" - Pure Visual Element) */}
-                    <div style={{ zIndex: 2 }}>
+                    {/* Integrated voice-assistant control */}
+                    <div style={{ zIndex: 2, flex: '0 1 285px' }}>
                       <div
                         style={{
-                          backgroundColor: '#0c4e47',
-                          color: '#ffffff',
-                          borderRadius: '16px',
-                          padding: '14px 22px',
+                          width: '100%',
+                          minWidth: '250px',
+                          background: 'rgba(255, 255, 255, 0.78)',
+                          color: '#0f172a',
+                          border: '1px solid rgba(5, 150, 105, 0.22)',
+                          borderRadius: '18px',
+                          padding: '10px 12px',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '14px',
-                          boxShadow: '0 8px 24px rgba(12, 78, 71, 0.25)',
-                          userSelect: 'none',
-                          pointerEvents: 'none'
+                          gap: '12px',
+                          boxShadow: '0 6px 18px rgba(15, 118, 110, 0.09)',
+                          backdropFilter: 'blur(10px)',
+                          textAlign: 'left',
+                          userSelect: 'none'
                         }}
                       >
                         <div style={{
-                          width: '38px',
-                          height: '38px',
-                          borderRadius: '50%',
-                          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '14px',
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          boxShadow: '0 5px 12px rgba(5, 150, 105, 0.2)'
                         }}>
-                          <Mic size={20} color="#ffffff" />
+                          <Mic size={21} color="#ffffff" />
                         </div>
-                        <div style={{ textAlign: 'left' }}>
-                          <div style={{ fontWeight: '800', fontSize: '0.95rem', letterSpacing: '-0.2px' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: '800', fontSize: '0.9rem', color: '#0f172a', letterSpacing: '-0.15px', whiteSpace: 'nowrap' }}>
                             {tr('talkToSwasthyaSetu')}
                           </div>
-                          <div style={{ fontSize: '0.75rem', color: '#99f6e4', fontWeight: '500', marginTop: '2px' }}>
+                          <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: '600', marginTop: '2px' }}>
                             {tr('speakInYourLanguage')}
                           </div>
                         </div>
+                        <ChevronRight size={18} color="#059669" style={{ flexShrink: 0 }} />
                       </div>
                     </div>
 
@@ -5955,7 +6079,7 @@ export default function PatientDashboard() {
 
                       {/* Hospital Cards List */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {filteredHospitals.slice(0, 4).map(hospital => (
+                        {filteredHospitals.slice(0, 4).map((hospital, hospitalIndex) => (
                           <div
                             key={hospital.id}
                             style={{
@@ -6027,9 +6151,10 @@ export default function PatientDashboard() {
 
                             <div style={{ textAlign: 'right', flexShrink: 0 }}>
                               <button
+                                data-voice-hospital={hospitalIndex}
                                 onClick={() => handleOpenBooking(hospital)}
                                 style={{
-                                  backgroundColor: '#0c4e47',
+                                  backgroundColor: '#059669',
                                   color: '#ffffff',
                                   border: 'none',
                                   borderRadius: '10px',
@@ -6041,8 +6166,8 @@ export default function PatientDashboard() {
                                   transition: 'all 0.2s ease',
                                   whiteSpace: 'nowrap'
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#083934'}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#0c4e47'}
+                                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
+                                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
                               >
                                 {tr('bookAppointmentBtn')}
                               </button>
@@ -6588,7 +6713,7 @@ export default function PatientDashboard() {
                         <button
                           onClick={() => setActiveTab('appointments')}
                           style={{
-                            backgroundColor: '#0c4e47',
+                            backgroundColor: '#059669',
                             color: '#ffffff',
                             borderRadius: '12px',
                             padding: '10px 22px',
@@ -6646,7 +6771,7 @@ export default function PatientDashboard() {
                               height: '32px',
                               borderRadius: '8px',
                               border: historyPage === page ? 'none' : '1px solid #e2e8f0',
-                              backgroundColor: historyPage === page ? '#0c4e47' : '#ffffff',
+                              backgroundColor: historyPage === page ? '#059669' : '#ffffff',
                               color: historyPage === page ? '#ffffff' : '#334155',
                               fontSize: '0.85rem',
                               fontWeight: '700',
@@ -6782,7 +6907,7 @@ export default function PatientDashboard() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '6px',
-                          backgroundColor: '#0c4e47',
+                          backgroundColor: '#059669',
                           color: '#ffffff',
                           borderRadius: '12px',
                           padding: '10px 16px',
@@ -7135,7 +7260,7 @@ export default function PatientDashboard() {
                       <button
                         onClick={() => reportsFileInputRef.current?.click()}
                         style={{
-                          backgroundColor: '#0c4e47',
+                          backgroundColor: '#059669',
                           color: '#ffffff',
                           borderRadius: '12px',
                           padding: '10px 22px',
@@ -7291,7 +7416,7 @@ export default function PatientDashboard() {
 
             {/* Scrollable Hospitals List */}
             <div style={{ padding: '1.5rem 2rem', overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: '1.25rem' }}>
-              {filteredHospitals.map(hospital => (
+              {filteredHospitals.map((hospital, hospitalIndex) => (
                 <div
                   key={hospital.id}
                   style={{
@@ -7356,9 +7481,10 @@ export default function PatientDashboard() {
                       {tr('nextAvailable')}: <strong style={{ color: '#0f172a' }}>{hospital.nextAvailable}</strong>
                     </div>
                     <button
+                      data-voice-hospital={hospitalIndex}
                       onClick={() => handleOpenBooking(hospital)}
                       style={{
-                        backgroundColor: '#0c4e47',
+                        backgroundColor: '#059669',
                         color: '#ffffff',
                         borderRadius: '10px',
                         padding: '8px 16px',
@@ -7628,7 +7754,7 @@ export default function PatientDashboard() {
                 <button
                   type="submit"
                   style={{
-                    backgroundColor: '#0c4e47',
+                    backgroundColor: '#059669',
                     color: '#ffffff',
                     borderRadius: '14px',
                     padding: '14px',
@@ -7744,7 +7870,7 @@ export default function PatientDashboard() {
                 onClick={() => setSelectedAppointment(null)}
                 style={{
                   width: '100%',
-                  backgroundColor: '#0c4e47',
+                  backgroundColor: '#059669',
                   color: '#ffffff',
                   borderRadius: '12px',
                   padding: '12px',
@@ -7863,7 +7989,7 @@ export default function PatientDashboard() {
 
             <button
               onClick={() => setShowAbhaModal(false)}
-              style={{ width: '100%', padding: '12px', backgroundColor: '#0c4e47', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '12px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
             >
               {tr('close')}
             </button>
@@ -7915,7 +8041,7 @@ export default function PatientDashboard() {
                     href={selectedDoc.file_url || selectedDoc.dataUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#0c4e47', color: '#ffffff', borderRadius: '8px', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: '#059669', color: '#ffffff', borderRadius: '8px', textDecoration: 'none', fontWeight: '700', fontSize: '0.85rem' }}
                   >
                     <Eye size={15} />
                     <span>Open PDF Document</span>
@@ -7933,7 +8059,7 @@ export default function PatientDashboard() {
               </p>
             </div>
 
-            <button onClick={() => setSelectedDoc(null)} style={{ width: '100%', marginTop: '1.25rem', padding: '12px', backgroundColor: '#0c4e47', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}>
+            <button onClick={() => setSelectedDoc(null)} style={{ width: '100%', marginTop: '1.25rem', padding: '12px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}>
               {tr('close')}
             </button>
           </div>
@@ -8022,7 +8148,7 @@ export default function PatientDashboard() {
 
             <button
               onClick={() => setShowAllAppointmentsModal(false)}
-              style={{ width: '100%', marginTop: '1.5rem', padding: '12px', backgroundColor: '#0c4e47', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
+              style={{ width: '100%', marginTop: '1.5rem', padding: '12px', backgroundColor: '#059669', color: '#ffffff', border: 'none', borderRadius: '12px', fontWeight: '800', cursor: 'pointer' }}
             >
               {tr('close')}
             </button>

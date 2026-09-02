@@ -344,8 +344,10 @@ export function SessionProvider({ children }) {
 
   const logout = useCallback(() => {
     try {
-      if (session.userRole === 'doctor' && session.staff) {
-        db.staff.recordLogout(session.staff);
+      if (session.staff && ['doctor', 'admin', 'nurse'].includes(session.userRole)) {
+        void db.staff.recordLogout(session.staff).catch(error => {
+          console.warn('Could not close staff activity session during logout:', error);
+        });
       }
       localStorage.removeItem('swasthya_session');
     } catch (e) {}

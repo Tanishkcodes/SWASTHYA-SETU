@@ -24,6 +24,7 @@ export function VoiceNavProvider({ children }) {
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [micState, setMicState] = useState('idle'); // idle | listening | speaking | processing
+  const [voiceError, setVoiceError] = useState('');
   const [language, setLanguageState] = useState('en');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [lastCommand, setLastCommand] = useState(null);
@@ -37,6 +38,7 @@ export function VoiceNavProvider({ children }) {
   const isDictationModeRef = useRef(false);
   const silenceTimerRef = useRef(null);
   const accumulatedTranscriptRef = useRef('');
+  const recognitionAlternativesRef = useRef(['', '', '']);
 
   useEffect(() => {
     languageRef.current = language;
@@ -58,14 +60,24 @@ export function VoiceNavProvider({ children }) {
 
     recognition.onresult = (event) => {
       let interim = '';
+      const interimAlternatives = ['', '', ''];
       let newFinal = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const text = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          newFinal += text;
+        const result = event.results[i];
+        const text = result[0].transcript;
+        if (result.isFinal) {
+          newFinal += ` ${text}`;
+          for (let alternativeIndex = 0; alternativeIndex < 3; alternativeIndex++) {
+            const alternativeText = result[alternativeIndex]?.transcript || text;
+            recognitionAlternativesRef.current[alternativeIndex] =
+              `${recognitionAlternativesRef.current[alternativeIndex]} ${alternativeText}`.trim();
+          }
         } else {
-          interim += text;
+          interim += ` ${text}`;
+          for (let alternativeIndex = 0; alternativeIndex < 3; alternativeIndex++) {
+            interimAlternatives[alternativeIndex] += ` ${result[alternativeIndex]?.transcript || text}`;
+          }
         }
       }
 
@@ -84,24 +96,48 @@ export function VoiceNavProvider({ children }) {
         clearTimeout(silenceTimerRef.current);
       }
 
+      // Ultra-responsive silence pause for instant voice navigation
+      const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
+      const interimPauseMs = isDictationModeRef.current ? 2200 : 800;
       silenceTimerRef.current = setTimeout(() => {
         const full = (accumulatedTranscriptRef.current + (interim ? ' ' + interim : '')).trim();
         if (full && isListeningRef.current) {
+          const recognitionAlternatives = recognitionAlternativesRef.current
+            .map((finalText, index) => `${finalText} ${interimAlternatives[index] || ''}`.trim())
+            .filter((candidate, index, all) => candidate && candidate !== full && all.indexOf(candidate) === index);
           setTranscript(full);
           setInterimTranscript('');
           accumulatedTranscriptRef.current = '';
-          handleVoiceInput(full);
+          recognitionAlternativesRef.current = ['', '', ''];
+          handleVoiceInput(full, recognitionAlternatives);
           if (!isDictationModeRef.current) {
             stopListening();
           }
         }
-      }, newFinal ? 2200 : 3800);
+      }, newFinal ? finalPauseMs : interimPauseMs);
     };
 
     recognition.onerror = (event) => {
       if (event.error === 'no-speech') {
         // Keep listening smoothly without abrupt cancellation
         return;
+      }
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setVoiceError('Microphone access is blocked. Allow microphone access for localhost in Chrome, then tap the microphone again.');
+        setIsListening(false);
+        isListeningRef.current = false;
+        setMicState('idle');
+        return;
+      }
+      if (event.error === 'audio-capture') {
+        setVoiceError('No working microphone was found. Check the microphone connection and Windows input settings.');
+        setIsListening(false);
+        isListeningRef.current = false;
+        setMicState('idle');
+        return;
+      }
+      if (event.error === 'network') {
+        setVoiceError('Speech recognition could not connect. Check the internet connection and try again.');
       }
       if (event.error !== 'aborted') {
         console.warn('Speech recognition status:', event.error);
@@ -159,14 +195,16 @@ export function VoiceNavProvider({ children }) {
   }, []);
 
   // Handle voice input — parse and dispatch
-  const handleVoiceInput = useCallback(async (text) => {
+  const handleVoiceInput = useCallback(async (text, recognitionAlternatives = []) => {
     setMicState('processing');
 
     // ── DICTATION MODE: Skip ALL command parsing ──
     // When VoiceInput is actively dictating into a form field,
     // raw text goes straight to the callback without AI classification.
     if (isDictationModeRef.current && onTranscriptCallbackRef.current) {
-      onTranscriptCallbackRef.current(text, { intent: 'free_text', confidence: 1, raw: text, value: text });
+      onTranscriptCallbackRef.current(text, {
+        intent: 'free_text', confidence: 1, raw: text, value: text, recognitionAlternatives,
+      });
       audioFeedback.playSuccess();
       audioPromptManager.resetIdleTimer();
       setTimeout(() => setMicState('idle'), 500);
@@ -175,12 +213,20 @@ export function VoiceNavProvider({ children }) {
 
     // Discover visible semantic controls so newly-added pages work without a
     // hand-maintained phrase list. AI may choose only from these safe actions.
+    const seenControlLabels = new Set();
     const domElements = Array.from(document.querySelectorAll('button, a[href], [role="button"], input[type="submit"]'))
       .filter(element => !element.disabled && element.getAttribute('aria-hidden') !== 'true' && element.getClientRects().length)
-      .slice(0, 60);
+      .filter(element => {
+        const label = (element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText || element.value || '')
+          .trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+        if (!label || seenControlLabels.has(label)) return false;
+        seenControlLabels.add(label);
+        return true;
+      })
+      .slice(0, 40);
     const domActions = domElements.map((element, index) => ({
       intent: `activate_${index}`,
-      description: element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText?.trim() || element.value || `control ${index + 1}`,
+      description: String(element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText?.trim() || element.value || `control ${index + 1}`).slice(0, 120),
     })).filter(action => action.description);
     const pageHandlers = commandHandlersRef.current[currentPageRef.current] || {};
     const handlerActions = Object.keys(pageHandlers).map(intent => ({ intent, description: intent.replace(/_/g, ' ') }));
@@ -188,6 +234,7 @@ export function VoiceNavProvider({ children }) {
     const result = await commandParser.parse(text, currentPageRef.current, {
       actions: [...handlerActions, ...globalActions, ...domActions],
       expectsFreeText: Boolean(onTranscriptCallbackRef.current),
+      recognitionAlternatives,
     });
     setLastCommand(result);
 
@@ -293,6 +340,10 @@ export function VoiceNavProvider({ children }) {
 
       if (handled) {
         audioFeedback.playSuccess();
+        if (result.message) {
+          // Speak AI-generated localized confirmation in user's spoken language
+          audioFeedback.speak(result.message, languageRef.current);
+        }
       } else if (!onTranscriptCallbackRef.current) {
         // Not handled, and page is NOT expecting free text (e.g., Landing Page)
         audioFeedback.playError();
@@ -341,11 +392,15 @@ export function VoiceNavProvider({ children }) {
 
     // Stop any current speech
     audioFeedback.stop();
+    setVoiceError('');
+    setTranscript('');
+    setInterimTranscript('');
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
     }
     accumulatedTranscriptRef.current = '';
+    recognitionAlternativesRef.current = ['', '', ''];
 
     try {
       const langInfo = getLanguageInfo(languageRef.current);
@@ -383,8 +438,10 @@ export function VoiceNavProvider({ children }) {
   // Toggle listening
   const toggleListening = useCallback(() => {
     if (isSpeaking) {
-      // If currently speaking, clicking the orb should just stop the speech
+      // A microphone click always means "listen". Stop page narration first,
+      // then start recognition from the same user gesture.
       audioFeedback.stop();
+      startListening(true);
     } else if (isListening) {
       const pending = accumulatedTranscriptRef.current.trim();
       stopListening();
@@ -439,8 +496,11 @@ export function VoiceNavProvider({ children }) {
   }, []);
 
   // Register global handlers
-  const registerGlobalHandlers = useCallback((handlers) => {
+  const registerGlobalHandlers = useCallback((handlers, descriptions = {}) => {
     commandHandlersRef.current['__global__'] = handlers;
+    commandParser.registerPageCommands('__global__', Object.fromEntries(
+      Object.keys(handlers || {}).map(intent => [intent, descriptions[intent] || [intent.replace(/_/g, ' ')]])
+    ));
   }, []);
 
   // Set callback for free-text transcript (used by interview page)
@@ -465,6 +525,7 @@ export function VoiceNavProvider({ children }) {
     transcript,
     interimTranscript,
     micState,
+    voiceError,
     language,
     isVoiceEnabled,
     isSpeechSupported,
@@ -510,6 +571,7 @@ export function useVoiceNav() {
       transcript: '',
       interimTranscript: '',
       micState: 'idle',
+      voiceError: '',
       language: 'en',
       isVoiceEnabled: true,
       startListening: () => {},

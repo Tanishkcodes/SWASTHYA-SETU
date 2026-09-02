@@ -40,6 +40,15 @@ export default function LanguageSelectPage() {
           handleSelect(langMatch.lang);
         }
       }
+    }, {
+      next: ['Continue with the selected language'],
+      back: ['Return to patient identification'],
+      select_english: ['Choose English'], select_hindi: ['Choose Hindi'],
+      select_tamil: ['Choose Tamil'], select_telugu: ['Choose Telugu'],
+      select_bengali: ['Choose Bengali'], select_marathi: ['Choose Marathi'],
+      select_gujarati: ['Choose Gujarati'], select_kannada: ['Choose Kannada'],
+      select_malayalam: ['Choose Malayalam'],
+      free_text: ['A naturally spoken language choice in any supported language'],
     });
 
     return () => unregisterPage('language');

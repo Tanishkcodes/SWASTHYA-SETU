@@ -30,7 +30,8 @@ const KEY_APPTS      = 'ss_appointments_';        // + patientKey
 const KEY_GLOBAL_APPTS = 'ss_global_appointments'; // all appointments across patients
 const KEY_PROXY_HOLDS = 'ss_slot_holds_proxy';     // Proxy hold / temporary lock store
 const KEY_PACING      = 'ss_doctor_opd_pacing_';   // Doctor OPD pacing and consultation duration
-const HOLD_TTL_MS     = 5 * 60 * 1000;            // 5 minutes temporary reservation hold
+const HOLD_TTL_MS     = 10 * 60 * 1000;           // renewable booking lease
+const HOLD_MAX_TTL_MS = 30 * 60 * 1000;           // anti-hoarding ceiling
 
 // ─── AI Dynamic OPD Load & Slot Throttling Engine ────────────────────────────
 
@@ -229,9 +230,9 @@ export function countActiveHolds(doctorId, dateStr, time24, excludePatientId = n
 }
 
 /**
- * Acquire a 5-minute atomic slot hold in the proxy layer
+ * Acquire a renewable slot hold in the local fallback layer.
  */
-export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientName = '' }) {
+export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientName = '', clientRequestId = null }) {
   const valid = cleanExpiredHolds();
   const schedule = getDoctorSchedule(doctorId, dateStr);
   const slot = schedule.slots.find(s => s.time24 === time24);
@@ -240,6 +241,21 @@ export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientN
   }
 
   const confirmedBooked = countBookings(doctorId, dateStr, time24);
+
+  const matchingRetry = valid.find(h =>
+    clientRequestId && h.clientRequestId === clientRequestId &&
+    h.patientId === patientId && h.doctorId === doctorId &&
+    h.dateStr === dateStr && h.time24 === time24
+  );
+  if (matchingRetry) {
+    return {
+      success: true,
+      holdId: matchingRetry.holdId,
+      expiresAt: matchingRetry.expiresAt,
+      maxExpiresAt: matchingRetry.maxExpiresAt,
+      remainingSeconds: Math.max(0, Math.round((matchingRetry.expiresAt - Date.now()) / 1000))
+    };
+  }
   const otherHolds = valid.filter(h => 
     h.doctorId === doctorId && 
     h.dateStr === dateStr && 
@@ -260,6 +276,7 @@ export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientN
 
   const now = Date.now();
   const expiresAt = now + HOLD_TTL_MS;
+  const maxExpiresAt = now + HOLD_MAX_TTL_MS;
   const holdId = `hold_${now}_${Math.random().toString(36).slice(2, 7)}`;
 
   const newHold = {
@@ -269,8 +286,10 @@ export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientN
     time24,
     patientId,
     patientName,
+    clientRequestId,
     createdAt: now,
-    expiresAt
+    expiresAt,
+    maxExpiresAt
   };
 
   filtered.push(newHold);
@@ -280,7 +299,27 @@ export function acquireSlotHold({ doctorId, dateStr, time24, patientId, patientN
     window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed', { detail: newHold }));
   } catch (e) {}
 
-  return { success: true, holdId, expiresAt, remainingSeconds: Math.round(HOLD_TTL_MS / 1000) };
+  return { success: true, holdId, expiresAt, maxExpiresAt, remainingSeconds: Math.round(HOLD_TTL_MS / 1000) };
+}
+
+/** Extend an active local lease without exceeding its anti-hoarding ceiling. */
+export function renewSlotHold({ holdId, patientId }) {
+  const valid = cleanExpiredHolds();
+  const index = valid.findIndex(h => h.holdId === holdId && h.patientId === patientId);
+  if (index < 0) return { success: false, error: 'Temporary slot hold has expired' };
+
+  const now = Date.now();
+  const maxExpiresAt = valid[index].maxExpiresAt || (valid[index].createdAt + HOLD_MAX_TTL_MS);
+  if (maxExpiresAt <= now) return { success: false, error: 'Maximum booking time reached; please select the slot again' };
+
+  valid[index] = {
+    ...valid[index],
+    expiresAt: Math.min(now + HOLD_TTL_MS, maxExpiresAt),
+    maxExpiresAt,
+    renewedAt: now,
+  };
+  localStorage.setItem(KEY_PROXY_HOLDS, JSON.stringify(valid));
+  return { success: true, ...valid[index] };
 }
 
 /**

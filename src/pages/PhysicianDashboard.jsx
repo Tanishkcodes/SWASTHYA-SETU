@@ -3441,9 +3441,6 @@ export default function PhysicianDashboard() {
   const did = cachedStaff?.doctor_id || session.staff?.doctor_id || null;
 
   const leave = () => {
-    try {
-      db.staff.recordLogout(cachedStaff || session.staff || doctor);
-    } catch (e) {}
     logout();
     nav('/auth?role=doctor');
   };
@@ -3452,9 +3449,15 @@ export default function PhysicianDashboard() {
   useEffect(() => {
     const staffObj = cachedStaff || session.staff || doctor;
     if (!staffObj) return;
+    let lastServerHeartbeatAt = 0;
 
     const runHeartbeat = () => {
       try {
+        const nowMs = Date.now();
+        if (nowMs - lastServerHeartbeatAt >= 25000) {
+          lastServerHeartbeatAt = nowMs;
+          void db.staff.recordHeartbeat(staffObj).catch(() => {});
+        }
         const loginMap = JSON.parse(localStorage.getItem('swasthya_doctor_logins') || '{}');
         const keys = [
           staffObj.doctor_id,
@@ -3471,7 +3474,6 @@ export default function PhysicianDashboard() {
         }
 
         if (prev && prev.lastLoginAt) {
-          const nowMs = Date.now();
           const loginMs = new Date(prev.lastLoginAt).getTime();
           const sessionSecs = Math.max(1, Math.round((nowMs - loginMs) / 1000));
           const baseSecs = (prev.sessionsToday || []).reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
@@ -3623,16 +3625,20 @@ export default function PhysicianDashboard() {
   const start = async () => {
     if (!selected) return;
     const targetDocId = did || doctor?.id || selected.doctorId || null;
-    if (targetDocId) recordConsultationStart(targetDocId, selected.id);
     try {
-      if (selected.id) {
-        db.appointments.updateStatus(selected.id, 'in_consultation').catch(err => {
-          console.warn('Could not persist in_consultation status to DB:', err);
-        });
+      if (selected.id && targetDocId) {
+        const result = await db.appointments.startConsultation(selected.id, targetDocId);
+        if (result.error) {
+          alert(result.error.message || 'Could not start this consultation.');
+          return;
+        }
       }
     } catch (e) {
       console.warn('Status update error:', e);
+      alert(e?.message || 'Could not start this consultation.');
+      return;
     }
+    if (targetDocId) recordConsultationStart(targetDocId, selected.id);
     setSelected(x => ({ ...x, status: 'in_consultation', doctor }));
     setConsult(true);
   };
@@ -3640,14 +3646,20 @@ export default function PhysicianDashboard() {
   const end = async extra => {
     if (!selected) return;
     const targetDocId = did || doctor?.id || selected.doctorId || null;
-    if (targetDocId) recordConsultationEnd(targetDocId, selected.id);
     try {
-      if (selected.id) {
-        await db.appointments.updateStatus(selected.id, 'completed', extra);
+      if (selected.id && targetDocId) {
+        const result = await db.appointments.endConsultation(selected.id, targetDocId, extra);
+        if (result.error) {
+          alert(result.error.message || 'Could not end this consultation.');
+          return;
+        }
       }
     } catch (e) {
       console.warn('Status update error:', e);
+      alert(e?.message || 'Could not end this consultation.');
+      return;
     }
+    if (targetDocId) recordConsultationEnd(targetDocId, selected.id);
     setRows(v => v.map(x => (x.id === selected.id ? { ...x, status: 'completed' } : x)));
     setConsult(false);
     setSelected(null);

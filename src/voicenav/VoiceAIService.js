@@ -21,25 +21,25 @@ class VoiceAIService {
     return this.available && Date.now() >= this.ttsDisabledUntil;
   }
 
-  async _request(payload, accept = 'application/json', timeoutMs = 5000) {
+  async _request(payload, accept = 'application/json', timeoutMs = 12000) {
     if (!this.available) throw new Error('Voice service is not configured');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     let response;
     try {
       response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: accept,
-        apikey: this.publishableKey,
-        Authorization: `Bearer ${this.publishableKey}`,
-      },
-      body: JSON.stringify(payload),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: accept,
+          apikey: this.publishableKey,
+          Authorization: `Bearer ${this.publishableKey}`,
+        },
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
     } catch (error) {
-      this.disabledUntil = Date.now() + 60000;
+      console.warn('Voice AI request error:', error?.message || error);
       throw error;
     } finally {
       clearTimeout(timeout);
@@ -58,7 +58,7 @@ class VoiceAIService {
       const response = await this._request({
         action: 'tts', text, language, voiceId,
         speed: settings.speed,
-      }, 'audio/mpeg');
+      }, 'audio/mpeg', 10000);
       return response.blob();
     } catch (error) {
       // Do not repeatedly delay page prompts when the TTS account has no
@@ -68,29 +68,41 @@ class VoiceAIService {
     }
   }
 
-  async understand({ transcript, language, pageId, actions, routes, expectsFreeText }) {
+  async understand({ transcript, language, pageId, actions, routes, expectsFreeText, recognitionAlternatives = [] }) {
     const response = await this._request({
       action: 'intent', transcript, language, pageId,
-      actions, routes, expectsFreeText: Boolean(expectsFreeText),
-    });
+      actions, routes, expectsFreeText: Boolean(expectsFreeText), recognitionAlternatives,
+    }, 'application/json', 12000);
     return response.json();
   }
 
-  async extractRegistration(transcript, language) {
-    const response = await this._request({ action: 'extract_registration', transcript, language });
+  async extractRegistration(transcript, language, context = {}) {
+    const response = await this._request({ action: 'extract_registration', transcript, language, context });
     return response.json();
   }
 
   async translate(text, targetLanguage, contextType = 'general') {
-    const response = await this._request({ action: 'translate', text, targetLanguage, contextType });
+    const langMap = {
+      en: 'English', hi: 'Hindi', ta: 'Tamil', te: 'Telugu',
+      bn: 'Bengali', mr: 'Marathi', gu: 'Gujarati', kn: 'Kannada', ml: 'Malayalam'
+    };
+    const targetLang = langMap[targetLanguage] || targetLanguage || 'English';
+    const response = await this._request({ action: 'translate', text, targetLanguage: targetLang, contextType });
     return response.json();
   }
 
-  async anamnesis({ disease, history, latestInput, language, doctorName, doctorSpecialty, isAyurvedic, questionNumber }) {
+  async batchTranslate(texts, targetLanguage) {
+    if (!Array.isArray(texts) || texts.length === 0) return { translations: [] };
+    const response = await this._request({ action: 'batch_translate', texts, targetLanguage }, 'application/json', 12000);
+    return response.json();
+  }
+
+  async anamnesis({ disease, history, latestInput, language, doctorName, doctorSpecialty, isAyurvedic, patient, caseSummary, questionCount = 0, phase = 'interview', requireTouchOptions = false }) {
     const response = await this._request({
       action: 'anamnesis', disease, history, latestInput, language,
-      doctorName, doctorSpecialty, isAyurvedic, questionNumber,
-    }, 'application/json', 15000);
+      doctorName, doctorSpecialty, isAyurvedic, patient, caseSummary,
+      questionCount, phase, requireTouchOptions,
+    }, 'application/json', 18000);
     return response.json();
   }
 }

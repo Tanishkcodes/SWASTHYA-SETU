@@ -763,7 +763,7 @@ const slots = {
    * Get enriched live slot data grouped by session
    * (for Step 2 patient booking UI)
    */
-  async getLive(doctorId, dateStr) {
+  async getLive(doctorId, dateStr, patientId = null) {
     // Check if doctor is on approved leave / holiday
     const leaveCheck = await doctorLeaves.isDoctorOnLeave(doctorId, dateStr);
     if (leaveCheck.onLeave) {
@@ -784,9 +784,25 @@ const slots = {
     const now = new Date();
     const isToday = dateStr === localDateKey(now);
 
+    let serverAvailability = new Map();
+    if (USE_SUPABASE()) {
+      const { data: availability, error: availabilityError } = await supabase.rpc('get_appointment_slot_availability', {
+        p_doctor_id: doctorId,
+        p_date: dateStr,
+        p_patient_id: patientId || null,
+      });
+      if (!availabilityError) {
+        serverAvailability = new Map((availability || []).map(item => [item.time_24, item]));
+      }
+    }
+
     const enriched = await Promise.all(slotRows.map(async slot => {
-      const { count: booked } = await this.countBookings(doctorId, dateStr, slot.time_24);
-      const slotsLeft = Math.max(0, slot.capacity - booked);
+      const serverSlot = serverAvailability.get(slot.time_24);
+      const bookingResult = serverSlot ? { count: Number(serverSlot.booked_count || 0) } : await this.countBookings(doctorId, dateStr, slot.time_24);
+      const booked = bookingResult.count;
+      const activeHolds = Number(serverSlot?.active_hold_count || 0);
+      const slotsLeft = serverSlot ? Number(serverSlot.slots_left || 0) : Math.max(0, slot.capacity - booked);
+      const consultationBlocked = Boolean(serverSlot?.consultation_blocked);
 
       let isPast = false;
       if (isToday) {
@@ -795,7 +811,7 @@ const slots = {
       }
 
       let state;
-      if (!slot.is_open || isPast) state = 'closed';
+      if (!slot.is_open || isPast || consultationBlocked) state = 'closed';
       else if (slotsLeft === 0)    state = 'full';
       else if (slotsLeft === 1)    state = 'fast';
       else                          state = 'open';
@@ -806,6 +822,8 @@ const slots = {
         session:  slot.session,
         capacity: slot.capacity,
         booked,
+        activeHolds,
+        consultationBlocked,
         slotsLeft,
         state,
         isPast,
@@ -819,6 +837,68 @@ const slots = {
       afternoon: enriched.filter(s => s.session === 'afternoon'),
       evening:   enriched.filter(s => s.session === 'evening'),
     };
+  },
+
+  /** Acquire a shared renewable gateway lease before collecting case details. */
+  async acquireHold({ patientId, doctorId, date, time24, clientRequestId }) {
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('acquire_appointment_slot_hold', {
+        p_patient_id: patientId,
+        p_doctor_id: doctorId,
+        p_date: date,
+        p_time_24: time24,
+        p_client_request_id: clientRequestId,
+        p_ttl_seconds: 600,
+        p_max_lifetime_seconds: 1800,
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      return { data: row, error };
+    }
+    const { acquireSlotHold } = await import('../engine/SlotEngine');
+    const result = acquireSlotHold({ doctorId, dateStr: date, time24, patientId, clientRequestId });
+    return result.success ? {
+      data: {
+        id: result.holdId,
+        expires_at: new Date(result.expiresAt).toISOString(),
+        max_expires_at: new Date(result.maxExpiresAt).toISOString(),
+      }, error: null
+    } : { data: null, error: new Error(result.error) };
+  },
+
+  async renewHold({ holdId, patientId }) {
+    if (!holdId || !patientId) return { data: null, error: new Error('Hold and patient are required') };
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('renew_appointment_slot_hold', {
+        p_hold_id: holdId,
+        p_patient_id: patientId,
+        p_ttl_seconds: 600,
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      return { data: row, error };
+    }
+    const { renewSlotHold } = await import('../engine/SlotEngine');
+    const result = renewSlotHold({ holdId, patientId });
+    return result.success ? {
+      data: {
+        id: result.holdId,
+        expires_at: new Date(result.expiresAt).toISOString(),
+        max_expires_at: new Date(result.maxExpiresAt).toISOString(),
+      }, error: null
+    } : { data: null, error: new Error(result.error) };
+  },
+
+  async releaseHold({ holdId, patientId }) {
+    if (!holdId || !patientId) return { data: false, error: null };
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('release_appointment_slot_hold', {
+        p_hold_id: holdId,
+        p_patient_id: patientId,
+      });
+      return { data: Boolean(data), error };
+    }
+    const { releaseSlotHold } = await import('../engine/SlotEngine');
+    releaseSlotHold({ holdId, patientId });
+    return { data: true, error: null };
   },
 };
 
@@ -955,7 +1035,7 @@ const appointments = {
   /**
    * Book an appointment. Returns { data: appointment, token, error }
    */
-  async book({ patientId, doctorId, hospitalId, date, time24, timeLabel, reason }) {
+  async book({ patientId, doctorId, hospitalId, date, time24, timeLabel, reason, holdId = null, bookingRequestId = null }) {
     const now = new Date();
     const todayKey = localDateKey(now);
     const [slotHour, slotMinute] = String(time24 || '').split(':').map(Number);
@@ -988,6 +1068,8 @@ const appointments = {
         p_time_24: time24,
         p_time_label: timeLabel,
         p_reason: reason || null,
+        p_hold_id: holdId,
+        p_booking_request_id: bookingRequestId,
       });
       const row = Array.isArray(data) ? data[0] : data;
       return { data: row, token: row?.token_number || null, error };
@@ -996,6 +1078,19 @@ const appointments = {
     // Local fallback mirrors the database format and never invents a
     // display-only token that differs from the stored appointment.
     const all = lsRead(LS.appointments);
+    const retriedBooking = bookingRequestId
+      ? all.find(appointment => appointment.booking_request_id === bookingRequestId && appointment.patient_id === patientId)
+      : null;
+    if (retriedBooking) {
+      return { data: retriedBooking, token: retriedBooking.token_number || null, error: null };
+    }
+    const duplicateBooking = all.find(appointment =>
+      appointment.patient_id === patientId && appointment.doctor_id === doctorId &&
+      appointment.date === date && appointment.time_24 === time24 && appointment.status !== 'cancelled'
+    );
+    if (duplicateBooking) {
+      return { data: duplicateBooking, token: duplicateBooking.token_number || null, error: null };
+    }
     const existingTokens = all.map(a => a.token_number || a.token).filter(Boolean);
     const compactDate = String(date).replace(/-/g, '');
     let nextNum = all.filter(a => a.date === date).length + 1;
@@ -1017,6 +1112,7 @@ const appointments = {
       token_number: token,
       reason,
       status:      'confirmed',
+      booking_request_id: bookingRequestId,
       booked_at:   new Date().toISOString(),
     };
     all.push(appt);
@@ -1143,6 +1239,30 @@ const appointments = {
     const idx = all.findIndex(a => a.id === appointmentId);
     if (idx !== -1) { all[idx] = { ...all[idx], status, ...extra }; lsWrite(LS.appointments, all); }
     return { data: all[idx] || null, error: null };
+  },
+
+  async startConsultation(appointmentId, doctorId) {
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('start_doctor_consultation', {
+        p_appointment_id: appointmentId,
+        p_doctor_id: doctorId,
+      });
+      return { data: Array.isArray(data) ? data[0] : data, error };
+    }
+    return this.updateStatus(appointmentId, 'in_consultation');
+  },
+
+  async endConsultation(appointmentId, doctorId, extra = {}) {
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('end_doctor_consultation', {
+        p_appointment_id: appointmentId,
+        p_doctor_id: doctorId,
+      });
+      if (error) return { data: null, error };
+      if (extra && Object.keys(extra).length) return this.updateStatus(appointmentId, 'completed', extra);
+      return { data: Array.isArray(data) ? data[0] : data, error: null };
+    }
+    return this.updateStatus(appointmentId, 'completed', extra);
   },
 
   /** Cancel an appointment */
@@ -1636,12 +1756,52 @@ const staff = {
     };
   },
 
-  async getDoctorDailyLogins() {
+  async getDoctorDailyLogins(adminSessionId = null) {
     const todayKey = new Date().toISOString().split('T')[0];
     let map = lsRead('swasthya_doctor_logins') || {};
 
     if (USE_SUPABASE()) {
       try {
+        if (adminSessionId) {
+          const localDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+          const { data: activityRows, error: activityError } = await supabase.rpc('admin_doctor_activity', {
+            p_admin_session_id: adminSessionId,
+            p_local_date: localDate,
+          });
+          if (!activityError && Array.isArray(activityRows)) {
+            const activityMap = {};
+            activityRows.forEach(row => {
+              const sessions = Array.isArray(row.sessions_today) ? row.sessions_today : [];
+              const entry = {
+                doctor_id: row.doctor_id,
+                staff_id: row.staff_id,
+                hospital_id: row.hospital_id,
+                firstLoginTodayAt: row.first_login_at,
+                lastLoginAt: row.last_login_at,
+                lastLogoutAt: row.last_logout_at,
+                lastHeartbeatAt: row.last_seen_at,
+                isOnline: row.is_online === true,
+                loggedInToday: true,
+                dutySecondsToday: Number(row.duty_seconds_today || 0),
+                dutyMinutesToday: Math.round(Number(row.duty_seconds_today || 0) / 60),
+                sessionsToday: sessions,
+                targetShiftHours: 6,
+              };
+              if (row.doctor_id) activityMap[String(row.doctor_id).toLowerCase()] = entry;
+              if (row.staff_id) activityMap[String(row.staff_id).toLowerCase()] = entry;
+            });
+            return { data: activityMap, error: null };
+          }
+          if (activityError) {
+            console.warn('Hospital-scoped activity query failed:', activityError.message);
+            return { data: {}, error: new Error(activityError.message) };
+          }
+        }
+
+        // Never fall back to a cross-hospital staff scan when Supabase is the
+        // source of truth. A fresh authenticated admin session is required.
+        return { data: {}, error: new Error('A fresh hospital admin session is required for activity data') };
+
         const { data, error } = await supabase
           .from('staff_accounts')
           .select('id, doctor_id, username, name, updated_at, is_active')
@@ -1919,8 +2079,26 @@ const staff = {
     return { data: cleanAccount, error: null };
   },
 
-  recordLogout(staffMember) {
+  async recordHeartbeat(staffMember) {
+    const activitySessionId = staffMember?.activity_session_id || staffMember?.activitySessionId;
+    if (!activitySessionId || !USE_SUPABASE()) return { data: false, error: null };
+    const { data, error } = await supabase.rpc('staff_activity_heartbeat', { p_session_id: activitySessionId });
+    return { data, error };
+  },
+
+  async recordLogout(staffMember, reason = 'user_logout') {
     if (!staffMember) return;
+    const activitySessionId = staffMember.activity_session_id || staffMember.activitySessionId;
+    if (activitySessionId && USE_SUPABASE()) {
+      try {
+        await supabase.rpc('staff_activity_logout', {
+          p_session_id: activitySessionId,
+          p_reason: reason,
+        });
+      } catch (e) {
+        console.warn('Could not close server staff activity session:', e);
+      }
+    }
     const nowIso = new Date().toISOString();
     const todayKey = nowIso.split('T')[0];
     const loginMap = lsRead('swasthya_doctor_logins') || {};

@@ -511,86 +511,80 @@ class CommandParser {
     const input = normalize(transcript);
     if (!input) return { intent: null, confidence: 0, raw: transcript };
 
-    // When on an active form or page expecting free-text input (like registration or symptom notes),
-    // don't let hardcoded navigation commands hijack natural speech. Let Gemini AI extract the details.
+    // On mixed navigation/form pages, resolve an explicit navigation command
+    // first, but never let it hijack speech that actually contains patient data.
     if (context.expectsFreeText) {
-      const words = input.split(/\s+/).filter(Boolean);
-      const isNaturalSpeech = words.length >= 2 || /\d/.test(input) || /\b(?:name|naam|age|umar|phone|mobile|symptom|fever|pain|dard|saal|years|purush|mahila|male|female|doctor|dr|hospital|bhaiya|sahab|ji)\b/i.test(input);
-      if (isNaturalSpeech) {
+      const containsPatientData = /\d{3,}|\b(?:my name|mera naam|naam|name|age|umar|phone|mobile|years|saal|male|female|purush|mahila|aadhaar|aadhar|abha)\b|(?:என் பெயர்|வயது|தொலைபேசி|ஆதார்|నా పేరు|వయస్సు|ఫోన్|ఆధార్|আমার নাম|বয়স|ফোন|আধার|माझे नाव|वय|फोन|आधार|મારું નામ|ઉંમર|ફોન|આધાર|ನನ್ನ ಹೆಸರು|ವಯಸ್ಸು|ಫೋನ್|ಆಧಾರ್|എന്റെ പേര്|വയസ്സ്|ഫോൺ|ആധാർ)/iu.test(input);
+      const explicitNavigation = this._fastMatchIntent(input, { ...context, expectsFreeText: false });
+      if (explicitNavigation && !containsPatientData) {
+        return { ...explicitNavigation, raw: transcript };
+      }
+      if (containsPatientData) {
         return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
       }
+      return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
     }
 
-    // 1. FAST-PATH: Direct multi-lingual regex match for pure short navigation commands (< 2ms instant response)
-    const fastResult = this._fastMatchIntent(input, context);
-    if (fastResult) {
-      return { ...fastResult, raw: transcript };
+    // 1. FAST-PATH: Direct hotword match for pure short navigation commands (< 2ms instant response)
+    const recognitionInputs = [input, ...(context.recognitionAlternatives || []).map(normalize)]
+      .filter((value, index, all) => value && all.indexOf(value) === index);
+    const fastCandidates = recognitionInputs
+      .map(candidate => ({ candidate, result: this._fastMatchIntent(candidate, context) }))
+      .filter(item => item.result);
+    const fastIntents = new Set(fastCandidates.map(item => item.result.intent));
+
+    // Instant match if unambiguous single control intent
+    if (fastCandidates.length && fastIntents.size === 1) {
+      return { ...fastCandidates[0].result, raw: transcript };
     }
 
-    let bestMatch = { intent: null, confidence: 0, raw: transcript, value: null };
-
-    // 2. Check page-specific commands (Fuzzy Matching)
-    if (currentPage && this.pageCommands[currentPage]) {
-      const pageResult = this._matchCommands(input, this.pageCommands[currentPage]);
-      if (pageResult.confidence > bestMatch.confidence) {
-        bestMatch = { ...pageResult, raw: transcript };
+    // 2. AI SEMANTIC INTENT PARSER (Primary Engine for any natural phrasing across all 9 languages)
+    try {
+      const availableCommands = (currentPage && this.pageCommands[currentPage]) ? this.pageCommands[currentPage] : {};
+      const globalCommands = this.pageCommands['__global__'] || {};
+      
+      const contextCommands = {};
+      if (context.actions) {
+        context.actions.forEach(a => { contextCommands[a.intent] = a.description; });
       }
+
+      const semantic = await aiCommandEngine.parseIntent(
+        transcript,
+        { ...availableCommands, ...contextCommands },
+        globalCommands,
+        {
+          page: currentPage || this.currentPage,
+          language: this.currentLanguage,
+          routes: this.routes,
+          recognitionAlternatives: context.recognitionAlternatives || [],
+        }
+      );
+      
+      if (semantic && semantic.intent && semantic.intent !== 'out_of_context') {
+        return {
+          ...semantic,
+          raw: transcript,
+          value: semantic.intent === 'free_text' ? transcript : semantic.value,
+        };
+      }
+    } catch (error) {
+      console.warn('AI intent parsing failed; evaluating offline fallback.', error);
     }
 
-    // 3. Check global commands (Fuzzy Matching)
-    const globalResult = this._matchGlobalCommands(input);
-    if (globalResult.confidence > bestMatch.confidence) {
-      bestMatch = { ...globalResult, raw: transcript };
-    }
-
-    // 4. Check number/option selection (Fuzzy Matching)
+    // 3. Check number/option selection (Fuzzy Matching)
     const optionResult = this._matchOptionSelection(input);
-    if (optionResult.confidence > bestMatch.confidence) {
-      bestMatch = { ...optionResult, raw: transcript };
+    if (optionResult.confidence >= 0.8) {
+      return { ...optionResult, raw: transcript };
     }
 
-    // 5. If match is highly confident (>= 0.75), use it immediately without cloud latency
-    if (bestMatch.confidence >= 0.75) {
-      return bestMatch;
+    // 4. Offline Multi-lingual Semantic Fallback
+    const offlineSemantic = aiCommandEngine._multilingualFallbackIntent(transcript, {}, {}, { page: currentPage, language: this.currentLanguage, routes: this.routes });
+    if (offlineSemantic) {
+      return { ...offlineSemantic, raw: transcript };
     }
 
-    // 6. AI SEMANTIC PARSER (For complex/natural phrases or DOM dynamic buttons)
-    if (aiCommandEngine.isAvailable || import.meta.env.VITE_GEMINI_API_KEY) {
-      try {
-        const availableCommands = (currentPage && this.pageCommands[currentPage]) ? this.pageCommands[currentPage] : {};
-        const globalCommands = this.pageCommands['__global__'] || {};
-        
-        // Context actions (like dynamic DOM buttons)
-        const contextCommands = {};
-        if (context.actions) {
-          context.actions.forEach(a => { contextCommands[a.intent] = a.description; });
-        }
-
-        const semantic = await aiCommandEngine.parseIntent(
-          transcript,
-          { ...availableCommands, ...contextCommands },
-          globalCommands,
-          { page: currentPage || this.currentPage, language: this.currentLanguage, routes: this.routes }
-        );
-        
-        if (semantic && semantic.intent && semantic.intent !== 'out_of_context') {
-          return {
-            ...semantic, raw: transcript,
-            value: semantic.intent === 'free_text' ? transcript : semantic.value,
-          };
-        }
-      } catch (error) {
-        console.warn('AI intent parsing failed; using offline parser fallback.', error);
-      }
-    }
-
-    // 7. If offline match met threshold
-    if (bestMatch.confidence >= this.confidenceThreshold) {
-      return bestMatch;
-    }
-
-    // 8. Otherwise, it's free text
-    return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
+    // 5. Default free_text / unhandled
+    return { intent: 'free_text', confidence: 0.5, raw: transcript, value: transcript };
   }
 
   _matchGlobalCommands(input) {

@@ -133,6 +133,14 @@ export default function AuthPage() {
       login_abha: () => role === 'patient' && setActiveTab('abha'),
       login_aadhaar: () => role === 'patient' && setActiveTab('aadhaar'),
       register_new: () => role === 'patient' && setActiveTab('new')
+    }, {
+      next: ['Continue, submit, log in, or finish after checking the entered patient details'],
+      back: ['Return to the previous page'],
+      home: ['Return to the Swasthya Setu landing page'],
+      cancel: ['Cancel patient identification and return home'],
+      login_abha: ['Use an ABHA health ID to identify the patient'],
+      login_aadhaar: ['Use an Aadhaar number to identify the patient'],
+      register_new: ['Register a new patient using name, age, phone, and gender'],
     });
 
     return () => {
@@ -268,14 +276,58 @@ export default function AuthPage() {
   // ----------------------------
   useEffect(() => {
     setDictationMode(false);
-    setOnTranscript(async (text) => {
+    setOnTranscript(async (text, recognitionResult = {}) => {
       if (!text || text.trim().length < 2) return;
       
       setIsExtracting(true);
-      const extracted = await aiCommandEngine.extractRegistrationDetails(text, language || currentLang || 'en');
-      setIsExtracting(false);
+      let extracted = null;
+      try {
+        extracted = await aiCommandEngine.extractRegistrationDetails(
+          text,
+          language || currentLang || 'en',
+          {
+            activeTab,
+            existingFields: {
+              name: formData.name,
+              age: formData.age,
+              gender: formData.gender,
+              phonePresent: Boolean(formData.phone),
+              abhaPresent: Boolean(abhaId),
+              aadhaarPresent: Boolean(aadhaar),
+            },
+            recognitionAlternatives: recognitionResult.recognitionAlternatives || [],
+          }
+        );
+      } catch (error) {
+        console.warn('Patient voice details could not be extracted:', error);
+      } finally {
+        setIsExtracting(false);
+      }
 
       if (!extracted) return;
+
+      // One semantic result can navigate the patient portal or fill it. This
+      // supports indirect, conversational requests without a phrase list.
+      if (extracted.requestedAction === 'back' || extracted.requestedAction === 'home') {
+        navigate('/');
+        return;
+      }
+      if (extracted.requestedAction === 'use_abha' && !extracted.abhaId) {
+        setActiveTab('abha');
+        return;
+      }
+      if (extracted.requestedAction === 'use_aadhaar' && !extracted.aadhaar) {
+        setActiveTab('aadhaar');
+        return;
+      }
+      if (extracted.requestedAction === 'new_patient') {
+        setActiveTab('new');
+        return;
+      }
+      if (extracted.requestedAction === 'submit') {
+        handleNextRef.current?.();
+        return;
+      }
 
       // 1. If ABHA ID was detected
       if (extracted.abhaId) {
@@ -353,7 +405,7 @@ export default function AuthPage() {
       setDictationMode(false);
       clearOnTranscript();
     };
-  }, [activeTab, language, currentLang, setOnTranscript, clearOnTranscript, setDictationMode, t, speak]);
+  }, [activeTab, language, currentLang, setOnTranscript, clearOnTranscript, setDictationMode, t, speak, navigate, formData.name, formData.age, formData.gender, formData.phone, abhaId, aadhaar]);
 
   // Direct test hook to verify speech transcript auto-fill pipeline via URL query
   useEffect(() => {
@@ -377,7 +429,7 @@ export default function AuthPage() {
       setActiveTab('new');
       setTimeout(async () => {
         setIsExtracting(true);
-        const extracted = await aiCommandEngine.extractRegistrationDetails(textToSimulate, language || currentLang || 'en');
+        const extracted = await aiCommandEngine.extractRegistrationDetails(textToSimulate, language || currentLang || 'en', { activeTab: 'new' });
         setIsExtracting(false);
         if (extracted) {
           setFormData({

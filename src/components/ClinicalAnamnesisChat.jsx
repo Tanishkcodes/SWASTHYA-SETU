@@ -1,8 +1,8 @@
 /* =========================================================================
    SWASTHYA SETU — Clinical Anamnesis & Adaptive AI Consultation Chat
    - 100% Visual Chat Matching User's Design
-   - Interactive 5-Card Icon Options for Non-Tech Patients
-   - Clinically Smart Adaptive Reasoning (Stomach, Fever, Headache, Cough, Body Pain, Ayurvedic)
+   - AI-selected, variable touch options plus speech and free text
+   - Clinically adaptive reasoning for any complaint, specialty and care system
    - Real-time Sync with Doctor Appointment Case File
    ========================================================================= */
 
@@ -190,9 +190,22 @@ const CHAT_COPY = {
   ml:{title:'നിങ്ങൾക്ക് എന്ത് പ്രശ്നമാണ്?',subtitle:'ബാധകമായ എല്ലാം തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ സ്വന്തം വാക്കുകളിൽ പറയുക/ടൈപ്പ് ചെയ്യുക.',fever:'പനി',headache:'തലവേദന',stomach:'വയറുവേദന',cough:'ചുമ / ജലദോഷം',bodypain:'ശരീരവേദന',symptomPlaceholder:'ലക്ഷണങ്ങളോ വിവരങ്ങളോ ടൈപ്പ് ചെയ്യുക (ഐച്ഛികം)',answerPlaceholder:'ഉത്തരം പറയുകയോ ടൈപ്പ് ചെയ്യുകയോ ചെയ്യാം…',speakSymptoms:'ലക്ഷണങ്ങൾ പറയുക',speakAnswer:'ഉത്തരം പറയുക',change:'പ്രശ്നം മാറ്റുക',firstQuestion:'ഇന്ന് നിങ്ങൾക്ക് എന്ത് പ്രശ്നമാണ്?',patientHas:'എനിക്ക് {disease} ഉണ്ട്.',complete:'നന്ദി. {doctor} നുള്ള ക്ലിനിക്കൽ വിവരങ്ങൾ തയ്യാറാക്കി. ഇനി പഴയ റിപ്പോർട്ടുകൾ അപ്‌ലോഡ് ചെയ്യുകയോ അപ്പോയിന്റ്മെന്റ് തുടരുകയോ ചെയ്യാം.',proceed:'റിപ്പോർട്ടുകൾ അപ്‌ലോഡ് ചെയ്യാൻ തുടരുക',previous:'മുമ്പ്: സമയം തിരഞ്ഞെടുക്കുക',next:'അടുത്തത്: റിപ്പോർട്ട് അപ്‌ലോഡ്'}
 };
 
+const AI_STATUS_COPY = {
+  en: { unavailable: 'The clinical AI could not load. Check the connection and try again.', retry: 'Retry AI' },
+  hi: { unavailable: 'क्लिनिकल AI लोड नहीं हो सका। कनेक्शन जाँचकर फिर प्रयास करें।', retry: 'AI फिर चलाएँ' },
+  ta: { unavailable: 'மருத்துவ AI ஏற்றப்படவில்லை. இணைப்பைச் சரிபார்த்து மீண்டும் முயலவும்.', retry: 'AI-ஐ மீண்டும் முயலவும்' },
+  te: { unavailable: 'క్లినికల్ AI లోడ్ కాలేదు. కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.', retry: 'AIని మళ్లీ ప్రయత్నించండి' },
+  bn: { unavailable: 'ক্লিনিক্যাল AI লোড হয়নি। সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।', retry: 'AI আবার চেষ্টা করুন' },
+  mr: { unavailable: 'क्लिनिकल AI लोड झाले नाही. कनेक्शन तपासून पुन्हा प्रयत्न करा.', retry: 'AI पुन्हा वापरा' },
+  gu: { unavailable: 'ક્લિનિકલ AI લોડ થઈ શક્યું નથી. કનેક્શન તપાસીને ફરી પ્રયાસ કરો.', retry: 'AI ફરી અજમાવો' },
+  kn: { unavailable: 'ಕ್ಲಿನಿಕಲ್ AI ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.', retry: 'AI ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ' },
+  ml: { unavailable: 'ക്ലിനിക്കൽ AI ലോഡ് ചെയ്യാനായില്ല. കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.', retry: 'AI വീണ്ടും ശ്രമിക്കുക' },
+};
+
 export default function ClinicalAnamnesisChat({
   doctor = {},
   hospital = {},
+  patient = {},
   initialSymptoms = [],
   initialNotes = '',
   onUpdateCaseDetails = () => {},
@@ -201,7 +214,9 @@ export default function ClinicalAnamnesisChat({
   language = 'en'
 }) {
   const { isListening, toggleListening, setOnTranscript, clearOnTranscript } = useVoiceNav();
-  const c = CHAT_COPY[language] || CHAT_COPY.en;
+  const languageCode = CHAT_COPY[language] ? language : 'en';
+  const c = CHAT_COPY[languageCode];
+  const aiCopy = AI_STATUS_COPY[languageCode];
   
   // Determine if Doctor is Ayurvedic / AYUSH vs Allopathic
   const docName = String(doctor?.name || '').toLowerCase();
@@ -241,6 +256,10 @@ export default function ClinicalAnamnesisChat({
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [currentStepData, setCurrentStepData] = useState(null);
+  const [starterStep, setStarterStep] = useState(null);
+  const [multiSelections, setMultiSelections] = useState([]);
+  const [aiError, setAiError] = useState('');
+  const [aiRetryToken, setAiRetryToken] = useState(0);
 
   const [caseSummary, setCaseSummary] = useState({
     chiefComplaints: safeSymptoms,
@@ -268,12 +287,96 @@ export default function ClinicalAnamnesisChat({
   });
 
   const chatBottomRef = useRef(null);
+  const answerRequestInFlightRef = useRef(false);
 
   useEffect(() => {
     if (chatStarted && chatBottomRef.current) {
       chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isTyping, chatStarted]);
+
+  const prevLanguageRef = useRef(languageCode);
+
+  // Dynamically translate active chat history, current question, and options when header language changes
+  useEffect(() => {
+    if (prevLanguageRef.current === languageCode) return;
+    prevLanguageRef.current = languageCode;
+
+    if (!chatStarted) return;
+
+    let isMounted = true;
+
+    const translateSession = async () => {
+      try {
+        // 1. Translate all messages in chat history
+        if (messages.length > 0) {
+          const translatedMessages = await Promise.all(
+            messages.map(async (m) => {
+              if (!m.text) return m;
+              try {
+                const res = await voiceAIService.translate(m.text, languageCode);
+                return { ...m, text: res?.text || m.text };
+              } catch {
+                return m;
+              }
+            })
+          );
+          if (isMounted) {
+            setMessages(translatedMessages);
+          }
+        }
+
+        // 2. Translate current question and option cards
+        if (currentStepData && currentStepData.step) {
+          const step = currentStepData.step;
+          const [translatedQ, translatedOpts] = await Promise.all([
+            step.question
+              ? voiceAIService.translate(step.question, languageCode).then(r => r?.text || step.question).catch(() => step.question)
+              : Promise.resolve(''),
+            Array.isArray(step.options) && step.options.length > 0
+              ? Promise.all(
+                  step.options.map(async (opt) => {
+                    try {
+                      const res = await voiceAIService.translate(opt.text, languageCode);
+                      return { ...opt, text: res?.text || opt.text };
+                    } catch {
+                      return opt;
+                    }
+                  })
+                )
+              : Promise.resolve([])
+          ]);
+
+          if (isMounted) {
+            setCurrentStepData(prev => {
+              if (!prev || !prev.step) return prev;
+              return {
+                ...prev,
+                step: {
+                  ...prev.step,
+                  question: translatedQ || prev.step.question,
+                  options: translatedOpts && translatedOpts.length ? translatedOpts : prev.step.options
+                }
+              };
+            });
+
+            // Narrate translated question in the newly selected language
+            if (translatedQ) {
+              import('../voicenav/AudioPromptManager').then(module => {
+                module.default.interruptWith(translatedQ);
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Interactive question translation on language switch failed:', err);
+      }
+    };
+
+    translateSession();
+
+    return () => { isMounted = false; };
+  }, [languageCode, chatStarted]);
 
   // Voice output for AI messages
   useEffect(() => {
@@ -774,29 +877,57 @@ export default function ClinicalAnamnesisChat({
   };
 
   // ── DYNAMIC AI QUESTION & OPTION GENERATOR (GEMINI + CLINICAL GRAPH) ──
-  const fetchNextAiStep = async (disease, history, latestInput) => {
+  const fetchNextAiStep = async (disease, history, latestInput, phase = 'interview', summary = caseSummary) => {
     try {
-      const parsed = await voiceAIService.anamnesis({
-        disease,
-        history,
-        latestInput,
-        language,
+      const questionCount = history.filter(item => item.sender === 'ai' && item.stepIndex !== undefined).length;
+      const requestStep = (requireTouchOptions = false) => voiceAIService.anamnesis({
+        disease, history, latestInput, language: languageCode,
         doctorName: doctor?.name || 'Attending Physician',
         doctorSpecialty: doctor?.specialty || doctor?.speciality || 'General Medicine',
-        isAyurvedic,
-        questionNumber: history.filter(item => item.sender === 'user').length,
+        isAyurvedic, patient: { age: patient?.age || '', gender: patient?.gender || '' },
+        caseSummary: summary, questionCount, phase, requireTouchOptions,
       });
-      if (parsed?.question && Array.isArray(parsed.options) && parsed.options.length === 5) {
+      let parsed = await requestStep(false);
+      let validOptions = Array.isArray(parsed?.options)
+        ? parsed.options.filter(option => option && String(option.text || '').trim()).slice(0, 8)
+        : [];
+      // The structured schema normally guarantees cards. Retry only once when
+      // Gemini returned a question without usable choices.
+      if (!parsed?.isFinished && validOptions.length < 2) {
+        parsed = await requestStep(true);
+        validOptions = Array.isArray(parsed?.options)
+          ? parsed.options.filter(option => option && String(option.text || '').trim()).slice(0, 8)
+          : [];
+      }
+      if (parsed && (parsed.isFinished || String(parsed.question || '').trim())) {
+        if (!parsed.isFinished && validOptions.length < 2) throw new Error('AI returned no usable touch options');
+        const normalizedQuestion = String(parsed.question || '').toLocaleLowerCase(languageCode).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+        const alreadyAsked = !parsed.isFinished && history.some(message =>
+          message.sender === 'ai' && normalizedQuestion &&
+          String(message.text || '').toLocaleLowerCase(languageCode).replace(/[^\p{L}\p{N}]+/gu, ' ').trim() === normalizedQuestion
+        );
+        if (alreadyAsked) {
+          return {
+            question: '', responseType: 'free_text', options: [], field: 'notes', isFinished: true,
+            completionMessage: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), caseSummaryUpdate: {}
+          };
+        }
+        setAiError('');
         return {
-          question: parsed.question,
-          options: parsed.options.map(option => ({ text: option.text, icon: getIconFromType(option.iconType) })),
+          question: String(parsed.question || '').trim(),
+          responseType: ['single_choice', 'multiple_choice', 'free_text', 'scale'].includes(parsed.responseType)
+            ? parsed.responseType
+            : (validOptions.length ? 'single_choice' : 'free_text'),
+          options: validOptions.map(option => ({ text: String(option.text).trim(), icon: getIconFromType(option.iconType) })),
+          field: parsed.capturedField || 'notes',
           isFinished: Boolean(parsed.isFinished),
           completionMessage: parsed.completionMessage,
           caseSummaryUpdate: parsed.caseSummaryUpdate || {},
         };
       }
     } catch (err) {
-      console.warn('Protected clinical AI dynamic query error; switching to smart clinical graph.', err);
+      console.warn('Protected clinical AI dynamic query error.', err);
+      setAiError(err instanceof Error ? err.message : 'Clinical AI unavailable');
     }
     return null;
   };
@@ -822,9 +953,23 @@ export default function ClinicalAnamnesisChat({
     }
   };
 
+  // Gemini proposes the opening complaint tiles from the selected doctor and
+  // patient context. The familiar generic set is used only if AI is offline.
+  useEffect(() => {
+    let cancelled = false;
+    setStarterStep(null);
+    fetchNextAiStep('', [], '', 'chief_complaint').then(step => {
+      if (!cancelled) setStarterStep(step);
+    });
+    return () => { cancelled = true; };
+  }, [doctor?.id, doctor?.name, doctor?.specialty, doctor?.speciality, isAyurvedic, patient?.age, patient?.gender, languageCode, aiRetryToken]);
+
   // Start the interactive chat
   const startConsultationChat = async (symptomList, customText = '') => {
+    if (answerRequestInFlightRef.current) return;
+    answerRequestInFlightRef.current = true;
     setChatStarted(true);
+    setMultiSelections([]);
     const diseaseName = customText ? customText.trim() : (Array.isArray(symptomList) && symptomList.length ? symptomList[symptomList.length - 1] : 'General Discomfort');
     const symptoms = [diseaseName];
     setSelectedCards([diseaseName]);
@@ -834,10 +979,17 @@ export default function ClinicalAnamnesisChat({
       Object.values(CHAT_COPY).some(copy => String(copy[problem.id] || '').toLowerCase() === primaryLower)
     )?.id;
 
-    // Intelligent multi-specialty clinical flow
-    const flowKey = localizedProblemId || resolveClinicalFlowKey(diseaseName);
-    const chosenFlow = CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach;
-    const fallbackStep = chosenFlow[0];
+    // Gemini owns the live clinical path. This free-text step is only a
+    // connectivity fallback and contains no disease-specific assumptions.
+    const flowKey = resolveClinicalFlowKey(diseaseName);
+    const chosenFlow = CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach || [];
+    const localFirstStep = chosenFlow[0];
+    const fallbackStep = {
+      question: localFirstStep?.question || c.answerPlaceholder,
+      responseType: localFirstStep?.options?.length ? 'single_choice' : 'free_text',
+      options: localFirstStep?.options || [],
+      field: localFirstStep?.field || 'notes'
+    };
 
     const updatedSummary = {
       ...caseSummary,
@@ -857,10 +1009,21 @@ export default function ClinicalAnamnesisChat({
     setMessages(initialMsgs);
 
     // Dynamically generate question #1 via Gemini for this specific disease!
-    const aiFirstStep = await fetchNextAiStep(diseaseName, initialMsgs, diseaseName);
+    const aiFirstStep = await fetchNextAiStep(diseaseName, initialMsgs, diseaseName, 'interview', updatedSummary);
 
     setIsTyping(false);
+    answerRequestInFlightRef.current = false;
     const stepToUse = aiFirstStep || fallbackStep;
+
+    if (stepToUse?.isFinished) {
+      setMessages([...initialMsgs, {
+        sender: 'ai',
+        text: stepToUse.completionMessage || c.complete.replace('{doctor}', doctor?.name || 'the doctor'),
+        isFinal: true
+      }]);
+      setCurrentStepData(null);
+      return;
+    }
 
     const firstAiMsg = {
       sender: 'ai',
@@ -882,19 +1045,23 @@ export default function ClinicalAnamnesisChat({
 
   // Handle user selecting an option card or typing text
   const handleUserChoice = async (optionText) => {
-    if (!optionText.trim()) return;
+    if (!optionText.trim() || answerRequestInFlightRef.current) return;
+    answerRequestInFlightRef.current = true;
 
     const userMsg = { sender: 'user', text: optionText };
     const nextMsgs = [...messages, userMsg];
     setMessages(nextMsgs);
     setInputVal('');
+    setMultiSelections([]);
 
-    // Update case summary field
+    // Update the field associated with the question immediately, then merge
+    // Gemini's richer extraction into that same snapshot when it returns.
+    let answerSummary = caseSummary;
     if (currentStepData && currentStepData.step) {
       const field = currentStepData.step.field || 'notes';
-      const updated = { ...caseSummary, [field]: optionText };
-      setCaseSummary(updated);
-      syncToParent(updated);
+      answerSummary = { ...caseSummary, [field]: optionText };
+      setCaseSummary(answerSummary);
+      syncToParent(answerSummary);
     }
 
     setIsTyping(true);
@@ -903,30 +1070,65 @@ export default function ClinicalAnamnesisChat({
     const flow = currentStepData?.flow || [];
     const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ');
 
-    // Call Gemini AI for the next disease-specific question + 5 option cards!
+    // Absolute safety ceiling, not a target: Gemini is expected to stop much
+    // earlier when sufficient. This guarantees a faulty response can never
+    // create an endless patient interview.
+    const safetyCeiling = isAyurvedic ? 12 : 8;
+    if (nextIdx >= safetyCeiling) {
+      setIsTyping(false);
+      answerRequestInFlightRef.current = false;
+      setMessages([...nextMsgs, {
+        sender: 'ai', text: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true
+      }]);
+      setCurrentStepData(null);
+      return;
+    }
+
+    // Gemini decides the next question, control type, option count and endpoint.
     let nextStepObj = null;
     let isFinished = false;
 
-    // AI dynamically decides when enough clinical info is gathered (up to 7 thorough questions)
-    if (nextIdx < 7) {
-      const dynamicAi = await fetchNextAiStep(disease, nextMsgs, optionText);
-      if (dynamicAi) {
-        nextStepObj = dynamicAi;
-        isFinished = Boolean(dynamicAi.isFinished);
-        if (dynamicAi.caseSummaryUpdate && Object.keys(dynamicAi.caseSummaryUpdate).length) {
-          const updated = { ...caseSummary, ...dynamicAi.caseSummaryUpdate };
-          setCaseSummary(updated);
-          syncToParent(updated);
-        }
+    const dynamicAi = await fetchNextAiStep(disease, nextMsgs, optionText, 'interview', answerSummary);
+    if (dynamicAi) {
+      nextStepObj = dynamicAi;
+      isFinished = Boolean(dynamicAi.isFinished);
+      if (dynamicAi.caseSummaryUpdate && Object.keys(dynamicAi.caseSummaryUpdate).length) {
+        const updated = { ...answerSummary, ...dynamicAi.caseSummaryUpdate };
+        setCaseSummary(updated);
+        syncToParent(updated);
       }
     }
 
-    if (!nextStepObj && nextIdx < flow.length) {
-      nextStepObj = flow[nextIdx];
-      isFinished = nextIdx >= flow.length - 1;
-    }
-
     setIsTyping(false);
+    answerRequestInFlightRef.current = false;
+
+    if (!nextStepObj) {
+      // Keep the interview usable when the network/model is temporarily slow.
+      // These are resilience cards only; Gemini remains the primary controller
+      // and will take over again on the patient's next answer.
+      const localStep = flow[nextIdx];
+      if (!localStep) {
+        setMessages([...nextMsgs, {
+          sender: 'ai', text: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true
+        }]);
+        setCurrentStepData(null);
+        return;
+      }
+      const unavailableStep = localStep ? {
+        ...localStep,
+        responseType: localStep.options?.length ? 'single_choice' : 'free_text'
+      } : { question: c.answerPlaceholder, responseType: 'free_text', options: [], field: 'notes' };
+      setMessages([...nextMsgs, { sender: 'ai', text: unavailableStep.question, stepIndex: nextIdx, flowKey: currentStepData?.flowKey }]);
+      setCurrentStepData({
+        flowKey: currentStepData?.flowKey || (isAyurvedic ? 'ayurveda' : 'allopathy'),
+        stepIndex: nextIdx,
+        step: unavailableStep,
+        flow,
+        disease,
+        isAiDriven: true
+      });
+      return;
+    }
 
     if (nextStepObj && !isFinished) {
       const nextAiMsg = {
@@ -956,6 +1158,31 @@ export default function ClinicalAnamnesisChat({
     }
   };
 
+  const retryClinicalAi = async () => {
+    if (!chatStarted) {
+      setAiRetryToken(value => value + 1);
+      return;
+    }
+    const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ');
+    const lastUserMessage = [...messages].reverse().find(message => message.sender === 'user');
+    setIsTyping(true);
+    const step = await fetchNextAiStep(disease, messages, lastUserMessage?.text || disease, 'interview', caseSummary);
+    setIsTyping(false);
+    if (!step) return;
+    if (step.isFinished) {
+      setMessages(previous => [...previous, { sender: 'ai', text: step.completionMessage || c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true }]);
+      setCurrentStepData(null);
+      return;
+    }
+    setMessages(previous => {
+      const withoutUnavailable = previous[previous.length - 1]?.sender === 'ai' ? previous.slice(0, -1) : previous;
+      return [...withoutUnavailable, { sender: 'ai', text: step.question, stepIndex: currentStepData?.stepIndex || 0, flowKey: currentStepData?.flowKey }];
+    });
+    setCurrentStepData(previous => ({
+      ...(previous || {}), step, disease, isAiDriven: true
+    }));
+  };
+
   useEffect(() => {
     setOnTranscript?.((spokenText) => {
       const value = String(spokenText || '').trim();
@@ -966,8 +1193,30 @@ export default function ClinicalAnamnesisChat({
     return () => clearOnTranscript?.();
   }, [chatStarted, selectedCards, language, currentStepData, messages]);
 
+  const starterOptions = starterStep?.options?.length
+    ? starterStep.options
+    : INITIAL_PROBLEMS.map(problem => ({
+        id: problem.id,
+        text: c[problem.id],
+        icon: problem.icon,
+      }));
+  const starterQuestion = starterStep?.question || c.title;
+
   return (
     <div style={{ width: '100%' }}>
+      {aiError && (
+        <div role="alert" style={{
+          marginBottom: '1rem', padding: '12px 16px', borderRadius: '12px', border: '1px solid #fed7aa',
+          backgroundColor: '#fff7ed', color: '#9a3412', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: '12px', fontWeight: '650'
+        }}>
+          <span>{aiCopy.unavailable}</span>
+          <button type="button" onClick={retryClinicalAi} style={{
+            border: '1px solid #fb923c', backgroundColor: '#fff', color: '#9a3412', borderRadius: '9px',
+            padding: '7px 12px', fontWeight: '800', cursor: 'pointer', whiteSpace: 'nowrap'
+          }}>{aiCopy.retry}</button>
+        </div>
+      )}
       {/* ─────────────────────────────────────────────────────────────────
           INITIAL SCREEN: 5 CARDS IN A ROW + FULL-WIDTH INPUT BAR
           ───────────────────────────────────────────────────────────────── */}
@@ -989,41 +1238,33 @@ export default function ClinicalAnamnesisChat({
               color: '#0f172a',
               letterSpacing: '-0.3px'
             }}>
-              {c.title}
+              {starterQuestion}
             </h2>
             <p style={{ margin: '0 0 2.25rem 0', fontSize: '0.925rem', color: '#64748b', fontWeight: '500' }}>
               {c.subtitle}
             </p>
 
-            {/* 5 Clean Problem Tiles Row */}
+            {/* AI-tailored complaint suggestions; typing is always available. */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
               gap: '1.25rem'
             }}>
-              {INITIAL_PROBLEMS.map((prob) => {
-                const IconComponent = prob.icon;
-                const problemLabel = c[prob.id];
+              {starterOptions.map((prob, index) => {
+                const IconComponent = prob.icon || QuestionPersonIcon;
+                const problemLabel = prob.text || c[prob.id];
                 const isSelected = selectedCards.includes(problemLabel);
 
                 return (
                   <button
-                    key={prob.id}
+                    key={prob.id || `${problemLabel}-${index}`}
                     type="button"
                     data-voice-option
                     aria-label={problemLabel}
                     onClick={() => {
-                      let updated;
-                      if (isSelected) {
-                        updated = selectedCards.filter(item => item !== problemLabel);
-                      } else {
-                        updated = [...selectedCards, problemLabel];
-                      }
+                      const updated = [problemLabel];
                       setSelectedCards(updated);
-                      // Start chat right away when selected
-                      if (updated.length > 0) {
-                        startConsultationChat(updated);
-                      }
+                      startConsultationChat(updated);
                     }}
                     style={{
                       backgroundColor: isSelected ? '#f0fdf9' : '#ffffff',
@@ -1311,16 +1552,18 @@ export default function ClinicalAnamnesisChat({
                 </div>
               )}
 
-              {/* ── 5 INTERACTIVE OPTION CARDS (SHOWN BELOW CURRENT AI QUESTION) ── */}
-              {!isTyping && currentStepData && currentStepData.step && currentStepData.step.options && (
+              {/* The AI selects both the response control and a clinically useful option count. */}
+              {!isTyping && currentStepData && currentStepData.step && currentStepData.step.options?.length > 0 && (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gridTemplateColumns: `repeat(auto-fit, minmax(${currentStepData.step.options.length <= 3 ? '210px' : '160px'}, 1fr))`,
                   gap: '1.15rem',
                   marginTop: '0.75rem'
                 }}>
                   {currentStepData.step.options.map((opt, oIdx) => {
                     const IconComp = opt.icon || TargetIcon;
+                    const isMultiple = currentStepData.step.responseType === 'multiple_choice';
+                    const isSelected = multiSelections.includes(opt.text);
 
                     return (
                       <button
@@ -1328,10 +1571,19 @@ export default function ClinicalAnamnesisChat({
                         type="button"
                         data-voice-option
                         aria-label={opt.text}
-                        onClick={() => handleUserChoice(opt.text)}
+                        aria-pressed={isMultiple ? isSelected : undefined}
+                        onClick={() => {
+                          if (!isMultiple) {
+                            handleUserChoice(opt.text);
+                            return;
+                          }
+                          setMultiSelections(current => current.includes(opt.text)
+                            ? current.filter(value => value !== opt.text)
+                            : [...current, opt.text]);
+                        }}
                         style={{
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #e2e8f0',
+                          backgroundColor: isSelected ? '#ecfdf5' : '#ffffff',
+                          border: isSelected ? '2px solid #059669' : '1px solid #e2e8f0',
                           borderRadius: '16px',
                           padding: '1.75rem 0.85rem 1.4rem 0.85rem',
                           display: 'flex',
@@ -1376,6 +1628,21 @@ export default function ClinicalAnamnesisChat({
                       </button>
                     );
                   })}
+                  {currentStepData.step.responseType === 'multiple_choice' && (
+                    <button
+                      type="button"
+                      disabled={!multiSelections.length}
+                      onClick={() => handleUserChoice(multiSelections.join(', '))}
+                      style={{
+                        gridColumn: '1 / -1', justifySelf: 'center', border: 'none', borderRadius: '12px',
+                        padding: '12px 28px', fontWeight: '800', color: '#fff',
+                        background: multiSelections.length ? '#059669' : '#94a3b8',
+                        cursor: multiSelections.length ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      {(c.next || 'Continue').split(':')[0]} ({multiSelections.length})
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1386,7 +1653,7 @@ export default function ClinicalAnamnesisChat({
                     type="button"
                     onClick={() => onNext?.()}
                     style={{
-                      background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+                      background: '#059669',
                       color: '#ffffff',
                       border: 'none',
                       borderRadius: '14px',
@@ -1519,7 +1786,7 @@ export default function ClinicalAnamnesisChat({
           type="button"
           onClick={() => onNext?.()}
           style={{
-            background: 'linear-gradient(135deg, #0c4e47 0%, #083934 100%)',
+            background: '#059669',
             color: '#ffffff',
             border: 'none',
             borderRadius: '12px',

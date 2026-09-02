@@ -76,7 +76,7 @@ function RouteChangeListener() {
 function GlobalVoiceHandler() {
   const { registerGlobalHandlers } = useVoiceNav();
   const { setCurrentLang } = useLanguage();
-  const { logout } = useSession();
+  const { logout, session } = useSession();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -93,7 +93,13 @@ function GlobalVoiceHandler() {
       emergency:   () => { window.open('tel:108', '_self'); },
 
       // ── Authentication portals ───────────────────────────────────────────
-      bookAppointment: () => navigate('/auth?role=patient'),
+      bookAppointment: () => {
+        if (session?.isAuthenticated && session?.userRole === 'patient') {
+          navigate('/patient-dashboard', { state: { voiceAction: 'bookAppointment' } });
+        } else {
+          navigate('/auth?role=patient');
+        }
+      },
       login_patient:   () => navigate('/auth?role=patient'),
       login_doctor:    () => navigate('/auth?role=doctor'),
       login_admin:     () => navigate('/auth?role=admin'),
@@ -109,7 +115,6 @@ function GlobalVoiceHandler() {
       triage:            () => navigate('/language'),
 
       // ── Patient Dashboard Tab Navigation (global fallback) ───────────────
-      // Page-level handlers override these when patientDashboard is active
       viewAppointments: () => navigate('/patient-dashboard'),
       viewHistory:      () => navigate('/patient-dashboard'),
       viewReports:      () => navigate('/patient-dashboard'),
@@ -141,8 +146,26 @@ function GlobalVoiceHandler() {
       set_language_kn: () => setCurrentLang('kn'),
       set_language_ml: () => setCurrentLang('ml'),
       set_language_en: () => setCurrentLang('en'),
+    }, {
+      bookAppointment: ['Book doctor appointment, consult a doctor, checkup, find specialists or describe symptoms'],
+      login_patient: ['Open patient login, registration, or patient portal'],
+      login_doctor: ['Open doctor or physician login portal'],
+      login_admin: ['Open hospital administration portal'],
+      scan_document: ['Scan prescription, upload lab report, camera document scan'],
+      viewReports: ['View lab test reports, prescriptions, and medical records'],
+      viewHistory: ['View past medical history, previous consultations, and visit records'],
+      viewAppointments: ['View scheduled upcoming appointments and timings'],
+      viewDonations: ['Blood donation, organ donation, or find donors'],
+      viewCommunities: ['Patient communities, support groups, discussions'],
+      viewHelp: ['Help, support, instructions, and FAQ'],
+      viewProfile: ['Patient profile, account details, and ABHA digital card'],
+      toggleAyush: ['Switch or toggle AYUSH, Ayurveda, Homeopathy, and Unani care system'],
+      emergency: ['Call 108 emergency ambulance and urgent medical help'],
+      home: ['Go to home page or main menu'],
+      back: ['Go back to previous page or step'],
+      select_language: ['Choose or change application language'],
     });
-  }, [registerGlobalHandlers, navigate, setCurrentLang, logout]);
+  }, [registerGlobalHandlers, navigate, setCurrentLang, logout, session?.isAuthenticated, session?.userRole]);
 
   return null;
 }
@@ -166,7 +189,7 @@ function Layout({ children, showHeader = true }) {
 
 function ProtectedRoute({ children, requiredRole }) {
   const { session, logout } = useSession();
-  
+
   // Safe immediate fallback for seamless single-click navigation transitions
   const savedSession = (() => {
     try {

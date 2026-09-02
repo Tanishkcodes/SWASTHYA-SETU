@@ -38,12 +38,21 @@ export default function LandingPage() {
     }
   };
 
+  const handleBookAppointment = () => {
+    if (session.isAuthenticated && session.userRole === 'patient') {
+      navigate('/patient-dashboard', { state: { voiceAction: 'bookAppointment' } });
+    } else {
+      navigate('/auth?role=patient');
+    }
+  };
+
   useEffect(() => {
     // Register comprehensive voice commands for landing page
     registerPage('landing', {
       next: handleStartSession,
       start_session: handleStartSession,
-      book_appointment: handleStartSession,
+      bookAppointment: handleBookAppointment,
+      book_appointment: handleBookAppointment,
       register_new: () => navigate('/auth?role=patient'),
       login_patient: () => navigate('/auth?role=patient'),
       login_doctor: () => navigate('/auth?role=doctor'),
@@ -52,8 +61,8 @@ export default function LandingPage() {
       login_aadhaar: () => navigate('/auth?role=patient'),
       select_language: () => navigate('/language'),
       change_language: () => navigate('/language'),
-      scan_document: () => navigate('/document-scan'),
-      document_scan: () => navigate('/document-scan'),
+      scan_document: () => navigate('/scan'),
+      document_scan: () => navigate('/scan'),
       home: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
       scrollUp: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
       scrollDown: () => window.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' }),
@@ -65,6 +74,23 @@ export default function LandingPage() {
         const faqSec = document.querySelector('.faq-section');
         if (faqSec) faqSec.scrollIntoView({ behavior: 'smooth' });
       }
+    }, {
+      next: ['Begin using Swasthya Setu or continue to the correct signed-in portal'],
+      start_session: ['Start, begin, continue, or get healthcare assistance'],
+      book_appointment: ['Book, arrange, schedule, or get a doctor appointment as a patient'],
+      bookAppointment: ['Book, arrange, schedule, or get a doctor appointment as a patient'],
+      register_new: ['Register a new patient who has no existing login'],
+      login_patient: ['Open patient login, patient registration, or patient portal'],
+      login_doctor: ['Open doctor or physician login portal'],
+      login_admin: ['Open hospital administrator login portal'],
+      login_abha: ['Use an ABHA health ID for patient login'],
+      login_aadhaar: ['Use Aadhaar for patient login'],
+      select_language: ['Choose or change the website language'],
+      change_language: ['Choose or change the website language'],
+      scan_document: ['Scan or upload a prescription, report, or medical document'],
+      document_scan: ['Scan or upload a prescription, report, or medical document'],
+      help: ['Show help, frequently asked questions, or explain how the website works'],
+      faq: ['Show frequently asked questions'],
     });
 
     return () => unregisterPage('landing');

@@ -84,12 +84,16 @@ class AICommandEngine {
    */
   async parseIntent(transcript, availableCommands = {}, globalCommands = {}, ctx = {}) {
     if (!transcript || !transcript.trim()) return null;
-    const { page = 'unknown', language = 'auto', routes = [] } = ctx;
-    const cacheKey = `intent::${page}::${transcript.toLowerCase().trim()}`;
+    const { page = 'unknown', language = 'auto', routes = [], recognitionAlternatives = [] } = ctx;
+    const safeAlternatives = Array.isArray(recognitionAlternatives)
+      ? recognitionAlternatives.map(value => String(value || '').trim()).filter(Boolean).slice(0, 3)
+      : [];
+    const cacheKey = `intent::${page}::${transcript.toLowerCase().trim()}::${safeAlternatives.join('|').toLowerCase()}`;
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
 
+    // 1. Try Voice AI Service (Supabase Edge Function with Gemini)
     try {
       const actions = [...Object.keys(globalCommands), ...Object.keys(availableCommands)].map(intent => ({
         intent,
@@ -104,68 +108,12 @@ class AICommandEngine {
           pageId: page || 'interactive',
           actions,
           routes: routes.map(r => ({ id: r.id, description: r.description })),
-          expectsFreeText: false
+          expectsFreeText: false,
+          recognitionAlternatives: safeAlternatives,
         });
-      } else if (import.meta.env.VITE_GEMINI_API_KEY) {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const routesList = routes.length > 0
-          ? '\nNavigable routes (for navigate_to intent):\n' + routes.map(r => `- "${r.id}": ${r.description}`).join('\n')
-          : '';
-
-        const prompt = `You are the AI voice navigation system for Swasthya Setu, an Indian multilingual medical kiosk app.
-
-Current context:
-- Page: ${page}
-- UI language: ${language || 'unknown (auto-detect)'}
-- The user may speak Hindi, Tamil, Telugu, Marathi, Bengali, Gujarati, Kannada, Malayalam, English, or any Hinglish mix
-
-User voice input: "${transcript}"
-
-Available actions on this page:
-${actions.map(a => `- "${a.intent}": ${a.description}`).join('\n')}${routesList}
-
-Rules:
-1. Understand INTENT regardless of language, order, or phrasing
-2. Common Indian phrases: "dikhao"=show, "jao"=go, "karo"=do/make, "chahiye"=want/need, "banana hai"=need to create
-3. Self-corrections: "30 nahi 35" → use 35; "sorry not Suresh, Ramesh" → use Ramesh
-4. If entering a form value (name, age, phone, symptoms), return "free_text" with the value
-5. If navigating to a page not in the actions, return "navigate_to" with value = route id
-6. If completely irrelevant, return "out_of_context"
-7. Include a brief spoken message in the same language the user spoke
-
-Return ONLY valid JSON (no markdown):
-{ "intent": "<intent_name>", "value": null, "confidence": 0.95, "message": "<brief spoken confirmation>" }`;
-
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.1,
-              maxOutputTokens: 256
-            }
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-          try {
-            const parsed = JSON.parse(rawJson);
-            result = {
-              intent: parsed.intent || 'out_of_context',
-              confidence: parsed.confidence || 0.95,
-              value: parsed.value ?? null,
-              message: parsed.message || null,
-            };
-          } catch(e) { console.warn('AI JSON decode failed:', rawJson); }
-        }
       }
 
-      if (result) {
+      if (result && result.intent && result.intent !== 'out_of_context') {
         this._cache.set(cacheKey, result);
         if (this._cache.size > 150) {
           const firstKey = this._cache.keys().next().value;
@@ -173,21 +121,106 @@ Return ONLY valid JSON (no markdown):
         }
         return result;
       }
-      return null;
     } catch (e) {
-      console.warn("AI Out-of-context fallback failed:", e);
-      return null;
+      console.warn("Cloud AI intent understanding unavailable, using smart multilingual engine fallback:", e);
     }
+
+    // 2. Multilingual Semantic Fallback (Handles all 9 Indian languages offline)
+    const fallbackResult = this._multilingualFallbackIntent(transcript, availableCommands, globalCommands, ctx);
+    if (fallbackResult) {
+      this._cache.set(cacheKey, fallbackResult);
+      return fallbackResult;
+    }
+
+    return null;
+  }
+
+  /**
+   * Comprehensive offline intent classification across all 9 Indian languages
+   */
+  _multilingualFallbackIntent(transcript, availableCommands = {}, globalCommands = {}, ctx = {}) {
+    const raw = (transcript || '').toLowerCase().trim();
+    if (!raw) return null;
+
+    // 1. Language switching
+    if (/\b(?:hindi|हिंदी|हिन्दी|hindi me|hindi mein)\b/i.test(raw)) return { intent: 'set_language_hi', confidence: 0.98, message: 'भाषा हिन्दी में बदल दी गई है।' };
+    if (/\b(?:tamil|தமிழ்|tamil il|tamizhil)\b/i.test(raw)) return { intent: 'set_language_ta', confidence: 0.98, message: 'மொழி தமிழாக மாற்றப்பட்டது.' };
+    if (/\b(?:telugu|తెలుగు|telugu lo)\b/i.test(raw)) return { intent: 'set_language_te', confidence: 0.98, message: 'భాష తెలుగులోకి మార్చబడింది.' };
+    if (/\b(?:bengali|bangla|বাংলা|bangla te)\b/i.test(raw)) return { intent: 'set_language_bn', confidence: 0.98, message: 'ভাষা বাংলায় পরিবর্তিত হয়েছে।' };
+    if (/\b(?:marathi|मराठी|marathi madhe)\b/i.test(raw)) return { intent: 'set_language_mr', confidence: 0.98, message: 'भाषा मराठीत बदलली आहे.' };
+    if (/\b(?:gujarati|ગુજરાતી|gujarati ma)\b/i.test(raw)) return { intent: 'set_language_gu', confidence: 0.98, message: 'ભાષા ગુજરાતીમાં બદલાઈ ગઈ છે.' };
+    if (/\b(?:kannada|ಕನ್ನಡ|kannada dalli)\b/i.test(raw)) return { intent: 'set_language_kn', confidence: 0.98, message: 'ಭಾಷೆಯನ್ನು ಕನ್ನಡಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.' };
+    if (/\b(?:malayalam|മലയാളം|malayalam il)\b/i.test(raw)) return { intent: 'set_language_ml', confidence: 0.98, message: 'ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.' };
+    if (/\b(?:english|angrezi|ஆங்கிலம்|ఆంగ్లం|ইংরেজি|ઇંગ્લિશ|ಆಂಗ್ಲ|ഇംഗ്ലീഷ്)\b/i.test(raw)) return { intent: 'set_language_en', confidence: 0.98, message: 'Language switched to English.' };
+
+    // 2. Emergency / SOS
+    if (/\b(?:emergency|sos|108|102|ambulance|bachao|aapatkaal|avasaram|atyavasaram|sahayam|sahayyam|urgent)\b/i.test(raw)) {
+      return { intent: 'emergency', confidence: 0.99, message: 'Emergency service 108 is being connected.' };
+    }
+
+    // 3. Doctor & Appointment (all 9 languages + Hinglish)
+    if (
+      /\b(?:doctor|daktar|chikitsak|vaidya|vaidyudu|maruthuvar|maruthuvarai|appointment|milna|dikhana|bimar|tabiyat|ilaaj|treatment|santhikka|parkka|kalavali|chupinchu|dekhate|bhetaycha|dakhavaycha|malvu|batavvu|nodabeku|kaananam|consult|checkup|specialist|hospital|cardio|ortho|derma|neuro|fever|dard|pain|headache|bukhar)\b/i.test(raw)
+    ) {
+      return { intent: 'bookAppointment', confidence: 0.92, message: 'Opening doctor appointment.' };
+    }
+
+    // 4. Scan / Prescription
+    if (/\b(?:scan|parcha|prescription|document|dastavej|camera|photo|upload|marundhu|mandu|patrika|kagad)\b/i.test(raw)) {
+      return { intent: 'scan_document', confidence: 0.92, message: 'Opening document scan.' };
+    }
+
+    // 5. Reports & Lab Results
+    if (/\b(?:report|reports|lab|test|blood test|nateeja|parikshan|arikkai|pariksha|tapasani)\b/i.test(raw)) {
+      return { intent: 'viewReports', confidence: 0.92, message: 'Showing lab reports and records.' };
+    }
+
+    // 6. Medical History
+    if (/\b(?:history|itihas|purana|purani|past visit|pichli|varalaru|charitra|adhichi|atiter)\b/i.test(raw)) {
+      return { intent: 'viewHistory', confidence: 0.90, message: 'Showing past medical history.' };
+    }
+
+    // 7. Blood & Organ Donations
+    if (/\b(?:blood|raktdan|rakt|raktham|roktodan|rakta|donation|donations|donor|organ)\b/i.test(raw)) {
+      return { intent: 'viewDonations', confidence: 0.90, message: 'Opening blood and donation services.' };
+    }
+
+    // 8. Community & Support Groups
+    if (/\b(?:community|group|support group|samajik|mandal|samuh|charcha|patient group)\b/i.test(raw)) {
+      return { intent: 'viewCommunities', confidence: 0.90, message: 'Opening patient communities.' };
+    }
+
+    // 9. Help & FAQ
+    if (/\b(?:help|support|madad|sahayata|sahayam|faq|kaise|kivabe|guidance)\b/i.test(raw)) {
+      return { intent: 'viewHelp', confidence: 0.90, message: 'Opening help and support.' };
+    }
+
+    // 10. Profile & ABHA Card
+    if (/\b(?:profile|abha|aadhaar|account|meri jankari|identity|card|health card)\b/i.test(raw)) {
+      return { intent: 'viewProfile', confidence: 0.90, message: 'Opening your health profile.' };
+    }
+
+    // 11. Ayush / Ayurveda
+    if (/\b(?:ayush|ayurveda|ayurvedic|homeopathy|unani|desi ilaaj|herbal)\b/i.test(raw)) {
+      return { intent: 'toggleAyush', confidence: 0.90, message: 'Toggling AYUSH mode.' };
+    }
+
+    // 12. Controls
+    if (/\b(?:home|main page|landing|mukhya|shuruat)\b/i.test(raw)) return { intent: 'home', confidence: 0.95, message: 'Going to home page.' };
+    if (/\b(?:back|peeche|piche|wapas|pinnadi|venakki|hinde|pirakil)\b/i.test(raw)) return { intent: 'back', confidence: 0.95, message: 'Going back.' };
+    if (/\b(?:next|aage|muthal|mundhu|porer|pudhe|aagal|munde|aduthathu|continue)\b/i.test(raw)) return { intent: 'next', confidence: 0.95, message: 'Continuing.' };
+
+    return null;
   }
 
   /**
    * Intelligently understands, thinks, and extracts patient registration & medical details using Gemini AI.
    * Handles arbitrary sentence ordering, self-corrections, all 9 Indian languages, multi-sentence stories, and symptoms.
    */
-  async extractRegistrationDetails(transcript, language = 'en') {
+  async extractRegistrationDetails(transcript, language = 'en', context = {}) {
     if (!transcript || transcript.trim().length === 0) return null;
 
-    const cacheKey = `extract::${transcript.toLowerCase().trim()}`;
+    const cacheKey = `extract::${language}::${context.activeTab || 'new'}::${transcript.toLowerCase().trim()}`;
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
@@ -259,7 +292,8 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
             date: parsed.date || null,
             time: parsed.time || null,
             detectedLanguage: parsed.detectedLanguage || language,
-            confirmationMessage: parsed.confirmationMessage || null
+            confirmationMessage: parsed.confirmationMessage || null,
+            requestedAction: parsed.requestedAction || 'none'
           };
 
           this._cache.set(cacheKey, result);
@@ -273,7 +307,7 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
     // 2. Try Edge Function if configured
     if (this.isAvailable) {
       try {
-        const parsed = await voiceAIService.extractRegistration(transcript, language);
+        const parsed = await voiceAIService.extractRegistration(transcript, language, context);
         const phone = String(parsed.phone || '').replace(/\D/g, '');
         const age = String(parsed.age || '').match(/\d{1,3}/)?.[0] || '';
         const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : '';
@@ -283,7 +317,12 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
           phone: phone.length === 10 ? phone : fallback.phone,
           gender: normalizedGender || fallback.gender,
           symptoms: parsed.symptoms || fallback.symptoms || '',
-          confirmationMessage: parsed.confirmationMessage || null
+          symptomList: Array.isArray(parsed.symptomList) ? parsed.symptomList : [],
+          abhaId: parsed.abhaId || fallback.abhaId || null,
+          aadhaar: parsed.aadhaar || fallback.aadhaar || null,
+          detectedLanguage: parsed.detectedLanguage || language,
+          confirmationMessage: parsed.confirmationMessage || null,
+          requestedAction: parsed.requestedAction || 'none'
         };
         this._cache.set(cacheKey, res);
         return res;

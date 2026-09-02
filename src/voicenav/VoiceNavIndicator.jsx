@@ -15,28 +15,12 @@ export default function VoiceNavIndicator() {
     isSpeaking,
     interimTranscript,
     transcript,
+    voiceError,
     toggleListening,
-    startListening,
-    stopListening,
     isVoiceEnabled,
     isSpeechSupported,
     language,
   } = useVoiceNav();
-
-  // Handle Touch interactions for push-to-talk on mobile
-  const handleTouchStart = (e) => {
-    // If the device supports touch, we use push-to-talk mechanics
-    // e.preventDefault() here prevents the simulated onClick from firing,
-    // ensuring we don't accidentally toggle it off immediately.
-    // However, it also prevents the button from showing an active state via CSS if we aren't careful.
-    // For now, just start listening continuously while held.
-    startListening(true);
-  };
-
-  const handleTouchEnd = (e) => {
-    e.preventDefault();
-    stopListening();
-  };
 
   if (!isVoiceEnabled) return null;
 
@@ -102,12 +86,16 @@ export default function VoiceNavIndicator() {
         </div>
       )}
 
+      {voiceError && !showTranscript && (
+        <div className="voicenav-transcript animate-fade-in-up" role="alert">
+          <p className="voicenav-transcript-text">{voiceError}</p>
+        </div>
+      )}
+
       {/* Main orb button */}
       <button
         className={`voicenav-orb ${config.className}`}
         onClick={toggleListening}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         disabled={!isSpeechSupported}
         aria-label={isListening ? 'Stop listening' : 'Start listening'}
         title={config.label}
