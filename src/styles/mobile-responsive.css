@@ -1,53 +1,45 @@
 /* ==========================================================================
-   SWASTHYA SETU — Mobile & Tablet Horizontal Scroll & Layout Stylesheet
+   SWASTHYA SETU — True Mobile & Tablet Responsive Design
    Pure CSS Media Queries (@media max-width: 1024px)
    100% ZERO changes to laptop/desktop screens (> 1024px).
-   
-   Behavior:
-   1. Preserves the full layout, sidebar, and hamburger button on Patient Dashboard.
-   2. Enables smooth horizontal scrolling (left and right) with the scrollbar 
-      positioned at the very BOTTOM of the screen (not at the top).
-   3. Applies across EVERY page and dashboard.
+
+   Features:
+   1. The website adapts naturally to mobile & tablet screen sizes (no awkward zoom or overflow).
+   2. Patient Dashboard keeps the hamburger button and collapsible sidebar on the left.
+   3. Content fits the screen cleanly; tables/grids scroll horizontally at the BOTTOM (not top).
    ========================================================================== */
 
 @media (max-width: 1024px) {
 
-  /* ── 1. Page-Level Bottom Horizontal Scrollbar Across ALL Pages ── */
-  html {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    width: 100% !important;
-  }
-
-  body {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    min-width: 1080px !important;
-    width: max-content !important;
-    position: relative !important;
-  }
-
+  /* ── 1. Screen & Body Sizing ── */
+  html,
+  body,
   #root {
-    min-width: 1080px !important;
-    width: max-content !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    -webkit-text-size-adjust: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  /* ── 2. Sleek, Touch-Optimized Bottom Scrollbar ── */
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+  }
+
+  /* ── 2. Sleek Scrollbar (Positioned at the BOTTOM of Scrollable Areas) ── */
   ::-webkit-scrollbar {
-    height: 10px !important;
-    width: 8px !important;
+    height: 7px !important;
+    width: 6px !important;
   }
 
   ::-webkit-scrollbar-track {
     background: #f1f5f9 !important;
-    border-top: 1px solid #e2e8f0 !important;
+    border-radius: 4px !important;
   }
 
   ::-webkit-scrollbar-thumb {
     background: #0d9488 !important;
-    border-radius: 6px !important;
+    border-radius: 4px !important;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -55,101 +47,414 @@
   }
 
   /* ── 3. Patient Dashboard: Hamburger & Left Sidebar Preserved ── */
-  /* Keep sidebar on the left with sticky position and visible hamburger button */
+  /* Keep outer flex row so sidebar stays on the left */
   div[style*="minHeight: '100vh'"][style*="display: 'flex'"],
   div[style*="min-height: 100vh"][style*="display: flex"] {
     display: flex !important;
     flex-direction: row !important;
-    min-width: 1080px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: relative !important;
   }
 
+  /* Left Sidebar: Thin strip when collapsed, overlay drawer when expanded */
   div[style*="minHeight: '100vh'"] > aside,
   div[style*="min-height: 100vh"] > aside {
     position: sticky !important;
     top: 0 !important;
     height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
     flex-shrink: 0 !important;
-    z-index: 40 !important;
+    z-index: 80 !important;
+    overflow-x: hidden !important;
+    transition: width 0.28s ease, min-width 0.28s ease, box-shadow 0.28s ease !important;
   }
 
-  div[style*="minHeight: '100vh'"] > aside nav,
-  div[style*="min-height: 100vh"] > aside nav {
+  /* When collapsed (72px in inline style) */
+  div[style*="minHeight: '100vh'"] > aside[style*="72px"] {
+    width: 60px !important;
+    min-width: 60px !important;
+    padding: 1rem 0.35rem !important;
+  }
+
+  /* When expanded (240px in inline style) - slide over content smoothly on small screens */
+  div[style*="minHeight: '100vh'"] > aside[style*="240px"] {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 250px !important;
+    min-width: 250px !important;
+    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.25) !important;
+    z-index: 1000 !important;
+    background: #ffffff !important;
+    padding: 1.25rem 1rem !important;
+  }
+
+  /* Ensure the Hamburger button is always prominent and clickable */
+  div[style*="minHeight: '100vh'"] > aside button[title*="sidebar"],
+  div[style*="min-height: 100vh"] > aside button[title*="sidebar"] {
     display: flex !important;
-    flex-direction: column !important;
-    overflow-x: visible !important;
-    overflow-y: auto !important;
-    white-space: normal !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    flex-shrink: 0 !important;
+    margin: 0 auto !important;
+    cursor: pointer !important;
+    border-radius: 10px !important;
+    z-index: 90 !important;
   }
 
+  /* Patient Main Content: Takes Available Screen Width */
   div[style*="minHeight: '100vh'"] > main,
   div[style*="min-height: 100vh"] > main {
     flex: 1 !important;
-    min-width: 840px !important;
+    width: calc(100vw - 60px) !important;
+    max-width: calc(100vw - 60px) !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
 
-  /* ── 4. Doctor / Physician Dashboard Preserved ── */
+  /* Top Bar inside Patient Dashboard */
+  div[style*="minHeight: '100vh'"] > main > header,
+  div[style*="min-height: 100vh"] > main > header {
+    padding: 0 14px !important;
+    height: 62px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Content Padding inside Patient Dashboard */
+  div[style*="minHeight: '100vh'"] > main > div[style*="padding:"] {
+    padding: 14px 12px 48px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 2-Column Grid (Hospital List & Upcoming Appointments) -> 1 Column */
+  div[style*="gridTemplateColumns: '1.65fr 1fr'"],
+  div[style*="grid-template-columns: 1.65fr 1fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 16px !important;
+  }
+
+  /* Doctor About & Metrics Grid -> 1 Column */
+  div[style*="gridTemplateColumns: '1.2fr 1fr'"],
+  div[style*="grid-template-columns: 1.2fr 1fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 14px !important;
+  }
+
+  /* Hero Banner */
+  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] {
+    padding: 1.15rem 1rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] svg {
+    display: none !important;
+  }
+
+  div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] > div {
+    width: 100% !important;
+  }
+
+  /* Booking Container */
+  div[style*="padding: '2.25rem 2.5rem'"] {
+    padding: 14px 10px !important;
+    width: 100% !important;
+    border-radius: 14px !important;
+  }
+
+  /* Date & Time Slot Grids */
+  div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))'"] {
+    grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))'"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  /* Tables: Horizontal Scrollbar positioned at the BOTTOM of the table */
+  div[style*="gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr'"] {
+    min-width: 640px !important;
+  }
+
+  div[style*="border: '1px solid #e2e8f0'"][style*="borderRadius: '16px'"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* ── 4. Doctor / Physician Dashboard ── */
   .dp-shell {
     display: flex !important;
     flex-direction: row !important;
-    min-width: 1080px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    position: relative !important;
   }
 
   .dp-side {
     position: sticky !important;
     top: 0 !important;
     height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
     flex-shrink: 0 !important;
-    z-index: 40 !important;
+    z-index: 80 !important;
+    transition: width 0.28s ease, min-width 0.28s ease !important;
+  }
+
+  .dp-side.collapsed {
+    width: 60px !important;
+    min-width: 60px !important;
+    padding: 14px 6px !important;
+  }
+
+  .dp-side:not(.collapsed) {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 250px !important;
+    min-width: 250px !important;
+    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.25) !important;
+    z-index: 1000 !important;
+    background: #ffffff !important;
   }
 
   .dp-main {
     flex: 1 !important;
-    min-width: 820px !important;
+    width: calc(100vw - 60px) !important;
+    max-width: calc(100vw - 60px) !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    padding: 14px 10px 48px !important;
+    box-sizing: border-box !important;
   }
 
-  /* ── 5. Admin / Hospital Dashboard Preserved ── */
+  .dp-metrics {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .dp-schedule-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .dp-schedule-header > div:last-child {
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    justify-content: space-between !important;
+  }
+
+  /* Schedule Table Scrollbar at the BOTTOM of the table container */
+  .dp-schedule {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 12px !important;
+  }
+
+  .dp-th,
+  .dp-tr {
+    min-width: 620px !important;
+  }
+
+  /* ── 5. Admin / Hospital Dashboard ── */
   .admin-shell {
     display: flex !important;
     flex-direction: row !important;
-    min-width: 1080px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
   }
 
   .admin-sidebar {
     position: sticky !important;
     top: 0 !important;
     height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
     flex-shrink: 0 !important;
-    z-index: 40 !important;
+    width: 60px !important;
+    min-width: 60px !important;
+    padding: 12px 6px !important;
+    overflow-x: hidden !important;
   }
 
   .admin-main {
     flex: 1 !important;
-    min-width: 830px !important;
+    width: calc(100vw - 60px) !important;
+    max-width: calc(100vw - 60px) !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    padding: 14px 10px 40px !important;
   }
 
-  /* ── 6. Landing & Auth Pages Preserved ── */
-  .landing-page,
-  .hero-section,
-  .features-section,
-  .auth-page {
-    min-width: 1080px !important;
+  .admin-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    width: 100% !important;
   }
 
-  header {
-    min-width: 1080px !important;
+  .admin-table-card,
+  .admin-table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* ── 7. Floating Voice Indicator: Stays Fixed to Viewport Bottom-Right ── */
+  .admin-table {
+    min-width: 620px !important;
+  }
+
+  /* ── 6. Global Modals & Floating Voice Orb ── */
+  div[style*="maxWidth: '520px'"],
+  div[style*="max-width: 520px"],
+  div[style*="maxWidth: '460px'"],
+  div[style*="max-width: 460px"],
+  div[style*="maxWidth: '440px'"],
+  div[style*="max-width: 440px"] {
+    max-width: 95vw !important;
+    width: 95vw !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+    padding: 1.25rem !important;
+    border-radius: 16px !important;
+  }
+
   .voicenav-container {
     position: fixed !important;
-    bottom: 24px !important;
-    right: 24px !important;
+    bottom: 18px !important;
+    right: 16px !important;
     z-index: 9999 !important;
+  }
+
+  .voicenav-orb {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .voicenav-orb svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* ==========================================================================
+   SMARTPHONE VIEWPORTS (<= 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Header Scaling */
+  header {
+    height: 60px !important;
+  }
+
+  header > div {
+    padding: 0 10px !important;
+    gap: 8px !important;
+  }
+
+  header svg[width="46"],
+  header svg[height="46"] {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  header a > div > div:first-child,
+  header h1 {
+    font-size: 1.05rem !important;
+  }
+
+  header a > div > div:last-child,
+  header a > div > small {
+    display: none !important;
+  }
+
+  header button {
+    padding: 6px 10px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Landing Page */
+  .landing-page {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .hero-section {
+    padding: 50px 14px 24px !important;
+    width: 100% !important;
+  }
+
+  .hero-title {
+    font-size: 1.85rem !important;
+    line-height: 1.18 !important;
+  }
+
+  .stats-container {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 14px !important;
+    width: 100% !important;
+  }
+
+  .stat-counter {
+    min-width: 100% !important;
+  }
+
+  /* Auth Page */
+  .auth-page {
+    padding-top: calc(var(--header-height, 60px) + 1rem) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    width: 100% !important;
+  }
+
+  .auth-container {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .admin-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+}
+
+/* ==========================================================================
+   EXTRA COMPACT SMARTPHONES (<= 380px)
+   ========================================================================== */
+@media (max-width: 380px) {
+  .admin-stats-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  header a > div > div:first-child {
+    font-size: 0.95rem !important;
   }
 }
