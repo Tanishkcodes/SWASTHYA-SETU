@@ -42,6 +42,7 @@ import Header from './components/Header';
 // Styles
 import './styles/global.css';
 import './styles/components.css';
+import './styles/mobile-responsive.css';
 
 import domTranslator from './engine/DOMTranslator';
 import { useLanguage } from './context/LanguageContext';
