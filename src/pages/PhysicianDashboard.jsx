@@ -151,7 +151,7 @@ function formatAgeGender(age, gender) {
  * - When in (collapsed): NO logo visible, ONLY Hamburger centered
  */
 function Sidebar({ activeTab, onSelectTab, logout }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 1024 : false);
   const toggle = () => setCollapsed(value => !value);
 
   return (

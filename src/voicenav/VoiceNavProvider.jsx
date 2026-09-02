@@ -11,6 +11,7 @@ import audioFeedback from './AudioFeedback';
 import audioPromptManager from './AudioPromptManager';
 import { getLanguageInfo } from './LanguagePack';
 import { db } from '../lib/db';
+import { useLanguage } from '../context/LanguageContext';
 
 const VoiceNavContext = createContext(null);
 
@@ -19,13 +20,17 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const isSpeechSupported = !!SpeechRecognition;
 
 export function VoiceNavProvider({ children }) {
+  const languageContext = useLanguage();
+  const currentLang = languageContext?.currentLang || 'en';
+  const setCurrentLang = languageContext?.setCurrentLang;
+
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [micState, setMicState] = useState('idle'); // idle | listening | speaking | processing
   const [voiceError, setVoiceError] = useState('');
-  const [language, setLanguageState] = useState('en');
+  const [language, setLanguageState] = useState(currentLang);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [lastCommand, setLastCommand] = useState(null);
 
@@ -34,20 +39,25 @@ export function VoiceNavProvider({ children }) {
   const currentPageRef = useRef(null);
   const isListeningRef = useRef(false);
   const onTranscriptCallbackRef = useRef(null);
-  const languageRef = useRef('en');
+  const languageRef = useRef(currentLang);
   const isDictationModeRef = useRef(false);
   const silenceTimerRef = useRef(null);
   const accumulatedTranscriptRef = useRef('');
   const recognitionAlternativesRef = useRef(['', '', '']);
 
+  // Synchronize language and speech recognition engine whenever currentLang changes
   useEffect(() => {
-    languageRef.current = language;
+    setLanguageState(currentLang);
+    languageRef.current = currentLang;
+    commandParser.setLanguage(currentLang);
+    audioPromptManager.setLanguage(currentLang);
     if (recognitionRef.current) {
       try {
-        recognitionRef.current.lang = getLanguageInfo(language).speechCode;
+        const langInfo = getLanguageInfo(currentLang);
+        recognitionRef.current.lang = langInfo.speechCode;
       } catch (e) {}
     }
-  }, [language]);
+  }, [currentLang]);
 
   // Initialize speech recognition with continuous listening & adaptive silence debounce
   useEffect(() => {
@@ -469,12 +479,13 @@ export function VoiceNavProvider({ children }) {
     languageRef.current = lang;
     commandParser.setLanguage(lang);
     audioPromptManager.setLanguage(lang);
+    if (setCurrentLang) setCurrentLang(lang);
     if (recognitionRef.current) {
       try {
         recognitionRef.current.lang = getLanguageInfo(lang).speechCode;
       } catch (e) {}
     }
-  }, []);
+  }, [setCurrentLang]);
 
   // Register page with its voice commands and handlers
   const registerPage = useCallback((pageId, handlers, commands = {}) => {

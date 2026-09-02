@@ -2277,11 +2277,74 @@ export default function PatientDashboard() {
   const ui = (text) => currentLang === 'en' ? text : aiTranslationService.translate(text, currentLang, 'general');
   const uiName = (text) => currentLang === 'en' ? text : aiTranslationService.translate(text, currentLang, 'name');
 
-  // Sidebar Collapsible State
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Sidebar Collapsible State (Default open on laptop/desktop, default closed on mobile/tablet)
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth > 1024 : true);
 
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState('appointments');
+
+  // Register page-level voice handlers for instant tab switching and modal actions
+  useEffect(() => {
+    registerPage('patientDashboard', {
+      bookAppointment: () => {
+        setActiveTab('appointments');
+        setBookingFlowView('main');
+        setShowAllHospitalsModal(true);
+      },
+      viewAppointments: () => {
+        setActiveTab('appointments');
+        setBookingFlowView('main');
+      },
+      viewHistory: () => {
+        setActiveTab('history');
+      },
+      viewReports: () => {
+        setActiveTab('reports');
+      },
+      viewDonations: () => {
+        setActiveTab('donations');
+      },
+      viewCommunities: () => {
+        setActiveTab('communities');
+      },
+      viewHelp: () => {
+        setActiveTab('help');
+      },
+      viewProfile: () => {
+        setShowAbhaModal(true);
+      },
+      showAbhaCard: () => {
+        setShowAbhaModal(true);
+      },
+      toggleAyush: () => {
+        setAyushMode(!isAyushMode);
+      },
+      scan_document: () => {
+        setActiveTab('reports');
+        setTimeout(() => reportsFileInputRef.current?.click(), 300);
+      },
+      searchHospital: (cmd) => {
+        setActiveTab('appointments');
+        if (cmd?.value) setSearchQuery(cmd.value);
+      },
+    }, {
+      bookAppointment: ['Book doctor appointment, consult doctor, consult specialist, OPD booking, hospital visit, bukhar, fever, dard'],
+      viewAppointments: ['View appointments, schedule, timings, queue tokens'],
+      viewHistory: ['View past medical history, previous consultations, visit history'],
+      viewReports: ['View lab test reports, blood tests, radiology scans, medical records'],
+      viewDonations: ['Blood donation, organ donation, find blood donors'],
+      viewCommunities: ['Patient support groups, healthcare communities, discussions'],
+      viewHelp: ['Help, support, instructions, and FAQ'],
+      viewProfile: ['Patient profile, account details, personal health records'],
+      showAbhaCard: ['Show ABHA health card, Ayushman Bharat health card'],
+      toggleAyush: ['Toggle AYUSH, switch between Allopathy and Ayurveda'],
+      scan_document: ['Scan prescription, upload medical report, document camera scan'],
+    });
+
+    return () => {
+      unregisterPage('patientDashboard');
+    };
+  }, [registerPage, unregisterPage, isAyushMode, setAyushMode]);
 
   // Trigger voice feedback dynamically when navigating between tabs
   useEffect(() => {

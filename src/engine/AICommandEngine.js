@@ -1,5 +1,35 @@
 import voiceAIService from '../voicenav/VoiceAIService';
 
+const MULTILINGUAL_ACTION_DESCRIPTIONS = {
+  bookAppointment: 'Book doctor appointment, consult doctor, physician, see specialist, OPD booking, hospital visit, checkup, feeling sick, fever, illness, pain, headache, cough, cold, emergency doctor, bukhar, dard, ilaj, bimar, chikitsak, vaidya, டாக்டர், மருத்துவர், மருத்துவரை பார்க்க, వైద్యుడు, డాక్టర్, ডাক্তার, ವೈದ್ಯರು, ഡോക്ടർ, તબીબ, डॉक्टर',
+  login_patient: 'Patient login, sign in, open patient portal, patient account, register patient, मरीज़ लॉगिन, நோயாளி உள்நுழைவு, రోగి లాగిన్',
+  login_doctor: 'Doctor login, physician portal, doctor sign in, डॉक्टर लॉगिन, மருத்துவர் உள்நுழைவு, డాక్టర్ లాగిన్',
+  login_admin: 'Hospital admin login, administrator dashboard, अस्पताल व्यवस्थापक लॉगिन, நிர்வாகி உள்நுழைவு',
+  scan_document: 'Scan prescription, upload medical report, document camera scan, take photo of paper, parcha scan, दवाइयों का पर्चा, மருந்து சீட்டு ஸ்கேன், ప్రిస్క్రిప్షన్ స్కాన్, প্রেসক্রিপশন স্ক্যান',
+  viewReports: 'View lab test reports, blood test results, radiology scans, diagnostic records, test summary, जांच रिपोर्ट, రక్త పరీక్ష, பரிசோதனை முடிவுகள், রক্তের رپورٹ, ರಕ್ತ ಪರೀಕ್ಷೆ ವರದಿ',
+  viewHistory: 'Past medical history, previous consultations, visit history, old appointments, past treatments, पुरानी बीमारी का इतिहास, மருத்துவ வரலாறு, గత చరిత్ర, অতীত ইতিহাস, ಹಿಂದಿನ ಚಿಕಿತ್ಸೆ',
+  viewAppointments: 'View upcoming appointments, scheduled visits, appointment token, queue status, आने वाले अपॉइंटमेंट, டோக்கன், రాబోయే అపాయింట్‌మెంట్‌లు, ಮುಂದಿನ ಅಪಾಯಿಂಟ್ಮೆಂಟ್',
+  viewDonations: 'Blood donation, organ donation, donate blood, find blood donors, raktdan, రక్తదానం, రక్త దాతలు, இரத்த தானம், রক্তদান, ರಕ್ತದಾನ, രക്തദാനം',
+  viewCommunities: 'Patient support groups, healthcare communities, talk with patients, discuss health, मरीज समुदाय, சமூக குழு, రోగుల సంఘం, ರೋಗಿಗಳ ಗುಂಪು',
+  viewHelp: 'Help and support, how to use kiosk, questions, assistance, helpline, मदद और सहायता, உதவி, సహాయం, ಸಹಾಯ, സഹായം',
+  viewProfile: 'Patient profile, ABHA card, digital health ID, user account, मेरी प्रोफाइल, आभा कार्ड, ఆరోగ్య కార్డు, ಆಭಾ ಕಾರ್ಡ್',
+  showAbhaCard: 'Show ABHA card, digital health card, Ayushman Bharat health account card, आभा कार्ड दिखाओ, ஆதார் / ஆபா கார்டு, ಆಭಾ ಕಾರ್ಡ್ ತೋರಿಸಿ',
+  toggleAyush: 'Switch to AYUSH, Ayurveda, Homeopathy, Unani, Naturopathy care system, आयुर्वेद में बदलें, ஆயுஷ், ఆయుష్, ಆಯುಷ್',
+  emergency: 'Call 108 ambulance, medical emergency, critical urgent help, aapatkal, bachao, ஆம்புலன்ஸ், అత్యవసర సేవ 108, অ্যাম্বুলেন্স, ആംബുലൻസ്, ತುರ್ತು',
+  home: 'Go to home page, main screen, landing page, होम पेज, मुख्य पृष्ठ, முகப்பு',
+  back: 'Go back, previous page, cancel, cancel step, वापस जाएं, பின்செல், వెనక్కి, ಹಿಂದೆ',
+  select_language: 'Change language, choose language, भाषा बदलें, மொழி மாற்று, భాష మార్చండి',
+  set_language_hi: 'Switch language to Hindi, Speak in Hindi, हिंदी में बोलो, हिन्दी, हिंदी',
+  set_language_ta: 'Switch language to Tamil, Speak in Tamil, தமிழில் பேசு, தமிழ்',
+  set_language_te: 'Switch language to Telugu, Speak in Telugu, తెలుగులో మాట్లాడు, తెలుగు',
+  set_language_bn: 'Switch language to Bengali, Speak in Bengali, বাংলায় কথা বলুন, বাংলা',
+  set_language_mr: 'Switch language to Marathi, Speak in Marathi, मराठीत बोला, मराठी',
+  set_language_gu: 'Switch language to Gujarati, Speak in Gujarati, ગુજરાતીમાં બોલો, ગુજરાતી',
+  set_language_kn: 'Switch language to Kannada, Speak in Kannada, ಕನ್ನಡದಲ್ಲಿ ಮಾತನಾಡಿ, ಕನ್ನಡ',
+  set_language_ml: 'Switch language to Malayalam, Speak in Malayalam, മലയാളത്തിൽ സംസാരിക്കൂ, മലയാളം',
+  set_language_en: 'Switch language to English, Speak in English, अंग्रेजी, ஆங்கிலம், ఇంగ్లీష్',
+};
+
 class AICommandEngine {
   constructor() {
     this._cache = new Map(); // Cache recent parses for speed
@@ -14,10 +44,10 @@ class AICommandEngine {
     const digits = {
       // 0 - 9 in English and Indian languages (Script + Transliteration)
       zero: '0', oh: '0', shunya: '0', sunya: '0', poojyam: '0', பூஜ்ஜியம்: '0', సున్నా: '0', শূন্য: '0', शून्य: '0', શૂન્ય: '0', ಸೊನ್ನೆ: '0', പൂജ്യം: '0',
-      one: '1', ek: '1', onnu: '1', ondru: '1', okati: '1', এক: '1', एक: '1', એક: '1', ಒಂದು: '1', ഒന്ന്: '1',
+      one: '1', ek: '1', onnu: '1', ondru: '1', okati: '1', এক: '1', એક: '1', એક: '1', ಒಂದು: '1', ഒന്ന്: '1',
       two: '2', do: '2', don: '2', rendu: '2', irandu: '2', দুই: '2', दोन: '2', બે: '2', రెండు: '2', ಎರಡು: '2', രണ്ട്: '2',
-      three: '3', teen: '3', tin: '3', moonu: '3', moondru: '3', mudu: '3', তিন: '3', तीन: '3', ત્રણ: '3', మూడు: '3', ಮೂರು: '3', മൂന്ന്: '3',
-      four: '4', char: '4', chaar: '4', naalu: '4', naangu: '4', nalugu: '4', চার: '4', चार: '4', ચાર: '4', నాలుగు: '4', ನಾಲ್ಕು: '4', നാല്: '4',
+      three: '3', teen: '3', tin: '3', moonu: '3', moondru: '3', mudu: '3', তিন: '3', तीन: '3', ત્રણ: '3', మూడు: '3', ಮೂರು: '3', ಮೂಂದು: '3',
+      four: '4', char: '4', chaar: '4', naalu: '4', naangu: '4', nalugu: '4', চার: '4', चार: '4', ચાર: '4', నాలుగు: '4', ನಾಲ್ಕು: '4', ನಾಲ್ಕು: '4',
       five: '5', paanch: '5', panch: '5', anju: '5', ainthu: '5', aidu: '5', ஐந்து: '5', পাঁচ: '5', पाच: '5', પાંચ: '5', ఐదు: '5', ಐದು: '5', അഞ്ച്: '5',
       six: '6', chhe: '6', che: '6', aaru: '6', aru: '6', ఆరు: '6', ஆறு: '6', ছয়: '6', सहा: '6', છ: '6', ಆರು: '6', ആറ്: '6',
       seven: '7', saat: '7', ezhu: '7', elu: '7', edu: '7', ஏழு: '7', সাত: '7', सात: '7', સાત: '7', ఏడు: '7', ಏಳು: '7', ഏഴ്: '7',
@@ -84,7 +114,7 @@ class AICommandEngine {
    */
   async parseIntent(transcript, availableCommands = {}, globalCommands = {}, ctx = {}) {
     if (!transcript || !transcript.trim()) return null;
-    const { page = 'unknown', language = 'auto', routes = [], recognitionAlternatives = [] } = ctx;
+    const { page = 'unknown', language = 'auto', routes = [], recognitionAlternatives = [], expectsFreeText = false } = ctx;
     const safeAlternatives = Array.isArray(recognitionAlternatives)
       ? recognitionAlternatives.map(value => String(value || '').trim()).filter(Boolean).slice(0, 3)
       : [];
@@ -95,10 +125,20 @@ class AICommandEngine {
 
     // 1. Try Voice AI Service (Supabase Edge Function with Gemini)
     try {
-      const actions = [...Object.keys(globalCommands), ...Object.keys(availableCommands)].map(intent => ({
-        intent,
-        description: (availableCommands[intent] || globalCommands[intent] || intent).toString().replace(/_/g, ' ')
-      }));
+      const allIntents = new Set([
+        ...Object.keys(globalCommands),
+        ...Object.keys(availableCommands),
+        ...Object.keys(MULTILINGUAL_ACTION_DESCRIPTIONS)
+      ]);
+
+      const actions = Array.from(allIntents).map(intent => {
+        const customDesc = (availableCommands[intent] || globalCommands[intent] || '').toString();
+        const baseDesc = MULTILINGUAL_ACTION_DESCRIPTIONS[intent] || intent.replace(/_/g, ' ');
+        return {
+          intent,
+          description: customDesc && customDesc !== intent ? `${baseDesc} | ${customDesc}` : baseDesc
+        };
+      });
       
       let result = null;
       if (this.isAvailable) {
@@ -108,12 +148,21 @@ class AICommandEngine {
           pageId: page || 'interactive',
           actions,
           routes: routes.map(r => ({ id: r.id, description: r.description })),
-          expectsFreeText: false,
+          expectsFreeText: Boolean(expectsFreeText),
           recognitionAlternatives: safeAlternatives,
         });
       }
 
       if (result && result.intent && result.intent !== 'out_of_context') {
+        // If Gemini returned free_text on a page that is NOT expecting form text,
+        // check if user was describing symptoms/illness -> map to doctor appointment!
+        if (result.intent === 'free_text' && !expectsFreeText) {
+          const raw = transcript.toLowerCase();
+          if (/\b(?:doctor|daktar|fever|dard|pain|bukhar|bimar|cough|cold|headache|stomach|chikitsak|vaidya|மருத்துவர்|நோயாளி|డాక్టర్|వ్యాధి|వైద్యులు|രോഗം|അസുഖം)\b/i.test(raw)) {
+            result.intent = 'bookAppointment';
+          }
+        }
+
         this._cache.set(cacheKey, result);
         if (this._cache.size > 150) {
           const firstKey = this._cache.keys().next().value;

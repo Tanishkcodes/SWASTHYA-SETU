@@ -227,9 +227,10 @@ function App() {
   return (
     <Router>
       <SessionProvider>
-        <VoiceNavProvider>
-          <LanguageProvider>
+        <LanguageProvider>
+          <VoiceNavProvider>
             <RouteChangeListener />
+            <GlobalVoiceHandler />
             <Routes>
               <Route path="/" element={<Layout><LandingPage /></Layout>} />
               <Route path="/auth" element={<Layout><AuthPage /></Layout>} />
@@ -247,8 +248,8 @@ function App() {
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </LanguageProvider>
-        </VoiceNavProvider>
+          </VoiceNavProvider>
+        </LanguageProvider>
       </SessionProvider>
     </Router>
   );

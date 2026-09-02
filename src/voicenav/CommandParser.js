@@ -525,17 +525,20 @@ class CommandParser {
       return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
     }
 
-    // 1. FAST-PATH: Direct hotword match for pure short navigation commands (< 2ms instant response)
-    const recognitionInputs = [input, ...(context.recognitionAlternatives || []).map(normalize)]
-      .filter((value, index, all) => value && all.indexOf(value) === index);
-    const fastCandidates = recognitionInputs
-      .map(candidate => ({ candidate, result: this._fastMatchIntent(candidate, context) }))
-      .filter(item => item.result);
-    const fastIntents = new Set(fastCandidates.map(item => item.result.intent));
+    // 1. FAST-PATH: Direct instant hotword match ONLY for pure short navigation commands (<= 2 words e.g. 'home', 'back', 'hindi')
+    const wordsCount = input.trim().split(/\s+/).filter(Boolean).length;
+    if (wordsCount <= 2) {
+      const recognitionInputs = [input, ...(context.recognitionAlternatives || []).map(normalize)]
+        .filter((value, index, all) => value && all.indexOf(value) === index);
+      const fastCandidates = recognitionInputs
+        .map(candidate => ({ candidate, result: this._fastMatchIntent(candidate, context) }))
+        .filter(item => item.result);
+      const fastIntents = new Set(fastCandidates.map(item => item.result.intent));
 
-    // Instant match if unambiguous single control intent
-    if (fastCandidates.length && fastIntents.size === 1) {
-      return { ...fastCandidates[0].result, raw: transcript };
+      // Instant match if unambiguous single control intent
+      if (fastCandidates.length && fastIntents.size === 1) {
+        return { ...fastCandidates[0].result, raw: transcript };
+      }
     }
 
     // 2. AI SEMANTIC INTENT PARSER (Primary Engine for any natural phrasing across all 9 languages)
@@ -557,6 +560,7 @@ class CommandParser {
           language: this.currentLanguage,
           routes: this.routes,
           recognitionAlternatives: context.recognitionAlternatives || [],
+          expectsFreeText: Boolean(context.expectsFreeText),
         }
       );
       

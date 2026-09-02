@@ -1,17 +1,21 @@
 /* ==========================================================================
-   SWASTHYA SETU — True Mobile & Tablet Responsive Design
+   SWASTHYA SETU — True Responsive Design for Mobile & Tablet
    Pure CSS Media Queries (@media max-width: 1024px)
    100% ZERO changes to laptop/desktop screens (> 1024px).
 
-   Features:
-   1. The website adapts naturally to mobile & tablet screen sizes (no awkward zoom or overflow).
-   2. Patient Dashboard keeps the hamburger button and collapsible sidebar on the left.
-   3. Content fits the screen cleanly; tables/grids scroll horizontally at the BOTTOM (not top).
+   Core Principles:
+   1. The entire page fits mobile and tablet screens 100% (NO zooming out required).
+   2. All dashboard features (Hospital Search, Doctor List, Upcoming Appointments) 
+      stack naturally and are immediately visible.
+   3. The hamburger button is preserved and fully functional on the sidebar.
+   4. Horizontal shifting (right-to-left scrollbar) is ONLY used where actually 
+      needed (on wide data tables like History & Schedule), with the scrollbar 
+      positioned cleanly at the bottom of the table.
    ========================================================================== */
 
 @media (max-width: 1024px) {
 
-  /* ── 1. Screen & Body Sizing ── */
+  /* ── 1. Page & Shell Viewport Fitting (No Page-Level Spills, No Zoom-Out) ── */
   html,
   body,
   #root {
@@ -26,7 +30,7 @@
     box-sizing: border-box !important;
   }
 
-  /* ── 2. Sleek Scrollbar (Positioned at the BOTTOM of Scrollable Areas) ── */
+  /* ── 2. Sleek Scrollbar (Positioned strictly at the BOTTOM of scrollable tables) ── */
   ::-webkit-scrollbar {
     height: 7px !important;
     width: 6px !important;
@@ -46,7 +50,7 @@
     background: #0f766e !important;
   }
 
-  /* ── 3. Patient Dashboard: Hamburger & Left Sidebar Preserved ── */
+  /* ── 3. Patient Dashboard: Hamburger & Left Sidebar ── */
   /* Keep outer flex row so sidebar stays on the left */
   div[style*="minHeight: '100vh'"][style*="display: 'flex'"],
   div[style*="min-height: 100vh"][style*="display: flex"] {
@@ -58,7 +62,7 @@
     position: relative !important;
   }
 
-  /* Left Sidebar: Thin strip when collapsed, overlay drawer when expanded */
+  /* Left Sidebar: Compact icon strip when collapsed, overlay drawer when expanded */
   div[style*="minHeight: '100vh'"] > aside,
   div[style*="min-height: 100vh"] > aside {
     position: sticky !important;
@@ -67,67 +71,67 @@
     flex-shrink: 0 !important;
     z-index: 80 !important;
     overflow-x: hidden !important;
-    transition: width 0.28s ease, min-width 0.28s ease, box-shadow 0.28s ease !important;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s ease !important;
   }
 
-  /* When collapsed (72px in inline style) */
+  /* When collapsed (72px in inline style) -> compact 54px icon strip with hamburger visible */
   div[style*="minHeight: '100vh'"] > aside[style*="72px"] {
-    width: 60px !important;
-    min-width: 60px !important;
-    padding: 1rem 0.35rem !important;
+    width: 54px !important;
+    min-width: 54px !important;
+    max-width: 54px !important;
+    padding: 1rem 0.25rem !important;
   }
 
-  /* When expanded (240px in inline style) - slide over content smoothly on small screens */
+  /* When expanded (240px in inline style) -> overlay drawer over content */
   div[style*="minHeight: '100vh'"] > aside[style*="240px"] {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     bottom: 0 !important;
-    width: 250px !important;
-    min-width: 250px !important;
-    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.25) !important;
+    width: 260px !important;
+    min-width: 260px !important;
+    box-shadow: 6px 0 35px rgba(0, 0, 0, 0.3) !important;
     z-index: 1000 !important;
     background: #ffffff !important;
     padding: 1.25rem 1rem !important;
   }
 
-  /* Ensure the Hamburger button is always prominent and clickable */
+  /* Hamburger Toggle Button: Prominent & Accessible */
   div[style*="minHeight: '100vh'"] > aside button[title*="sidebar"],
   div[style*="min-height: 100vh"] > aside button[title*="sidebar"] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 38px !important;
-    height: 38px !important;
+    width: 36px !important;
+    height: 36px !important;
     flex-shrink: 0 !important;
     margin: 0 auto !important;
     cursor: pointer !important;
     border-radius: 10px !important;
-    z-index: 90 !important;
   }
 
-  /* Patient Main Content: Takes Available Screen Width */
+  /* Patient Main Content Area: Takes Available Screen Width */
   div[style*="minHeight: '100vh'"] > main,
   div[style*="min-height: 100vh"] > main {
     flex: 1 !important;
-    width: calc(100vw - 60px) !important;
-    max-width: calc(100vw - 60px) !important;
+    width: calc(100vw - 54px) !important;
+    max-width: calc(100vw - 54px) !important;
     min-width: 0 !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
 
-  /* Top Bar inside Patient Dashboard */
+  /* Top Bar Header in Patient Dashboard */
   div[style*="minHeight: '100vh'"] > main > header,
   div[style*="min-height: 100vh"] > main > header {
-    padding: 0 14px !important;
-    height: 62px !important;
+    padding: 0 12px !important;
+    height: 60px !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
 
-  /* Content Padding inside Patient Dashboard */
+  /* Main Inner Content Padding */
   div[style*="minHeight: '100vh'"] > main > div[style*="padding:"] {
     padding: 14px 12px 48px !important;
     width: 100% !important;
@@ -135,31 +139,34 @@
     box-sizing: border-box !important;
   }
 
-  /* 2-Column Grid (Hospital List & Upcoming Appointments) -> 1 Column */
+  /* ── 4. Two-Column Main Grid -> Stacks Cleanly into 1 Column (ALL Features Visible!) ── */
   div[style*="gridTemplateColumns: '1.65fr 1fr'"],
   div[style*="grid-template-columns: 1.65fr 1fr"] {
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
-    gap: 16px !important;
+    max-width: 100% !important;
+    gap: 18px !important;
   }
 
-  /* Doctor About & Metrics Grid -> 1 Column */
+  /* Doctor About & Metrics Grid */
   div[style*="gridTemplateColumns: '1.2fr 1fr'"],
   div[style*="grid-template-columns: 1.2fr 1fr"] {
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
+    max-width: 100% !important;
     gap: 14px !important;
   }
 
-  /* Hero Banner */
+  /* Hero Banner: Stack Vertically and Fit 100% Width */
   div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] {
     padding: 1.15rem 1rem !important;
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
     width: 100% !important;
+    max-width: 100% !important;
   }
 
   div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] svg {
@@ -168,41 +175,58 @@
 
   div[style*="background: 'linear-gradient(135deg, #e6f6f2 0%, #ecf8f5 100%)'"] > div {
     width: 100% !important;
+    max-width: 100% !important;
   }
 
-  /* Booking Container */
+  /* Booking Container (Steps 1 to 5) */
   div[style*="padding: '2.25rem 2.5rem'"] {
     padding: 14px 10px !important;
     width: 100% !important;
+    max-width: 100% !important;
     border-radius: 14px !important;
   }
 
-  /* Date & Time Slot Grids */
+  /* Date Chips Grid */
   div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))'"] {
     grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)) !important;
     gap: 8px !important;
     width: 100% !important;
   }
 
+  /* Time Slot Grid */
   div[style*="gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))'"] {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
     width: 100% !important;
   }
 
-  /* Tables: Horizontal Scrollbar positioned at the BOTTOM of the table */
-  div[style*="gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr'"] {
-    min-width: 640px !important;
-  }
-
-  div[style*="border: '1px solid #e2e8f0'"][style*="borderRadius: '16px'"] {
+  /* ── 5. Tables: Shift Right-to-Left With Scrollbar at the BOTTOM of Table ── */
+  div[style*="border: '1px solid #e2e8f0'"][style*="borderRadius: '16px'"],
+  .table-responsive-container,
+  .dp-schedule,
+  .admin-table-card,
+  .admin-table-wrap {
     width: 100% !important;
     max-width: 100% !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    display: block !important;
   }
 
-  /* ── 4. Doctor / Physician Dashboard ── */
+  div[style*="gridTemplateColumns: '1.4fr 2fr 2.2fr 1.2fr 1.3fr'"] {
+    min-width: 640px !important;
+  }
+
+  .dp-th,
+  .dp-tr {
+    min-width: 620px !important;
+  }
+
+  .admin-table {
+    min-width: 620px !important;
+  }
+
+  /* ── 6. Doctor / Physician Dashboard ── */
   .dp-shell {
     display: flex !important;
     flex-direction: row !important;
@@ -222,8 +246,8 @@
   }
 
   .dp-side.collapsed {
-    width: 60px !important;
-    min-width: 60px !important;
+    width: 54px !important;
+    min-width: 54px !important;
     padding: 14px 6px !important;
   }
 
@@ -234,15 +258,15 @@
     bottom: 0 !important;
     width: 250px !important;
     min-width: 250px !important;
-    box-shadow: 6px 0 30px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 6px 0 35px rgba(0, 0, 0, 0.3) !important;
     z-index: 1000 !important;
     background: #ffffff !important;
   }
 
   .dp-main {
     flex: 1 !important;
-    width: calc(100vw - 60px) !important;
-    max-width: calc(100vw - 60px) !important;
+    width: calc(100vw - 54px) !important;
+    max-width: calc(100vw - 54px) !important;
     min-width: 0 !important;
     overflow-x: hidden !important;
     padding: 14px 10px 48px !important;
@@ -270,21 +294,18 @@
     justify-content: space-between !important;
   }
 
-  /* Schedule Table Scrollbar at the BOTTOM of the table container */
-  .dp-schedule {
+  /* 3-Column Consultation View */
+  .consultation-portal-shell,
+  .dp-consult-grid,
+  div[style*="gridTemplateColumns: '1.2fr 1.5fr 1.3fr'"],
+  div[style*="grid-template-columns: 1.2fr 1.5fr 1.3fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
     width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    border-radius: 12px !important;
   }
 
-  .dp-th,
-  .dp-tr {
-    min-width: 620px !important;
-  }
-
-  /* ── 5. Admin / Hospital Dashboard ── */
+  /* ── 7. Admin / Hospital Dashboard ── */
   .admin-shell {
     display: flex !important;
     flex-direction: row !important;
@@ -298,16 +319,16 @@
     top: 0 !important;
     height: 100vh !important;
     flex-shrink: 0 !important;
-    width: 60px !important;
-    min-width: 60px !important;
+    width: 54px !important;
+    min-width: 54px !important;
     padding: 12px 6px !important;
     overflow-x: hidden !important;
   }
 
   .admin-main {
     flex: 1 !important;
-    width: calc(100vw - 60px) !important;
-    max-width: calc(100vw - 60px) !important;
+    width: calc(100vw - 54px) !important;
+    max-width: calc(100vw - 54px) !important;
     min-width: 0 !important;
     overflow-x: hidden !important;
     padding: 14px 10px 40px !important;
@@ -319,19 +340,7 @@
     width: 100% !important;
   }
 
-  .admin-table-card,
-  .admin-table-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  .admin-table {
-    min-width: 620px !important;
-  }
-
-  /* ── 6. Global Modals & Floating Voice Orb ── */
+  /* ── 8. Global Modals & Floating Voice Orb ── */
   div[style*="maxWidth: '520px'"],
   div[style*="max-width: 520px"],
   div[style*="maxWidth: '460px'"],
@@ -365,10 +374,10 @@
 }
 
 /* ==========================================================================
-   SMARTPHONE VIEWPORTS (<= 768px)
+   SMARTPHONE SCREENS (<= 768px)
    ========================================================================== */
 @media (max-width: 768px) {
-  /* Header Scaling */
+  /* Header Scaling without Touching Header.jsx */
   header {
     height: 60px !important;
   }
