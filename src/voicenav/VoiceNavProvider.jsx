@@ -273,6 +273,12 @@ export function VoiceNavProvider({ children }) {
         start_consultation:'startConsultation',
         select_doctor:     'select_doctor',
         select_hospital:   'select_hospital',
+        confirm_booking:   'confirm',
+        confirmBooking:    'confirm',
+        book_now:          'confirm',
+        go_next:           'next',
+        go_back:           'back',
+        previous:          'back',
       };
       const resolvedIntent = aliases[result.intent] || result.intent;
 

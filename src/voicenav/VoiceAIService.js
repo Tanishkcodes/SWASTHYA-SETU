@@ -93,8 +93,29 @@ class VoiceAIService {
 
   async batchTranslate(texts, targetLanguage) {
     if (!Array.isArray(texts) || texts.length === 0) return { translations: [] };
-    const response = await this._request({ action: 'batch_translate', texts, targetLanguage }, 'application/json', 12000);
-    return response.json();
+    const langCode = targetLanguage || 'en';
+    if (langCode === 'en') return { translations: texts };
+    try {
+      const combined = texts.join(' ||| ');
+      const res = await this.translate(combined, langCode);
+      if (res?.text) {
+        const parts = res.text.split(/\s*\|\|\|\s*/);
+        if (parts.length === texts.length) {
+          return { translations: parts };
+        }
+      }
+    } catch (e) {
+      console.warn('Batch translate delimited error:', e);
+    }
+    // Fallback: translate individually in parallel
+    try {
+      const translations = await Promise.all(
+        texts.map(t => this.translate(t, langCode).then(r => r?.text || t).catch(() => t))
+      );
+      return { translations };
+    } catch {
+      return { translations: texts };
+    }
   }
 
   async anamnesis({ disease, history, latestInput, language, doctorName, doctorSpecialty, isAyurvedic, patient, caseSummary, questionCount = 0, phase = 'interview', requireTouchOptions = false }) {

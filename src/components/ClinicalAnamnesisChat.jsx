@@ -296,6 +296,10 @@ export default function ClinicalAnamnesisChat({
   }, [messages, isTyping, chatStarted]);
 
   const prevLanguageRef = useRef(languageCode);
+  const currentStepDataRef = useRef(currentStepData);
+  currentStepDataRef.current = currentStepData;
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   // Dynamically translate active chat history, current question, and options when header language changes
   useEffect(() => {
@@ -304,50 +308,36 @@ export default function ClinicalAnamnesisChat({
 
     if (!chatStarted) return;
 
-    let isMounted = true;
+let isMounted = true;
 
     const translateSession = async () => {
       try {
-        // 1. Translate all messages in chat history
-        if (messages.length > 0) {
-          const translatedMessages = await Promise.all(
-            messages.map(async (m) => {
-              if (!m.text) return m;
-              try {
-                const res = await voiceAIService.translate(m.text, languageCode);
-                return { ...m, text: res?.text || m.text };
-              } catch {
-                return m;
-              }
-            })
-          );
-          if (isMounted) {
-            setMessages(translatedMessages);
+        const activeMessages = messagesRef.current || [];
+        const activeStepData = currentStepDataRef.current;
+
+        // 1. Translate all messages in chat history in one fast batch
+        if (activeMessages.length > 0) {
+          const msgTexts = activeMessages.map(m => m.text || '');
+          const { translations } = await voiceAIService.batchTranslate(msgTexts, languageCode);
+          if (isMounted && translations && translations.length === activeMessages.length) {
+            setMessages(activeMessages.map((m, idx) => ({ ...m, text: translations[idx] || m.text })));
           }
         }
 
-        // 2. Translate current question and option cards
-        if (currentStepData && currentStepData.step) {
-          const step = currentStepData.step;
-          const [translatedQ, translatedOpts] = await Promise.all([
-            step.question
-              ? voiceAIService.translate(step.question, languageCode).then(r => r?.text || step.question).catch(() => step.question)
-              : Promise.resolve(''),
-            Array.isArray(step.options) && step.options.length > 0
-              ? Promise.all(
-                  step.options.map(async (opt) => {
-                    try {
-                      const res = await voiceAIService.translate(opt.text, languageCode);
-                      return { ...opt, text: res?.text || opt.text };
-                    } catch {
-                      return opt;
-                    }
-                  })
-                )
-              : Promise.resolve([])
-          ]);
+        // 2. Translate current question and option cards in one fast batch
+        if (activeStepData && activeStepData.step) {
+          const step = activeStepData.step;
+          const optionsList = step.options || [];
+          const rawTexts = [step.question || '', ...optionsList.map(o => o.text || '')];
 
-          if (isMounted) {
+          const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
+          if (isMounted && translations && translations.length === rawTexts.length) {
+            const translatedQ = translations[0];
+            const translatedOpts = optionsList.map((opt, idx) => ({
+              ...opt,
+              text: translations[idx + 1] || opt.text
+            }));
+
             setCurrentStepData(prev => {
               if (!prev || !prev.step) return prev;
               return {
@@ -355,7 +345,7 @@ export default function ClinicalAnamnesisChat({
                 step: {
                   ...prev.step,
                   question: translatedQ || prev.step.question,
-                  options: translatedOpts && translatedOpts.length ? translatedOpts : prev.step.options
+                  options: translatedOpts
                 }
               };
             });
@@ -432,448 +422,116 @@ export default function ClinicalAnamnesisChat({
     });
   };
 
-  // ── COMPREHENSIVE CLINICAL DECISION FLOWS (SOCRATES METHODOLOGY) ──
-  const CLINICAL_FLOWS = {
-    // 1. Stomach & GI Pain
-    stomach: [
-      {
-        question: "I understand. You are experiencing stomach / abdominal discomfort.\nWhere exactly is the pain located?",
-        field: 'location',
-        options: [
-          { text: "Upper abdomen / epigastric (near ribs)", icon: TargetIcon },
-          { text: "Lower right abdomen (appendix area)", icon: StomachIcon },
-          { text: "Around the navel / belly button", icon: TargetIcon },
-          { text: "Lower pelvic / lower belly region", icon: StomachIcon },
-          { text: "Diffuse / all across the entire stomach", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "Does the pain radiate or spread to any other area?",
-        field: 'spread',
-        options: [
-          { text: "Stays localized in one spot", icon: TargetIcon },
-          { text: "Radiates upwards into chest / throat", icon: ChestRadiateIcon },
-          { text: "Radiates through to my lower/mid back", icon: BackSpineIcon },
-          { text: "Radiates to right shoulder / shoulder blade", icon: ShoulderJointIcon },
-          { text: "Spreads down into groin or thighs", icon: BodyPainIcon }
-        ]
-      },
-      {
-        question: "How would you describe the character of the pain?",
-        field: 'nature',
-        options: [
-          { text: "Burning sensation with sour acid reflux", icon: FlameIcon },
-          { text: "Colicky / sharp intermittent cramping", icon: StomachIcon },
-          { text: "Heavy bloating, gas & distension", icon: WindIcon },
-          { text: "Constant persistent dull ache", icon: ClockIcon },
-          { text: "Sudden sharp piercing / stabbing pain", icon: ChestRadiateIcon }
-        ]
-      },
-      {
-        question: "What triggers or worsens the discomfort?",
-        field: 'triggers',
-        options: [
-          { text: "Worse right after eating heavy/spicy meals", icon: FlameIcon },
-          { text: "Worse when fasting / on an empty stomach", icon: ClockIcon },
-          { text: "Worse with physical exertion or bending", icon: ShoulderJointIcon },
-          { text: "Worse late at night while lying flat", icon: MoonIcon },
-          { text: "Constant with nausea or vomiting", icon: StomachIcon }
-        ]
-      }
-    ],
+  // ── DYNAMIC COMPLAINT-AWARE ADAPTIVE CLINICAL SYNTHESIZER ──
+  // When Gemini has a temporary delay, dynamically synthesizes a complaint-specific
+  // question using the patient's exact stated disease and language. Gemini immediately
+  // takes over on the next step.
+  const generateAdaptiveClinicalStep = async (diseaseName, stepIndex = 0) => {
+    const isAyur = isAyurvedic;
+    const disease = diseaseName || 'health complaint';
 
-    // 2. Chest Pain & Cardiac Discomfort
-    chestpain: [
+    const templates = isAyur ? [
       {
-        question: "I see you have chest discomfort. This is important.\nWhat does the chest sensation feel like?",
-        field: 'nature',
-        options: [
-          { text: "Heavy pressure, crushing or tight squeezing", icon: ChestRadiateIcon },
-          { text: "Sharp stabbing pain when taking deep breaths", icon: FlameIcon },
-          { text: "Burning sensation in center of chest (acidity)", icon: FlameIcon },
-          { text: "Rapid pounding / fluttering heartbeat", icon: TargetIcon },
-          { text: "Mild dull tightness across chest", icon: ClockIcon }
-        ]
-      },
-      {
-        question: "Does this pain spread anywhere else?",
-        field: 'spread',
-        options: [
-          { text: "Radiates to left arm, shoulder or hand", icon: ShoulderJointIcon },
-          { text: "Radiates to jaw, neck or throat", icon: ChestRadiateIcon },
-          { text: "Radiates between the shoulder blades / back", icon: BackSpineIcon },
-          { text: "Radiates downward into upper stomach", icon: StomachIcon },
-          { text: "Remains strictly confined to one spot", icon: TargetIcon }
-        ]
-      },
-      {
-        question: "When does it occur or feel most intense?",
-        field: 'triggers',
-        options: [
-          { text: "During walking, climbing stairs or exertion", icon: ShoulderJointIcon },
-          { text: "During emotional stress or anxiety", icon: MoonIcon },
-          { text: "Right after meals or when lying down", icon: FlameIcon },
-          { text: "When pressing on chest wall / changing posture", icon: TargetIcon },
-          { text: "Happens suddenly even while resting in bed", icon: ClockIcon }
-        ]
-      },
-      {
-        question: "Are you having any of these associated symptoms?",
-        field: 'associatedSymptoms',
-        options: [
-          { text: "Cold sweats, dizziness or lightheadedness", icon: MoonIcon },
-          { text: "Shortness of breath / difficulty breathing", icon: WindIcon },
-          { text: "Nausea, vomiting or extreme weakness", icon: StomachIcon },
-          { text: "Cough with throat tickle", icon: CoughIcon },
-          { text: "No other symptoms present", icon: TargetIcon }
-        ]
-      }
-    ],
-
-    // 3. Fever & Systemic Infections
-    fever: [
-      {
-        question: "I understand you have a fever.\nHow many days has the fever lasted?",
+        q: `कृपया बताएं कि आपको ${disease} की यह समस्या कब से है और आपके खान-पान या पाचन (Agni) में क्या बदलाव आया है?`,
+        qEn: `How long have you been experiencing this ${disease}, and how has your appetite / digestion (Agni) been affected?`,
         field: 'duration',
         options: [
-          { text: "Just started today (<24 hours)", icon: ClockIcon },
-          { text: "2 to 3 days", icon: ClockIcon },
-          { text: "4 to 7 days (about 1 week)", icon: ClockIcon },
-          { text: "More than 10 days", icon: ClockIcon },
-          { text: "Intermittent / comes and goes every few hours", icon: FlameIcon }
+          { text: "Started recently (1 to 3 days ago)", icon: ClockIcon },
+          { text: "1 to 2 weeks, gradually worsening", icon: ClockIcon },
+          { text: "Chronic issue for over a month", icon: ClockIcon },
+          { text: "Comes and goes periodically", icon: MoonIcon }
         ]
       },
       {
-        question: "How high does the fever feel, and do you have chills?",
+        q: `इस ${disease} के दौरान आपकी शारीरिक ऊर्जा, नींद (Nidra) और सहनशक्ति कैसी है?`,
+        qEn: `During this ${disease}, how is your physical stamina, energy, and sleep pattern (Nidra)?`,
+        field: 'vikriti',
+        options: [
+          { text: "Normal energy with undisturbed sleep", icon: TargetIcon },
+          { text: "Restless sleep and low stamina", icon: MoonIcon },
+          { text: "Severe lethargy and heaviness in body", icon: BodyPainIcon },
+          { text: "Disturbed by stress and anxiety", icon: WindIcon }
+        ]
+      },
+      {
+        q: `क्या ठंडे, गर्म या मसालेदार आहार से इस ${disease} में बदलाव आता है (Satmya)?`,
+        qEn: `Do cold, hot, dry, or spicy foods/climates worsen or relieve this ${disease} (Satmya)?`,
+        field: 'triggers',
+        options: [
+          { text: "Aggravated by cold food or cold weather", icon: WindIcon },
+          { text: "Aggravated by spicy, oily, or fried foods", icon: FlameIcon },
+          { text: "Relieved by warm, freshly cooked foods", icon: Leaf },
+          { text: "No clear dietary trigger noticed", icon: TargetIcon }
+        ]
+      }
+    ] : [
+      {
+        q: `Could you describe when this ${disease} first started and how it has developed over time?`,
+        field: 'duration',
+        options: [
+          { text: "Started recently (< 24 to 48 hours ago)", icon: ClockIcon },
+          { text: "Started 1 to 2 weeks ago, gradually worsening", icon: ClockIcon },
+          { text: "Chronic issue persisting over 3-4 weeks", icon: ClockIcon },
+          { text: "Recurrent episodes that come and go", icon: MoonIcon }
+        ]
+      },
+      {
+        q: `Where is this ${disease} predominantly felt, and does the sensation spread or radiate anywhere?`,
+        field: 'location',
+        options: [
+          { text: "Localized strictly to one specific area", icon: TargetIcon },
+          { text: "Radiates or spreads to surrounding areas", icon: ChestRadiateIcon },
+          { text: "Generalized discomfort across the body", icon: BodyPainIcon },
+          { text: "Shifts from one place to another", icon: WindIcon }
+        ]
+      },
+      {
+        q: `How would you describe the severity of this ${disease} and its impact on your normal activities?`,
         field: 'severity',
         options: [
-          { text: "Mild warmth (around 99°F - 100°F)", icon: ThermometerIcon },
-          { text: "Moderate fever (100°F - 102°F)", icon: ThermometerIcon },
-          { text: "High fever (>102°F) with shivering & teeth chattering", icon: FlameIcon },
-          { text: "Profuse sweating and night chills", icon: MoonIcon },
-          { text: "Have not checked with thermometer", icon: QuestionPersonIcon }
+          { text: "Mild — manageable with normal daily routine", icon: TargetIcon },
+          { text: "Moderate — bothersome, affects sleep or work", icon: MoonIcon },
+          { text: "Severe — painful, significantly limiting activity", icon: FlameIcon },
+          { text: "Severe episodes with sudden spikes", icon: ChestRadiateIcon }
         ]
       },
       {
-        question: "Which of these accompanying symptoms are you experiencing?",
-        field: 'nature',
-        options: [
-          { text: "Severe retro-orbital eye pain & body aches", icon: HeadacheIcon },
-          { text: "Dry cough, sore throat & runny nose", icon: CoughIcon },
-          { text: "Nausea, vomiting or loose motions", icon: StomachIcon },
-          { text: "Skin rash, red spots or bleeding gums", icon: FlameIcon },
-          { text: "Extreme weakness and loss of appetite", icon: BodyPainIcon }
-        ]
-      },
-      {
-        question: "Have you taken any medication or undergone tests?",
+        q: `Have you taken any medications or treatments for this ${disease} so far?`,
         field: 'medications',
         options: [
-          { text: "Took Paracetamol (Dolo/Crocin) with temporary relief", icon: PillIcon },
-          { text: "Took Ayurvedic Kadha / herbal remedies", icon: Leaf },
-          { text: "Took antibiotics prescribed earlier", icon: PillIcon },
-          { text: "Done CBC / Dengue / Malaria blood tests", icon: TargetIcon },
-          { text: "No medications taken yet", icon: QuestionPersonIcon }
+          { text: "Took over-the-counter medicine with temporary relief", icon: PillIcon },
+          { text: "Took home remedies / herbal solutions", icon: Leaf },
+          { text: "Took previously prescribed medicines", icon: PillIcon },
+          { text: "Have not taken any medications yet", icon: TargetIcon }
         ]
       }
-    ],
+    ];
 
-    // 4. Headache, Migraine & Neurological
-    headache: [
-      {
-        question: "I see you are suffering from a headache.\nWhere is the pain predominantly centered?",
-        field: 'location',
-        options: [
-          { text: "One side only (Left or Right hemicranial)", icon: HeadacheIcon },
-          { text: "Forehead and temples bilaterally", icon: TargetIcon },
-          { text: "Back of head (occiput) and upper neck", icon: BackSpineIcon },
-          { text: "Deep behind the eyes / sinus bridge", icon: TargetIcon },
-          { text: "Tight squeezing band around entire head", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "How would you describe the sensation of this headache?",
-        field: 'nature',
-        options: [
-          { text: "Throbbing / pulsating rhythmic heartbeat", icon: ChestRadiateIcon },
-          { text: "Constant heavy dull pressing pressure", icon: ClockIcon },
-          { text: "Sharp shooting electric / stabbing shocks", icon: FlameIcon },
-          { text: "Head heaviness with dizziness & spinning vertigo", icon: WindIcon },
-          { text: "Sudden explosive 'thunderclap' severe pain", icon: FlameIcon }
-        ]
-      },
-      {
-        question: "What triggers or worsens the headache?",
-        field: 'triggers',
-        options: [
-          { text: "Bright sunlight, loud noise or screen glare", icon: FlameIcon },
-          { text: "Lack of sleep, stress or mental fatigue", icon: MoonIcon },
-          { text: "Skipping meals / gas & acidity in stomach", icon: StomachIcon },
-          { text: "Neck bending, prolonged computer posture", icon: BackSpineIcon },
-          { text: "No clear trigger identified", icon: QuestionPersonIcon }
-        ]
+    const template = templates[Math.min(stepIndex, templates.length - 1)];
+    let question = template.q;
+    let options = template.options;
+
+    // Auto-translate question and options to selected languageCode if non-English
+    if (languageCode !== 'en') {
+      try {
+        const rawTexts = [template.qEn || template.q, ...options.map(o => o.text)];
+        const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
+        if (translations && translations.length === rawTexts.length) {
+          question = translations[0];
+          options = options.map((o, idx) => ({ ...o, text: translations[idx + 1] || o.text }));
+        }
+      } catch (e) {
+        console.warn('Fallback dynamic synthesis notice:', e);
       }
-    ],
+    }
 
-    // 5. Cough, Cold & Respiratory (Pulmonology)
-    cough: [
-      {
-        question: "I understand you have cough & respiratory symptoms.\nWhat type of cough are you experiencing?",
-        field: 'nature',
-        options: [
-          { text: "Dry hacking ticklish cough (no phlegm)", icon: CoughIcon },
-          { text: "Productive wet cough with yellow/green phlegm", icon: CoughIcon },
-          { text: "Chest congestion with wheezing / whistling sound", icon: WindIcon },
-          { text: "Severe throat pain, burning & difficulty swallowing", icon: FlameIcon },
-          { text: "Nasal blockage, sneezing & watery discharge", icon: WindIcon }
-        ]
-      },
-      {
-        question: "How many days has this cough been persisting?",
-        field: 'duration',
-        options: [
-          { text: "Started recently (1 to 3 days)", icon: ClockIcon },
-          { text: "About 1 to 2 weeks", icon: ClockIcon },
-          { text: "Chronic cough for over 3 to 4 weeks", icon: ClockIcon },
-          { text: "Worse specifically at night when sleeping", icon: MoonIcon },
-          { text: "Seasonal recurrent allergic episodes", icon: Leaf }
-        ]
-      },
-      {
-        question: "How is your breathing effort and stamina?",
-        field: 'severity',
-        options: [
-          { text: "Breathing is comfortable and unlabored", icon: TargetIcon },
-          { text: "Mild breathlessness when climbing stairs/walking", icon: ChestRadiateIcon },
-          { text: "Breathlessness even while resting or talking", icon: FlameIcon },
-          { text: "Chest tightness with whistling asthma sound", icon: WindIcon },
-          { text: "Occasional cough-induced chest soreness", icon: TargetIcon }
-        ]
-      }
-    ],
-
-    // 6. Joint Pain, Spine & Orthopedics
-    bodypain: [
-      {
-        question: "I see you are suffering from body or musculoskeletal pain.\nWhich specific area is most affected?",
-        field: 'location',
-        options: [
-          { text: "Knee joints (single or both knees)", icon: BodyPainIcon },
-          { text: "Lower back (lumbar spine) & hips", icon: BackSpineIcon },
-          { text: "Neck (cervical spine) & upper shoulders", icon: ShoulderJointIcon },
-          { text: "Small hand/wrist/ankle joints", icon: BodyPainIcon },
-          { text: "Generalized muscle soreness & body exhaustion", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "How does movement and posture affect the pain?",
-        field: 'triggers',
-        options: [
-          { text: "Severe morning stiffness lasting >30 mins", icon: ClockIcon },
-          { text: "Worse with weight bearing, walking & standing", icon: ShoulderJointIcon },
-          { text: "Worse after prolonged sitting at desk / vehicle", icon: BackSpineIcon },
-          { text: "Pain even at rest and disturbs night sleep", icon: MoonIcon },
-          { text: "Relieved after gentle warm-up movements", icon: TargetIcon }
-        ]
-      },
-      {
-        question: "Are you noticing any of these joint or muscle signs?",
-        field: 'nature',
-        options: [
-          { text: "Visible joint swelling, warmth or redness", icon: FlameIcon },
-          { text: "Crepitus (clicking/grinding sound on movement)", icon: ClockIcon },
-          { text: "Numbness, tingling or electric sensation down leg/arm", icon: ChestRadiateIcon },
-          { text: "Muscle spasms, tightness & knotting", icon: BodyPainIcon },
-          { text: "No swelling, only deep aching pain", icon: TargetIcon }
-        ]
-      }
-    ],
-
-    // 7. Dermatology & Skin Issues
-    skin: [
-      {
-        question: "I see you have skin or dermatological issues.\nWhat type of skin change are you noticing?",
-        field: 'nature',
-        options: [
-          { text: "Red itchy rash / hives / allergic patches", icon: FlameIcon },
-          { text: "Dry, flaky, scaling or peeling skin", icon: Leaf },
-          { text: "Pimples, cystic acne or boils with pus", icon: TargetIcon },
-          { text: "Ring-shaped fungal rash with intense itching", icon: WindIcon },
-          { text: "Darkening, hyperpigmentation or discoloration", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "Where on the body is the skin issue located?",
-        field: 'location',
-        options: [
-          { text: "Face, forehead, cheeks or neck", icon: TargetIcon },
-          { text: "Arms, hands, wrists or underarms", icon: ShoulderJointIcon },
-          { text: "Legs, feet, groin or skin folds", icon: BodyPainIcon },
-          { text: "Back, chest or abdomen area", icon: BackSpineIcon },
-          { text: "Widespread all over the body", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "How long has it been present and is it spreading?",
-        field: 'duration',
-        options: [
-          { text: "Sudden onset in last 24 to 48 hours", icon: ClockIcon },
-          { text: "Present for 1 to 2 weeks and slowly spreading", icon: FlameIcon },
-          { text: "Chronic recurring problem for months", icon: MoonIcon },
-          { text: "Triggered after specific food, soap or medicine", icon: PillIcon },
-          { text: "Triggered by sweat, heat or moisture", icon: WindIcon }
-        ]
-      }
-    ],
-
-    // 8. ENT (Ear, Nose, Throat) & Sinus
-    ent: [
-      {
-        question: "I see you have an ear, nose or throat concern.\nWhat is the primary symptom?",
-        field: 'nature',
-        options: [
-          { text: "Earache / sharp stabbing pain in ear", icon: FlameIcon },
-          { text: "Ear discharge, blockage or hearing muffling", icon: WindIcon },
-          { text: "Severe sore throat & difficulty swallowing food", icon: CoughIcon },
-          { text: "Facial sinus pressure & forehead heaviness", icon: HeadacheIcon },
-          { text: "Hoarseness / loss of voice / throat irritation", icon: TargetIcon }
-        ]
-      },
-      {
-        question: "How many days has this issue been going on?",
-        field: 'duration',
-        options: [
-          { text: "1 to 2 days (acute onset)", icon: ClockIcon },
-          { text: "About 4 to 7 days", icon: ClockIcon },
-          { text: "More than 2 weeks", icon: ClockIcon },
-          { text: "Recurring with cold weather changes", icon: WindIcon },
-          { text: "Frequent chronic problem", icon: MoonIcon }
-        ]
-      },
-      {
-        question: "Do you have any associated fever or dizziness?",
-        field: 'associatedSymptoms',
-        options: [
-          { text: "Fever and body chills", icon: ThermometerIcon },
-          { text: "Ringing in ear (tinnitus) or room spinning vertigo", icon: WindIcon },
-          { text: "Swollen tender neck lymph glands", icon: TargetIcon },
-          { text: "Yellow/green nasal phlegm", icon: CoughIcon },
-          { text: "No other symptoms", icon: TargetIcon }
-        ]
-      }
-    ],
-
-    // 9. Kidney, Urology & Urinary Symptoms
-    urinary: [
-      {
-        question: "I see you have urinary or kidney-related symptoms.\nWhat are you experiencing primarily?",
-        field: 'nature',
-        options: [
-          { text: "Burning sensation / pain during urination", icon: FlameIcon },
-          { text: "Severe sharp flank / side back pain (kidney stone)", icon: BackSpineIcon },
-          { text: "Urgent & very frequent need to pass urine", icon: ClockIcon },
-          { text: "Dark / reddish tinted or cloudy urine", icon: TargetIcon },
-          { text: "Difficulty passing urine / weak interrupted flow", icon: QuestionPersonIcon }
-        ]
-      },
-      {
-        question: "Does the pain radiate anywhere?",
-        field: 'spread',
-        options: [
-          { text: "Radiates from back flank down towards groin", icon: BodyPainIcon },
-          { text: "Centered in lower bladder / pubic area", icon: StomachIcon },
-          { text: "Confined strictly to mid-back", icon: BackSpineIcon },
-          { text: "Burning only at the tip while voiding", icon: FlameIcon },
-          { text: "No pain, only frequency & urgency changes", icon: TargetIcon }
-        ]
-      },
-      {
-        question: "Do you have any fever or vomiting accompanying this?",
-        field: 'associatedSymptoms',
-        options: [
-          { text: "Fever with shivering & chills (possible infection)", icon: ThermometerIcon },
-          { text: "Nausea, vomiting & severe restlessness", icon: StomachIcon },
-          { text: "Feeling of incomplete bladder emptying", icon: ClockIcon },
-          { text: "Low fluid / water intake in hot climate", icon: WindIcon },
-          { text: "History of kidney stones in the past", icon: PillIcon }
-        ]
-      }
-    ],
-
-    // 10. Classical Ayurvedic Dashavidha Pariksha Flow
-    ayurveda: [
-      {
-        question: "🙏 Pranam! [आहारशक्ति & अग्नि] How is your food intake and digestive power (Aharashakti & Agni)?",
-        field: 'ayushAgni',
-        options: [
-          { text: "Good hunger & smooth digestion (Sama Agni)", icon: Leaf },
-          { text: "Low appetite & heavy indigestion (Manda Agni)", icon: StomachIcon },
-          { text: "High burning acidity & fast hunger (Tikshna Agni)", icon: FlameIcon },
-          { text: "Irregular digestion with bloating (Vishama Agni)", icon: WindIcon },
-          { text: "Hard dry stool / constipation (Krura Kostha)", icon: BackSpineIcon }
-        ]
-      },
-      {
-        question: "[प्रकृति & विकृति] Which Doshic symptoms best describe your current imbalance (Prakriti & Vikriti)?",
-        field: 'ayushPrakriti',
-        options: [
-          { text: "Vata: Dryness, gas, stiffness, body aches", icon: WindIcon },
-          { text: "Pitta: Body heat, burning, acidity, sweating", icon: FlameIcon },
-          { text: "Kapha: Heaviness, lethargy, cold, excess mucus", icon: MoonIcon },
-          { text: "Vata-Pitta: Sharp pain with burning sensation", icon: ChestRadiateIcon },
-          { text: "Kapha-Vata: Dull ache with stiffness & coldness", icon: BodyPainIcon }
-        ]
-      },
-      {
-        question: "[सत्त्व & मानस] How is your mental fortitude, sleep (Nidra), and emotional tranquility (Sattva)?",
-        field: 'ayushSatva',
-        options: [
-          { text: "Pravara: Calm mind & sound peaceful sleep", icon: MoonIcon },
-          { text: "Madhyama: Moderate stress with okay sleep", icon: ClockIcon },
-          { text: "Avara: High anxiety, racing thoughts & insomnia", icon: WindIcon },
-          { text: "Disturbed sleep / waking frequently", icon: ClockIcon },
-          { text: "Excessive sleepiness & low mental energy", icon: MoonIcon }
-        ]
-      },
-      {
-        question: "[व्यायाम शक्ति & बल] How is your physical strength and daily work/exercise endurance (Vyayama Shakti)?",
-        field: 'ayushBala',
-        options: [
-          { text: "Pravara Bala: High stamina, easily active", icon: TargetIcon },
-          { text: "Madhyama Bala: Moderate daily endurance", icon: ClockIcon },
-          { text: "Avara Bala: Fatigue quickly with light work", icon: ShoulderJointIcon },
-          { text: "Severe muscle weakness & need frequent rest", icon: MoonIcon },
-          { text: "Reduced stamina specifically due to current pain", icon: BodyPainIcon }
-        ]
-      },
-      {
-        question: "[सात्म्य & संहनन] What dietary habits and climate conditions suit your body (Satmya & Samhanana)?",
-        field: 'ayushSatmya',
-        options: [
-          { text: "Suits warm, freshly cooked foods", icon: FlameIcon },
-          { text: "Aggravated by cold, dry, or windy climate", icon: WindIcon },
-          { text: "Aggravated by spicy, oily, or sour items", icon: FlameIcon },
-          { text: "Firm, compact body build (Samhanana)", icon: TargetIcon },
-          { text: "Lean frame, easily sensitive to diet changes", icon: Leaf }
-        ]
-      }
-    ]
-  };
-
-  // ── INTELLIGENT DISEASE ROUTER ──
-  const resolveClinicalFlowKey = (diseaseName) => {
-    const raw = String(diseaseName || '').toLowerCase().trim();
-    if (isAyurvedic) return 'ayurveda';
-    if (/(chest|heart|angina|palpitation|coronary|cardio|धड़कन|सीने)/i.test(raw)) return 'chestpain';
-    if (/(stomach|abdomen|belly|digest|liver|gas|acidity|vomit|diarrhea|loose|constipat|अपच|पेट)/i.test(raw)) return 'stomach';
-    if (/(fever|temp|chills|shiver|malaria|dengue|typhoid|बुखार|ताप)/i.test(raw)) return 'fever';
-    if (/(head|migraine|dizzy|vertigo|neuro|चक्कर|सिर)/i.test(raw)) return 'headache';
-    if (/(cough|cold|throat|asthma|breath|phlegm|sputum|bronch|खांसी|कफ|दमा)/i.test(raw)) return 'cough';
-    if (/(skin|rash|itch|allergy|fungal|pimple|acne|eczema|खुजली|दाद|त्वचा)/i.test(raw)) return 'skin';
-    if (/(ear|nose|sinus|ent|tonsil|voice|कान|नाक|गला)/i.test(raw)) return 'ent';
-    if (/(urine|urinary|kidney|stone|bladder|burning urine|पेशाब|गुर्दे)/i.test(raw)) return 'urinary';
-    if (/(joint|knee|back|spine|bone|muscle|shoulder|neck|ortho|घुटने|कमर|जोड़)/i.test(raw)) return 'bodypain';
-    return 'stomach';
+    return {
+      question,
+      options,
+      responseType: 'single_choice',
+      field: template.field,
+      isFinished: false
+    };
   };
 
   // ── DYNAMIC AI QUESTION & OPTION GENERATOR (GEMINI + CLINICAL GRAPH) ──
@@ -913,12 +571,36 @@ export default function ClinicalAnamnesisChat({
           };
         }
         setAiError('');
+        let resolvedQuestion = String(parsed.question || '').trim();
+        let resolvedOptions = validOptions.map(option => ({ text: String(option.text).trim(), icon: getIconFromType(option.iconType) }));
+
+        // Ensure all 9 Indian languages: if languageCode is non-English, auto-translate English options
+        if (languageCode !== 'en' && resolvedOptions.some(o => /[a-zA-Z]{3,}/.test(o.text))) {
+          try {
+            const rawTexts = resolvedOptions.map(o => o.text);
+            const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
+            if (translations && translations.length === resolvedOptions.length) {
+              resolvedOptions = resolvedOptions.map((o, idx) => ({ ...o, text: translations[idx] || o.text }));
+            }
+          } catch (e) {
+            console.warn('Auto option translation notice:', e);
+          }
+        }
+
+        // If question contains English words and target language is non-English, translate question too
+        if (languageCode !== 'en' && /[a-zA-Z]{4,}/.test(resolvedQuestion)) {
+          try {
+            const resQ = await voiceAIService.translate(resolvedQuestion, languageCode);
+            if (resQ?.text) resolvedQuestion = resQ.text;
+          } catch (e) {}
+        }
+
         return {
-          question: String(parsed.question || '').trim(),
+          question: resolvedQuestion,
           responseType: ['single_choice', 'multiple_choice', 'free_text', 'scale'].includes(parsed.responseType)
             ? parsed.responseType
-            : (validOptions.length ? 'single_choice' : 'free_text'),
-          options: validOptions.map(option => ({ text: String(option.text).trim(), icon: getIconFromType(option.iconType) })),
+            : (resolvedOptions.length ? 'single_choice' : 'free_text'),
+          options: resolvedOptions,
           field: parsed.capturedField || 'notes',
           isFinished: Boolean(parsed.isFinished),
           completionMessage: parsed.completionMessage,
@@ -964,7 +646,7 @@ export default function ClinicalAnamnesisChat({
     return () => { cancelled = true; };
   }, [doctor?.id, doctor?.name, doctor?.specialty, doctor?.speciality, isAyurvedic, patient?.age, patient?.gender, languageCode, aiRetryToken]);
 
-  // Start the interactive chat
+  // Start the interactive chat (100% AI Driven for ANY disease entered)
   const startConsultationChat = async (symptomList, customText = '') => {
     if (answerRequestInFlightRef.current) return;
     answerRequestInFlightRef.current = true;
@@ -973,23 +655,6 @@ export default function ClinicalAnamnesisChat({
     const diseaseName = customText ? customText.trim() : (Array.isArray(symptomList) && symptomList.length ? symptomList[symptomList.length - 1] : 'General Discomfort');
     const symptoms = [diseaseName];
     setSelectedCards([diseaseName]);
-
-    const primaryLower = diseaseName.toLowerCase();
-    const localizedProblemId = INITIAL_PROBLEMS.find(problem =>
-      Object.values(CHAT_COPY).some(copy => String(copy[problem.id] || '').toLowerCase() === primaryLower)
-    )?.id;
-
-    // Gemini owns the live clinical path. This free-text step is only a
-    // connectivity fallback and contains no disease-specific assumptions.
-    const flowKey = resolveClinicalFlowKey(diseaseName);
-    const chosenFlow = CLINICAL_FLOWS[flowKey] || CLINICAL_FLOWS.stomach || [];
-    const localFirstStep = chosenFlow[0];
-    const fallbackStep = {
-      question: localFirstStep?.question || c.answerPlaceholder,
-      responseType: localFirstStep?.options?.length ? 'single_choice' : 'free_text',
-      options: localFirstStep?.options || [],
-      field: localFirstStep?.field || 'notes'
-    };
 
     const updatedSummary = {
       ...caseSummary,
@@ -1013,7 +678,7 @@ export default function ClinicalAnamnesisChat({
 
     setIsTyping(false);
     answerRequestInFlightRef.current = false;
-    const stepToUse = aiFirstStep || fallbackStep;
+    const stepToUse = aiFirstStep || await generateAdaptiveClinicalStep(diseaseName, 0);
 
     if (stepToUse?.isFinished) {
       setMessages([...initialMsgs, {
@@ -1028,22 +693,19 @@ export default function ClinicalAnamnesisChat({
     const firstAiMsg = {
       sender: 'ai',
       text: stepToUse.question,
-      stepIndex: 0,
-      flowKey
+      stepIndex: 0
     };
 
     setMessages([...initialMsgs, firstAiMsg]);
     setCurrentStepData({
-      flowKey,
       stepIndex: 0,
       step: stepToUse,
-      flow: chosenFlow,
       disease: diseaseName,
       isAiDriven: true
     });
   };
 
-  // Handle user selecting an option card or typing text
+  // Handle user selecting an option card or typing text (100% AI Dynamic Loop)
   const handleUserChoice = async (optionText) => {
     if (!optionText.trim() || answerRequestInFlightRef.current) return;
     answerRequestInFlightRef.current = true;
@@ -1054,8 +716,6 @@ export default function ClinicalAnamnesisChat({
     setInputVal('');
     setMultiSelections([]);
 
-    // Update the field associated with the question immediately, then merge
-    // Gemini's richer extraction into that same snapshot when it returns.
     let answerSummary = caseSummary;
     if (currentStepData && currentStepData.step) {
       const field = currentStepData.step.field || 'notes';
@@ -1067,12 +727,8 @@ export default function ClinicalAnamnesisChat({
     setIsTyping(true);
 
     const nextIdx = currentStepData ? currentStepData.stepIndex + 1 : 0;
-    const flow = currentStepData?.flow || [];
-    const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ');
+    const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ') || 'health condition';
 
-    // Absolute safety ceiling, not a target: Gemini is expected to stop much
-    // earlier when sufficient. This guarantees a faulty response can never
-    // create an endless patient interview.
     const safetyCeiling = isAyurvedic ? 12 : 8;
     if (nextIdx >= safetyCeiling) {
       setIsTyping(false);
@@ -1084,7 +740,7 @@ export default function ClinicalAnamnesisChat({
       return;
     }
 
-    // Gemini decides the next question, control type, option count and endpoint.
+    // Gemini dynamic clinical intelligence
     let nextStepObj = null;
     let isFinished = false;
 
@@ -1097,57 +753,29 @@ export default function ClinicalAnamnesisChat({
         setCaseSummary(updated);
         syncToParent(updated);
       }
+    } else {
+      // Resilience fallback: generate adaptive clinical step specifically for this disease
+      nextStepObj = await generateAdaptiveClinicalStep(disease, nextIdx);
     }
 
     setIsTyping(false);
     answerRequestInFlightRef.current = false;
 
-    if (!nextStepObj) {
-      // Keep the interview usable when the network/model is temporarily slow.
-      // These are resilience cards only; Gemini remains the primary controller
-      // and will take over again on the patient's next answer.
-      const localStep = flow[nextIdx];
-      if (!localStep) {
-        setMessages([...nextMsgs, {
-          sender: 'ai', text: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true
-        }]);
-        setCurrentStepData(null);
-        return;
-      }
-      const unavailableStep = localStep ? {
-        ...localStep,
-        responseType: localStep.options?.length ? 'single_choice' : 'free_text'
-      } : { question: c.answerPlaceholder, responseType: 'free_text', options: [], field: 'notes' };
-      setMessages([...nextMsgs, { sender: 'ai', text: unavailableStep.question, stepIndex: nextIdx, flowKey: currentStepData?.flowKey }]);
-      setCurrentStepData({
-        flowKey: currentStepData?.flowKey || (isAyurvedic ? 'ayurveda' : 'allopathy'),
-        stepIndex: nextIdx,
-        step: unavailableStep,
-        flow,
-        disease,
-        isAiDriven: true
-      });
-      return;
-    }
-
     if (nextStepObj && !isFinished) {
       const nextAiMsg = {
         sender: 'ai',
         text: nextStepObj.question,
-        stepIndex: nextIdx,
-        flowKey: currentStepData?.flowKey
+        stepIndex: nextIdx
       };
       setMessages([...nextMsgs, nextAiMsg]);
       setCurrentStepData({
-        flowKey: currentStepData?.flowKey,
         stepIndex: nextIdx,
         step: nextStepObj,
-        flow,
         disease,
         isAiDriven: true
       });
     } else {
-      // Complete the triage flow
+      // Complete triage flow
       const finalAiMsg = {
         sender: 'ai',
         text: nextStepObj?.completionMessage || c.complete.replace('{doctor}', doctor?.name || 'the doctor'),
@@ -1763,6 +1391,7 @@ export default function ClinicalAnamnesisChat({
         <button
           type="button"
           onClick={() => onPrevious?.()}
+          data-voice-action="back"
           style={{
             backgroundColor: '#ffffff',
             color: '#334155',
@@ -1785,6 +1414,7 @@ export default function ClinicalAnamnesisChat({
         <button
           type="button"
           onClick={() => onNext?.()}
+          data-voice-action="next"
           style={{
             background: '#059669',
             color: '#ffffff',

@@ -2283,68 +2283,7 @@ export default function PatientDashboard() {
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState('appointments');
 
-  // Register page-level voice handlers for instant tab switching and modal actions
-  useEffect(() => {
-    registerPage('patientDashboard', {
-      bookAppointment: () => {
-        setActiveTab('appointments');
-        setBookingFlowView('main');
-        setShowAllHospitalsModal(true);
-      },
-      viewAppointments: () => {
-        setActiveTab('appointments');
-        setBookingFlowView('main');
-      },
-      viewHistory: () => {
-        setActiveTab('history');
-      },
-      viewReports: () => {
-        setActiveTab('reports');
-      },
-      viewDonations: () => {
-        setActiveTab('donations');
-      },
-      viewCommunities: () => {
-        setActiveTab('communities');
-      },
-      viewHelp: () => {
-        setActiveTab('help');
-      },
-      viewProfile: () => {
-        setShowAbhaModal(true);
-      },
-      showAbhaCard: () => {
-        setShowAbhaModal(true);
-      },
-      toggleAyush: () => {
-        setAyushMode(!isAyushMode);
-      },
-      scan_document: () => {
-        setActiveTab('reports');
-        setTimeout(() => reportsFileInputRef.current?.click(), 300);
-      },
-      searchHospital: (cmd) => {
-        setActiveTab('appointments');
-        if (cmd?.value) setSearchQuery(cmd.value);
-      },
-    }, {
-      bookAppointment: ['Book doctor appointment, consult doctor, consult specialist, OPD booking, hospital visit, bukhar, fever, dard'],
-      viewAppointments: ['View appointments, schedule, timings, queue tokens'],
-      viewHistory: ['View past medical history, previous consultations, visit history'],
-      viewReports: ['View lab test reports, blood tests, radiology scans, medical records'],
-      viewDonations: ['Blood donation, organ donation, find blood donors'],
-      viewCommunities: ['Patient support groups, healthcare communities, discussions'],
-      viewHelp: ['Help, support, instructions, and FAQ'],
-      viewProfile: ['Patient profile, account details, personal health records'],
-      showAbhaCard: ['Show ABHA health card, Ayushman Bharat health card'],
-      toggleAyush: ['Toggle AYUSH, switch between Allopathy and Ayurveda'],
-      scan_document: ['Scan prescription, upload medical report, document camera scan'],
-    });
 
-    return () => {
-      unregisterPage('patientDashboard');
-    };
-  }, [registerPage, unregisterPage, isAyushMode, setAyushMode]);
 
   // Trigger voice feedback dynamically when navigating between tabs
   useEffect(() => {
@@ -3621,6 +3560,199 @@ export default function PatientDashboard() {
       setSelectedAppointment(null);
     }
   };
+
+  // Full Patient Portal Voice Navigation Handlers (Tabs, Modals, 5-Step Booking Wizard, Confirmation)
+  useEffect(() => {
+    registerPage('patientDashboard', {
+      // ── Main Dashboard Tabs ──
+      bookAppointment: () => {
+        setActiveTab('appointments');
+        setBookingFlowView('main');
+        setShowAllHospitalsModal(true);
+      },
+      viewAppointments: () => {
+        setActiveTab('appointments');
+        setBookingFlowView('main');
+      },
+      viewHistory: () => {
+        setActiveTab('history');
+      },
+      viewReports: () => {
+        setActiveTab('reports');
+      },
+      viewDonations: () => {
+        setActiveTab('donations');
+      },
+      viewCommunities: () => {
+        setActiveTab('communities');
+      },
+      viewHelp: () => {
+        setActiveTab('help');
+      },
+      viewProfile: () => {
+        setShowAbhaModal(true);
+      },
+      showAbhaCard: () => {
+        setShowAbhaModal(true);
+      },
+      toggleAyush: () => {
+        setAyushMode(!isAyushMode);
+      },
+      scan_document: () => {
+        setActiveTab('reports');
+        setTimeout(() => reportsFileInputRef.current?.click(), 300);
+      },
+      searchHospital: (cmd) => {
+        setActiveTab('appointments');
+        if (cmd?.value) setSearchQuery(cmd.value);
+      },
+
+      // ── Wizard Booking Steps & Navigation ──
+      next: async () => {
+        if (bookingFlowView === 'booking_steps') {
+          if (bookingStep === 1) {
+            setBookingStep(2);
+          } else if (bookingStep === 2) {
+            if (!selectedBookingSlot) {
+              const firstOpen = liveSlots?.morning?.find(s => s.state === 'open' || s.state === 'fast')
+                || liveSlots?.afternoon?.find(s => s.state === 'open' || s.state === 'fast')
+                || liveSlots?.evening?.find(s => s.state === 'open' || s.state === 'fast');
+              if (firstOpen) {
+                await handleSelectSlotWithHold(firstOpen);
+              }
+            }
+            setBookingStep(3);
+          } else if (bookingStep === 3) {
+            setBookingStep(4);
+          } else if (bookingStep === 4) {
+            setBookingStep(5);
+          } else if (bookingStep === 5) {
+            handleConfirmBooking();
+          }
+        } else if (bookingFlowView === 'doctor_profile') {
+          if (selectedDoctorObj) {
+            handleSelectDoctorForBooking(selectedDoctorObj);
+          }
+        } else if (bookingFlowView === 'doctor_select') {
+          const docs = bookingHospital?.doctors || [];
+          if (docs.length > 0) {
+            handleSelectDoctorForBooking(docs[0]);
+          }
+        }
+      },
+
+      back: () => {
+        if (showBookingModal) {
+          setShowBookingModal(false);
+        } else if (showAllHospitalsModal) {
+          setShowAllHospitalsModal(false);
+        } else if (showAbhaModal) {
+          setShowAbhaModal(false);
+        } else if (selectedAppointment) {
+          setSelectedAppointment(null);
+        } else if (selectedDoc) {
+          setSelectedDoc(null);
+        } else if (bookingFlowView === 'booking_steps') {
+          if (bookingStep > 1) {
+            setBookingStep(prev => prev - 1);
+          } else {
+            setBookingFlowView('doctor_select');
+          }
+        } else if (bookingFlowView === 'doctor_profile') {
+          setBookingFlowView('doctor_select');
+        } else if (bookingFlowView === 'doctor_select') {
+          setBookingFlowView('main');
+        }
+      },
+
+      confirm: () => {
+        if (bookingFlowView === 'booking_steps') {
+          if (bookingStep === 5) {
+            handleConfirmBooking();
+          } else {
+            setBookingStep(prev => Math.min(5, prev + 1));
+          }
+        } else if (showBookingModal) {
+          handleConfirmBooking();
+        }
+      },
+
+      step1: () => { if (bookingFlowView === 'booking_steps') setBookingStep(1); },
+      step2: () => { if (bookingFlowView === 'booking_steps') setBookingStep(2); },
+      step3: () => { if (bookingFlowView === 'booking_steps') setBookingStep(3); },
+      step4: () => { if (bookingFlowView === 'booking_steps') setBookingStep(4); },
+      step5: () => { if (bookingFlowView === 'booking_steps') setBookingStep(5); },
+
+      selectOption: (cmd) => {
+        const idx = typeof cmd?.value === 'number' ? cmd.value : parseInt(cmd?.value, 10);
+        if (Number.isNaN(idx)) return;
+        if (bookingFlowView === 'booking_steps' && bookingStep === 2) {
+          const allSlots = [...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])]
+            .filter(s => !s.isPast && s.state !== 'full' && s.state !== 'closed');
+          if (allSlots[idx]) {
+            handleSelectSlotWithHold(allSlots[idx]);
+          }
+        } else if (bookingFlowView === 'doctor_select') {
+          const doctorsList = bookingHospital?.doctors || [];
+          if (doctorsList[idx]) {
+            handleSelectDoctorForBooking(doctorsList[idx]);
+          }
+        } else if (showAllHospitalsModal) {
+          if (filteredHospitals[idx]) {
+            handleOpenBooking(filteredHospitals[idx]);
+          }
+        }
+      },
+
+      select_doctor: (cmd) => {
+        const query = (cmd?.value || cmd?.target || '').toLowerCase().trim();
+        const docs = bookingHospital?.doctors || dbDoctorsList || [];
+        const matched = docs.find(d => d.name.toLowerCase().includes(query) || (d.specialty || '').toLowerCase().includes(query));
+        if (matched) {
+          handleSelectDoctorForBooking(matched);
+        } else if (docs.length > 0) {
+          handleSelectDoctorForBooking(docs[0]);
+        }
+      },
+
+      select_hospital: (cmd) => {
+        const query = (cmd?.value || cmd?.target || '').toLowerCase().trim();
+        const matched = hospitals.find(h => h.name.toLowerCase().includes(query));
+        if (matched) {
+          handleOpenBooking(matched);
+        }
+      }
+    }, {
+      bookAppointment: ['Book doctor appointment, consult doctor, consult specialist, OPD booking, hospital visit, bukhar, fever, dard'],
+      viewAppointments: ['View appointments, schedule, timings, queue tokens'],
+      viewHistory: ['View past medical history, previous consultations, visit history'],
+      viewReports: ['View lab test reports, blood tests, radiology scans, medical records'],
+      viewDonations: ['Blood donation, organ donation, find blood donors'],
+      viewCommunities: ['Patient support groups, healthcare communities, discussions'],
+      viewHelp: ['Help, support, instructions, and FAQ'],
+      viewProfile: ['Patient profile, account details, personal health records'],
+      showAbhaCard: ['Show ABHA health card, Ayushman Bharat health card'],
+      toggleAyush: ['Toggle AYUSH, switch between Allopathy and Ayurveda'],
+      scan_document: ['Scan prescription, upload medical report, document camera scan'],
+      next: ['Next step, continue, proceed, aage badho, agla step, aage, अगला, அடுத்தது, తరువాత, ಮುಂದಿನ'],
+      back: ['Back, previous step, cancel, wapas, peechhe, pichhla, वापस, பின்செல், వెనక్కి, ಹಿಂದಿನ'],
+      confirm: ['Confirm booking, book now, submit appointment, pakka karo, कन्फर्म, உறுதிப்படுத்து'],
+      step1: ['Step 1, select date, choose date, change date, tarikh'],
+      step2: ['Step 2, select time, time slot, choose time, samay'],
+      step3: ['Step 3, case, symptoms, illness reason, lakshan'],
+      step4: ['Step 4, upload reports, attach prescription, report upload'],
+      step5: ['Step 5, confirmation, review booking, summary'],
+    });
+
+    return () => {
+      unregisterPage('patientDashboard');
+    };
+  }, [
+    registerPage, unregisterPage, isAyushMode, setAyushMode,
+    bookingFlowView, bookingStep, selectedBookingSlot, liveSlots,
+    selectedDoctorObj, bookingHospital, showBookingModal, showAllHospitalsModal,
+    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList
+  ]);
 
   // Logout handler
   const handleLogout = () => {

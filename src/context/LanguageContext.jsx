@@ -10,6 +10,18 @@ import domTranslator from '../engine/DOMTranslator';
 
 const LanguageContext = createContext(null);
 
+const LANG_SWITCH_SPOKEN = {
+  hi: 'भाषा हिंदी में बदल दी गई है।',
+  ta: 'மொழி தமிழுக்கு மாற்றப்பட்டது.',
+  te: 'భాష తెలుగులోకి మార్చబడింది.',
+  bn: 'ভাষা বাংলায় পরিবর্তন করা হয়েছে।',
+  mr: 'भाषा मराठीमध्ये बदलण्यात आली आहे.',
+  gu: 'ભાષા ગુજરાતીમાં બદલાઈ ગઈ છે.',
+  kn: 'ಭಾಷೆಯನ್ನು ಕನ್ನಡಕ್ಕೆ ಬದಲಾಯಿಸಲಾಗಿದೆ.',
+  ml: 'ഭാഷ മലയാളത്തിലേക്ക് മാറ്റി.',
+  en: 'Language changed to English.'
+};
+
 export function LanguageProvider({ children }) {
   const { session, setLanguage } = useSession();
   const [currentLang, setCurrentLangState] = useState(session?.language || 'en');
@@ -23,6 +35,11 @@ export function LanguageProvider({ children }) {
   const setCurrentLang = useCallback((langCode) => {
     setCurrentLangState(langCode);
     if (setLanguage) setLanguage(langCode);
+    import('../voicenav/AudioPromptManager').then(m => {
+      m.default.setLanguage(langCode, false);
+      const spokenMsg = LANG_SWITCH_SPOKEN[langCode] || `Language changed to ${langCode}`;
+      m.default.interruptWith(spokenMsg);
+    }).catch(() => {});
   }, [setLanguage]);
 
   // Translate function
