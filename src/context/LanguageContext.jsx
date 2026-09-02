@@ -38,7 +38,7 @@ export function LanguageProvider({ children }) {
     import('../voicenav/AudioPromptManager').then(m => {
       m.default.setLanguage(langCode, false);
       const spokenMsg = LANG_SWITCH_SPOKEN[langCode] || `Language changed to ${langCode}`;
-      m.default.interruptWith(spokenMsg);
+      m.default.interruptWith(spokenMsg, langCode);
     }).catch(() => {});
   }, [setLanguage]);
 

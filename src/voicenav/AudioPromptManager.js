@@ -132,9 +132,10 @@ class AudioPromptManager {
   }
 
   // Speak and interrupt any current speech
-  async interruptWith(text) {
+  async interruptWith(text, lang = null) {
     if (!this.isEnabled) return;
-    await audioFeedback.interrupt(text, this.currentLang);
+    const targetLang = lang || this.currentLang || 'en';
+    await audioFeedback.interrupt(text, targetLang);
   }
 
   // Start idle detection — speaks prompt if user is inactive

@@ -4,11 +4,11 @@
  */
 class VoiceAIService {
   constructor() {
-    this.baseUrl = import.meta.env.VITE_SUPABASE_URL
-      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-ai`
-      : null;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pzaqzwmpynlqxsclbesj.supabase.co';
+    this.baseUrl = `${supabaseUrl}/functions/v1/voice-ai`;
     this.publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-      || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      || import.meta.env.VITE_SUPABASE_ANON_KEY
+      || 'sb_publishable_aQTTcFxLfGPTzEphAE6DWQ_BqHlnDVU';
     this.disabledUntil = 0;
     this.ttsDisabledUntil = 0;
   }

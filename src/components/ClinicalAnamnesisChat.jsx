@@ -308,7 +308,7 @@ export default function ClinicalAnamnesisChat({
 
     if (!chatStarted) return;
 
-let isMounted = true;
+    let isMounted = true;
 
     const translateSession = async () => {
       try {
@@ -319,7 +319,7 @@ let isMounted = true;
         if (activeMessages.length > 0) {
           const msgTexts = activeMessages.map(m => m.text || '');
           const { translations } = await voiceAIService.batchTranslate(msgTexts, languageCode);
-          if (isMounted && translations && translations.length === activeMessages.length) {
+          if (isMounted && Array.isArray(translations) && translations.length > 0) {
             setMessages(activeMessages.map((m, idx) => ({ ...m, text: translations[idx] || m.text })));
           }
         }
@@ -331,8 +331,8 @@ let isMounted = true;
           const rawTexts = [step.question || '', ...optionsList.map(o => o.text || '')];
 
           const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
-          if (isMounted && translations && translations.length === rawTexts.length) {
-            const translatedQ = translations[0];
+          if (isMounted && Array.isArray(translations) && translations.length > 0) {
+            const translatedQ = translations[0] || step.question;
             const translatedOpts = optionsList.map((opt, idx) => ({
               ...opt,
               text: translations[idx + 1] || opt.text
@@ -344,7 +344,7 @@ let isMounted = true;
                 ...prev,
                 step: {
                   ...prev.step,
-                  question: translatedQ || prev.step.question,
+                  question: translatedQ,
                   options: translatedOpts
                 }
               };
@@ -353,7 +353,8 @@ let isMounted = true;
             // Narrate translated question in the newly selected language
             if (translatedQ) {
               import('../voicenav/AudioPromptManager').then(module => {
-                module.default.interruptWith(translatedQ);
+                module.default.setLanguage(languageCode, false);
+                module.default.interruptWith(translatedQ, languageCode);
               }).catch(() => {});
             }
           }
@@ -368,17 +369,18 @@ let isMounted = true;
     return () => { isMounted = false; };
   }, [languageCode, chatStarted]);
 
-  // Voice output for AI messages
+  // Voice output for AI messages in the active language
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.sender === 'ai' && lastMsg.text) {
         import('../voicenav/AudioPromptManager').then(module => {
-          module.default.interruptWith(lastMsg.text);
+          module.default.setLanguage(languageCode, false);
+          module.default.interruptWith(lastMsg.text, languageCode);
         }).catch(err => console.error('Failed to load AudioPromptManager', err));
       }
     }
-  }, [messages]);
+  }, [messages, languageCode]);
 
   // Sync to parent without infinite loops
   const syncToParent = (updatedSummary) => {

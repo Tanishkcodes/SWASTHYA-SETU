@@ -5,10 +5,11 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pzaqzwmpynlqxsclbesj.supabase.co';
 // Supabase renamed "anon" → "publishable" key in their dashboard (same key, new label)
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-                 || import.meta.env.VITE_SUPABASE_ANON_KEY; // backward-compat fallback
+                 || import.meta.env.VITE_SUPABASE_ANON_KEY
+                 || 'sb_publishable_aQTTcFxLfGPTzEphAE6DWQ_BqHlnDVU';
 
 const _missing = !supabaseUrl || supabaseUrl.includes('YOUR_PROJECT_ID')
               || !supabaseKey || supabaseKey.includes('YOUR_');
@@ -22,8 +23,8 @@ if (_missing) {
 }
 
 export const supabase = createClient(
-  supabaseUrl  || 'https://placeholder.supabase.co',
-  supabaseKey  || 'placeholder_key',
+  supabaseUrl,
+  supabaseKey,
   {
     auth: {
       persistSession: true,

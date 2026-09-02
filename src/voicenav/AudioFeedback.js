@@ -136,14 +136,21 @@ class AudioFeedbackEngine {
     const femaleMatch = exactVoices.find(isFemaleVoice);
     if (femaleMatch) return femaleMatch;
 
-    // 3. Fallback: Indian English or general female voice. Callers verify the
-    // returned language before using it for a regional-language utterance.
-    const indianVoices = voices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'en-in');
-    const indianFemale = indianVoices.find(isFemaleVoice);
-    if (indianFemale) return indianFemale;
+    // 3. Fallback: Indian English or general female voice only if target is English
+    if (langPrefix === 'en') {
+      const indianVoices = voices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'en-in');
+      const indianFemale = indianVoices.find(isFemaleVoice);
+      if (indianFemale) return indianFemale;
 
-    const anyEnglish = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
-    return anyEnglish.find(isFemaleVoice) || null;
+      const anyEnglish = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+      return anyEnglish.find(isFemaleVoice) || anyEnglish[0] || null;
+    }
+
+    // For regional languages, return any voice matching the language prefix if available
+    const anyMatchingVoice = exactVoices[0];
+    if (anyMatchingVoice) return anyMatchingVoice;
+
+    return null;
   }
 
   // Map our language codes to speech synthesis language codes
@@ -425,7 +432,9 @@ class AudioFeedbackEngine {
           // CRITICAL FIX: Explicitly assign a voice that matches the language prefix 
           // so Devanagari/native script is not sent to an English voice (which results in silence).
           const voices = this.synth.getVoices();
-          const fallbackVoice = preferredVoice || voices.find(v => v.lang.toLowerCase().startsWith(langPrefix)) || voices.find(v => v.default);
+          const fallbackVoice = (preferredVoice && preferredVoice.lang.toLowerCase().startsWith(langPrefix))
+            || voices.find(v => v.lang.toLowerCase().startsWith(langPrefix))
+            || (langPrefix === 'en' ? voices.find(v => v.default) : null);
           if (fallbackVoice) {
             fallbackUtterance.voice = fallbackVoice;
           }
