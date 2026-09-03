@@ -95,6 +95,23 @@ class VoiceAIService {
     if (!Array.isArray(texts) || texts.length === 0) return { translations: [] };
     const langCode = targetLanguage || 'en';
     if (langCode === 'en') return { translations: texts };
+
+    // 1. Direct Edge Function structured batch_translate
+    try {
+      const response = await this._request({
+        action: 'batch_translate',
+        texts,
+        targetLanguage: langCode
+      }, 'application/json', 16000);
+      const data = await response.json();
+      if (Array.isArray(data?.translations) && data.translations.length === texts.length) {
+        return { translations: data.translations };
+      }
+    } catch (e) {
+      console.warn('Direct batch_translate notice:', e);
+    }
+
+    // 2. Delimited fallback
     try {
       const combined = texts.join(' ||| ');
       const res = await this.translate(combined, langCode);
@@ -107,7 +124,8 @@ class VoiceAIService {
     } catch (e) {
       console.warn('Batch translate delimited error:', e);
     }
-    // Fallback: translate individually in parallel
+
+    // 3. Parallel individual fallback
     try {
       const translations = await Promise.all(
         texts.map(t => this.translate(t, langCode).then(r => r?.text || t).catch(() => t))
@@ -219,6 +237,24 @@ TASK:
     }
 
     return null;
+  }
+
+  async getClinicalSummary({ patient, disease, caseSummary, reports, doctorSpecialty, language = 'en' }) {
+    try {
+      const response = await this._request({
+        action: 'clinical_summary',
+        patient,
+        disease,
+        caseSummary,
+        reports,
+        doctorSpecialty,
+        language
+      }, 'application/json', 15000);
+      return await response.json();
+    } catch (e) {
+      console.warn('VoiceAIService getClinicalSummary notice:', e);
+      return null;
+    }
   }
 }
 

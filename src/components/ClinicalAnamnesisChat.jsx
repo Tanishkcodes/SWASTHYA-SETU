@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
 import voiceAIService from '../voicenav/VoiceAIService';
+import { getAdaptiveClinicalStep, getLocalizedDisease } from './clinicalTemplates';
 
 // ── Custom SVG Icons for Initial Problem Selection ──
 function ThermometerIcon({ size = 46, color = '#059669' }) {
@@ -315,18 +316,60 @@ export default function ClinicalAnamnesisChat({
         const activeMessages = messagesRef.current || [];
         const activeStepData = currentStepDataRef.current;
 
-        // 1. Translate all messages in chat history in one fast batch
-        if (activeMessages.length > 0) {
-          const msgTexts = activeMessages.map(m => m.text || '');
-          const { translations } = await voiceAIService.batchTranslate(msgTexts, languageCode);
-          if (isMounted && Array.isArray(translations) && translations.length > 0) {
-            setMessages(activeMessages.map((m, idx) => ({ ...m, text: translations[idx] || m.text })));
+        // 1. Translate ONLY AI messages in chat history (patient's own inputs are preserved)
+        const aiMessageIndices = [];
+        const aiTexts = [];
+        activeMessages.forEach((m, idx) => {
+          if (m.sender === 'ai' && m.text) {
+            aiMessageIndices.push(idx);
+            aiTexts.push(m.text);
+          }
+        });
+
+        if (aiTexts.length > 0) {
+          const { translations } = await voiceAIService.batchTranslate(aiTexts, languageCode);
+          if (isMounted && Array.isArray(translations) && translations.length === aiTexts.length) {
+            const updated = [...activeMessages];
+            aiMessageIndices.forEach((msgIdx, tIdx) => {
+              updated[msgIdx] = {
+                ...updated[msgIdx],
+                text: translations[tIdx] || updated[msgIdx].text
+              };
+            });
+            setMessages(updated);
           }
         }
 
-        // 2. Translate current question and option cards in one fast batch
+        // 2. Translate current question and option cards
         if (activeStepData && activeStepData.step) {
           const step = activeStepData.step;
+
+          // If this was an adaptive template step, reload natively with zero latency and zero code-mixing
+          if (step.isTemplate && typeof step.templateStepIndex === 'number') {
+            const newStep = getAdaptiveClinicalStep(activeStepData.disease, step.templateStepIndex, isAyurvedic, languageCode);
+            const mappedOpts = newStep.options.map(opt => ({
+              text: opt.text,
+              icon: getIconFromType(opt.iconType)
+            }));
+            if (isMounted) {
+              setCurrentStepData(prev => ({
+                ...prev,
+                step: {
+                  ...prev.step,
+                  question: newStep.question,
+                  options: mappedOpts
+                }
+              }));
+              if (newStep.question) {
+                import('../voicenav/AudioPromptManager').then(module => {
+                  module.default.setLanguage(languageCode, false);
+                  module.default.interruptWith(newStep.question, languageCode);
+                }).catch(() => {});
+              }
+            }
+            return;
+          }
+
           const optionsList = step.options || [];
           const rawTexts = [step.question || '', ...optionsList.map(o => o.text || '')];
 
@@ -424,115 +467,24 @@ export default function ClinicalAnamnesisChat({
     });
   };
 
-  // ── DYNAMIC COMPLAINT-AWARE ADAPTIVE CLINICAL SYNTHESIZER ──
-  // When Gemini has a temporary delay, dynamically synthesizes a complaint-specific
-  // question using the patient's exact stated disease and language. Gemini immediately
-  // takes over on the next step.
+  // ── DYNAMIC COMPLAINT-AWARE ADAPTIVE CLINICAL SYNTHESIZER (ALL 9 LANGUAGES) ──
+  // Guarantees 100% native language questions and options with zero code-mixing
   const generateAdaptiveClinicalStep = async (diseaseName, stepIndex = 0) => {
     const isAyur = isAyurvedic;
-    const disease = diseaseName || 'health complaint';
-
-    const templates = isAyur ? [
-      {
-        q: `कृपया बताएं कि आपको ${disease} की यह समस्या कब से है और आपके खान-पान या पाचन (Agni) में क्या बदलाव आया है?`,
-        qEn: `How long have you been experiencing this ${disease}, and how has your appetite / digestion (Agni) been affected?`,
-        field: 'duration',
-        options: [
-          { text: "Started recently (1 to 3 days ago)", icon: ClockIcon },
-          { text: "1 to 2 weeks, gradually worsening", icon: ClockIcon },
-          { text: "Chronic issue for over a month", icon: ClockIcon },
-          { text: "Comes and goes periodically", icon: MoonIcon }
-        ]
-      },
-      {
-        q: `इस ${disease} के दौरान आपकी शारीरिक ऊर्जा, नींद (Nidra) और सहनशक्ति कैसी है?`,
-        qEn: `During this ${disease}, how is your physical stamina, energy, and sleep pattern (Nidra)?`,
-        field: 'vikriti',
-        options: [
-          { text: "Normal energy with undisturbed sleep", icon: TargetIcon },
-          { text: "Restless sleep and low stamina", icon: MoonIcon },
-          { text: "Severe lethargy and heaviness in body", icon: BodyPainIcon },
-          { text: "Disturbed by stress and anxiety", icon: WindIcon }
-        ]
-      },
-      {
-        q: `क्या ठंडे, गर्म या मसालेदार आहार से इस ${disease} में बदलाव आता है (Satmya)?`,
-        qEn: `Do cold, hot, dry, or spicy foods/climates worsen or relieve this ${disease} (Satmya)?`,
-        field: 'triggers',
-        options: [
-          { text: "Aggravated by cold food or cold weather", icon: WindIcon },
-          { text: "Aggravated by spicy, oily, or fried foods", icon: FlameIcon },
-          { text: "Relieved by warm, freshly cooked foods", icon: Leaf },
-          { text: "No clear dietary trigger noticed", icon: TargetIcon }
-        ]
-      }
-    ] : [
-      {
-        q: `Could you describe when this ${disease} first started and how it has developed over time?`,
-        field: 'duration',
-        options: [
-          { text: "Started recently (< 24 to 48 hours ago)", icon: ClockIcon },
-          { text: "Started 1 to 2 weeks ago, gradually worsening", icon: ClockIcon },
-          { text: "Chronic issue persisting over 3-4 weeks", icon: ClockIcon },
-          { text: "Recurrent episodes that come and go", icon: MoonIcon }
-        ]
-      },
-      {
-        q: `Where is this ${disease} predominantly felt, and does the sensation spread or radiate anywhere?`,
-        field: 'location',
-        options: [
-          { text: "Localized strictly to one specific area", icon: TargetIcon },
-          { text: "Radiates or spreads to surrounding areas", icon: ChestRadiateIcon },
-          { text: "Generalized discomfort across the body", icon: BodyPainIcon },
-          { text: "Shifts from one place to another", icon: WindIcon }
-        ]
-      },
-      {
-        q: `How would you describe the severity of this ${disease} and its impact on your normal activities?`,
-        field: 'severity',
-        options: [
-          { text: "Mild — manageable with normal daily routine", icon: TargetIcon },
-          { text: "Moderate — bothersome, affects sleep or work", icon: MoonIcon },
-          { text: "Severe — painful, significantly limiting activity", icon: FlameIcon },
-          { text: "Severe episodes with sudden spikes", icon: ChestRadiateIcon }
-        ]
-      },
-      {
-        q: `Have you taken any medications or treatments for this ${disease} so far?`,
-        field: 'medications',
-        options: [
-          { text: "Took over-the-counter medicine with temporary relief", icon: PillIcon },
-          { text: "Took home remedies / herbal solutions", icon: Leaf },
-          { text: "Took previously prescribed medicines", icon: PillIcon },
-          { text: "Have not taken any medications yet", icon: TargetIcon }
-        ]
-      }
-    ];
-
-    const template = templates[Math.min(stepIndex, templates.length - 1)];
-    let question = template.q;
-    let options = template.options;
-
-    // Auto-translate question and options to selected languageCode if non-English
-    if (languageCode !== 'en') {
-      try {
-        const rawTexts = [template.qEn || template.q, ...options.map(o => o.text)];
-        const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
-        if (translations && translations.length === rawTexts.length) {
-          question = translations[0];
-          options = options.map((o, idx) => ({ ...o, text: translations[idx + 1] || o.text }));
-        }
-      } catch (e) {
-        console.warn('Fallback dynamic synthesis notice:', e);
-      }
-    }
+    const baseStep = getAdaptiveClinicalStep(diseaseName, stepIndex, isAyur, languageCode);
+    const mappedOptions = baseStep.options.map(opt => ({
+      text: opt.text,
+      icon: getIconFromType(opt.iconType)
+    }));
 
     return {
-      question,
-      options,
-      responseType: 'single_choice',
-      field: template.field,
-      isFinished: false
+      question: baseStep.question,
+      options: mappedOptions,
+      responseType: baseStep.responseType,
+      field: baseStep.field,
+      isFinished: false,
+      isTemplate: true,
+      templateStepIndex: stepIndex
     };
   };
 
@@ -582,10 +534,27 @@ export default function ClinicalAnamnesisChat({
             const rawTexts = resolvedOptions.map(o => o.text);
             const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
             if (translations && translations.length === resolvedOptions.length) {
-              resolvedOptions = resolvedOptions.map((o, idx) => ({ ...o, text: translations[idx] || o.text }));
+              resolvedOptions = resolvedOptions.map((o, idx) => {
+                const transText = translations[idx];
+                if (transText && (!/[a-zA-Z]{4,}/.test(transText) || languageCode === 'en')) {
+                  return { ...o, text: transText };
+                }
+                return o;
+              });
             }
           } catch (e) {
             console.warn('Auto option translation notice:', e);
+          }
+
+          // If options still contain English, substitute with pure native options from 9-language dictionary
+          if (resolvedOptions.some(o => /[a-zA-Z]{3,}/.test(o.text))) {
+            const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
+            if (fallbackNative && fallbackNative.options && fallbackNative.options.length) {
+              resolvedOptions = fallbackNative.options.map(opt => ({
+                text: opt.text,
+                icon: getIconFromType(opt.iconType)
+              }));
+            }
           }
         }
 
@@ -593,8 +562,16 @@ export default function ClinicalAnamnesisChat({
         if (languageCode !== 'en' && /[a-zA-Z]{4,}/.test(resolvedQuestion)) {
           try {
             const resQ = await voiceAIService.translate(resolvedQuestion, languageCode);
-            if (resQ?.text) resolvedQuestion = resQ.text;
-          } catch (e) {}
+            if (resQ?.text && (!/[a-zA-Z]{4,}/.test(resQ.text) || languageCode === 'en')) {
+              resolvedQuestion = resQ.text;
+            } else {
+              const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
+              if (fallbackNative?.question) resolvedQuestion = fallbackNative.question;
+            }
+          } catch (e) {
+            const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
+            if (fallbackNative?.question) resolvedQuestion = fallbackNative.question;
+          }
         }
 
         return {
@@ -667,9 +644,10 @@ export default function ClinicalAnamnesisChat({
     syncToParent(updatedSummary);
 
     // Initial message history
+    const localizedDisease = getLocalizedDisease(diseaseName, languageCode);
     const initialMsgs = [
       { sender: 'ai', text: c.firstQuestion },
-      { sender: 'user', text: customText ? customText : c.patientHas.replace('{disease}', diseaseName) }
+      { sender: 'user', text: customText ? customText : c.patientHas.replace('{disease}', localizedDisease) }
     ];
 
     setIsTyping(true);
@@ -729,7 +707,8 @@ export default function ClinicalAnamnesisChat({
     setIsTyping(true);
 
     const nextIdx = currentStepData ? currentStepData.stepIndex + 1 : 0;
-    const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ') || 'health condition';
+    const rawDisease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ') || 'health condition';
+    const disease = getLocalizedDisease(rawDisease, languageCode);
 
     const safetyCeiling = isAyurvedic ? 12 : 8;
     if (nextIdx >= safetyCeiling) {

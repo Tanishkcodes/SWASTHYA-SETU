@@ -15,19 +15,104 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 });
 const parseModelJson = (body: any) => {
   const raw = String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
-  return JSON.parse(raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim());
+  return extractJsonFromText(raw);
 };
 
-const CLINICAL_LANGUAGES: Record<string, { name: string; script: string }> = {
-  en: { name: 'English', script: 'Latin' },
-  hi: { name: 'Hindi', script: 'Devanagari' },
-  ta: { name: 'Tamil', script: 'Tamil' },
-  te: { name: 'Telugu', script: 'Telugu' },
-  bn: { name: 'Bengali', script: 'Bengali' },
-  mr: { name: 'Marathi', script: 'Devanagari' },
-  gu: { name: 'Gujarati', script: 'Gujarati' },
-  kn: { name: 'Kannada', script: 'Kannada' },
-  ml: { name: 'Malayalam', script: 'Malayalam' },
+function extractJsonFromText(raw: string): any {
+  if (!raw || typeof raw !== 'string') return null;
+  const cleaned = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (err) {}
+    }
+    const firstBracket = cleaned.indexOf('[');
+    const lastBracket = cleaned.lastIndexOf(']');
+    if (firstBracket !== -1 && lastBracket > firstBracket) {
+      try {
+        return JSON.parse(cleaned.slice(firstBracket, lastBracket + 1));
+      } catch (err) {}
+    }
+  }
+  return null;
+}
+
+async function generateWithNvidia(
+  apiKey: string,
+  messages: Array<{ role: string; content: unknown }>,
+  options: {
+    model?: string;
+    temperature?: number;
+    max_tokens?: number;
+    top_p?: number;
+    responseFormat?: { type: "json_object" };
+  } = {}
+) {
+  const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+  const model = options.model || "meta/llama-3.2-11b-vision-instruct";
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    signal: AbortSignal.timeout(22000),
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: options.temperature ?? 0.2,
+      top_p: options.top_p ?? 0.9,
+      max_tokens: options.max_tokens ?? 1024,
+      stream: false,
+      ...(options.responseFormat ? { response_format: options.responseFormat } : {})
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("NVIDIA NIM error", response.status, errText);
+    throw new Error(`NVIDIA NIM API error ${response.status}: ${errText}`);
+  }
+
+  const result = await response.json();
+  return String(result?.choices?.[0]?.message?.content || "");
+}
+
+const CLINICAL_LANGUAGES: Record<string, { code: string; name: string; script: string }> = {
+  en: { code: 'en', name: 'English', script: 'Latin' },
+  hi: { code: 'hi', name: 'Hindi', script: 'Devanagari' },
+  ta: { code: 'ta', name: 'Tamil', script: 'Tamil' },
+  te: { code: 'te', name: 'Telugu', script: 'Telugu' },
+  bn: { code: 'bn', name: 'Bengali', script: 'Bengali' },
+  mr: { code: 'mr', name: 'Marathi', script: 'Devanagari' },
+  gu: { code: 'gu', name: 'Gujarati', script: 'Gujarati' },
+  kn: { code: 'kn', name: 'Kannada', script: 'Kannada' },
+  ml: { code: 'ml', name: 'Malayalam', script: 'Malayalam' },
+};
+
+const resolveLanguage = (input: unknown): { code: string; name: string; script: string } => {
+  const str = String(input || '').trim().toLowerCase();
+  if (CLINICAL_LANGUAGES[str]) return CLINICAL_LANGUAGES[str];
+  const nameMap: Record<string, string> = {
+    english: 'en',
+    hindi: 'hi',
+    tamil: 'ta',
+    telugu: 'te',
+    bengali: 'bn',
+    marathi: 'mr',
+    gujarati: 'gu',
+    kannada: 'kn',
+    malayalam: 'ml',
+  };
+  const code = nameMap[str];
+  if (code && CLINICAL_LANGUAGES[code]) return CLINICAL_LANGUAGES[code];
+  return CLINICAL_LANGUAGES.en;
 };
 
 async function generate(
@@ -144,44 +229,15 @@ Deno.serve(async (request: Request) => {
       }});
     }
 
-    if (!['intent','extract_registration','translate','batch_translate','anamnesis','analyze_report'].includes(action)) return json({ error: 'Unknown action' }, 400);
+    if (!['intent','extract_registration','translate','batch_translate','anamnesis','analyze_report','clinical_summary'].includes(action)) return json({ error: 'Unknown action' }, 400);
+    const nvidiaKey = Deno.env.get('NVIDIA_API_KEY') || Deno.env.get('NVIDIA_NIM_API_KEY') || payload.nvidiaApiKey;
     const key = Deno.env.get('GEMINI_API_KEY');
-    if (!key) return json({ error: 'Gemini AI is not configured on the server' }, 503);
-    // Flash-Lite is deliberately used for this interactive intake: patients
-    // need the next tap choices in seconds, while the structured prompt/schema
-    // still enforce the clinical and multilingual behaviour.
+    if (!key && !nvidiaKey) return json({ error: 'Neither NVIDIA NIM nor Gemini AI is configured on the server' }, 503);
     const model = Deno.env.get('GEMINI_MODEL') || 'gemini-2.0-flash';
 
     if (action === 'analyze_report') {
       const imageData = String(payload.image || payload.dataUrl || payload.fileUrl || '').trim();
       const fileName = String(payload.fileName || payload.title || '').trim();
-      const schema = {
-        type: 'object',
-        properties: {
-          isMedicalDocument: { type: 'boolean' },
-          documentType: { type: 'string' },
-          labOrHospitalName: { type: 'string' },
-          date: { type: 'string' },
-          detectedParameters: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                result: { type: 'string' },
-                unit: { type: 'string' },
-                ref: { type: 'string' },
-                flag: { type: 'string', enum: ['Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear'] }
-              },
-              required: ['name', 'result']
-            }
-          },
-          summary: { type: 'string' },
-          impression: { type: 'string' }
-        },
-        required: ['isMedicalDocument', 'documentType', 'summary'],
-        additionalProperties: false
-      };
 
       const prompt = `You are an expert Clinical Vision OCR and Medical Intelligence system for Swasthya Setu.
 Carefully examine the visual contents and text in the attached image (File name: "${fileName}").
@@ -198,16 +254,90 @@ TASK:
    - In "summary", write an accurate, helpful notice: "This uploaded image contains [describe what it is, e.g. a photograph of people/landscape]. No medical diagnostic data or clinical test parameters were detected in this image."
    - Set "detectedParameters": [] (empty array).`;
 
-      const body = await generateWithVision(key, model, prompt, imageData, schema, 0.1, 1500);
-      const parsed = parseModelJson(body);
-      return json(parsed || { error: 'Failed to analyze report' });
+      // 1. Try NVIDIA Llama 3.2 11B Vision Instruct if key is available
+      if (nvidiaKey && imageData) {
+        try {
+          const nvidiaMessages = [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: imageData }
+                },
+                {
+                  type: 'text',
+                  text: prompt + `\n\nCRITICAL: Return ONLY a valid JSON object matching this schema:
+{
+  "isMedicalDocument": boolean,
+  "documentType": "string",
+  "labOrHospitalName": "string",
+  "date": "string",
+  "detectedParameters": [
+    { "name": "string", "result": "string", "unit": "string", "ref": "string", "flag": "Normal" | "High" | "Low" | "Borderline" | "Abnormal" | "Clear" }
+  ],
+  "summary": "string",
+  "impression": "string"
+}`
+                }
+              ]
+            }
+          ];
+          const rawNvidia = await generateWithNvidia(nvidiaKey, nvidiaMessages, {
+            temperature: 0.1,
+            max_tokens: 1500,
+            responseFormat: { type: 'json_object' }
+          });
+          const parsedNvidia = extractJsonFromText(rawNvidia);
+          if (parsedNvidia && (parsedNvidia.isMedicalDocument !== undefined || parsedNvidia.summary)) {
+            return json(parsedNvidia);
+          }
+        } catch (err) {
+          console.warn('NVIDIA NIM vision report analysis error, falling back to Gemini:', err);
+        }
+      }
+
+      // 2. Fallback to Gemini Vision
+      if (key) {
+        const schema = {
+          type: 'object',
+          properties: {
+            isMedicalDocument: { type: 'boolean' },
+            documentType: { type: 'string' },
+            labOrHospitalName: { type: 'string' },
+            date: { type: 'string' },
+            detectedParameters: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  result: { type: 'string' },
+                  unit: { type: 'string' },
+                  ref: { type: 'string' },
+                  flag: { type: 'string', enum: ['Normal', 'High', 'Low', 'Borderline', 'Abnormal', 'Clear'] }
+                },
+                required: ['name', 'result']
+              }
+            },
+            summary: { type: 'string' },
+            impression: { type: 'string' }
+          },
+          required: ['isMedicalDocument', 'documentType', 'summary'],
+          additionalProperties: false
+        };
+        const body = await generateWithVision(key, model, prompt, imageData, schema, 0.1, 1500);
+        const parsed = parseModelJson(body);
+        return json(parsed || { error: 'Failed to analyze report' });
+      }
+
+      return json({ error: 'Vision model unavailable' }, 503);
     }
 
     if (action === 'batch_translate' || (action === 'translate' && Array.isArray(payload.texts))) {
       const texts = Array.isArray(payload.texts) ? payload.texts.map((t: unknown) => String(t || '').trim()) : [];
       if (!texts.length) return json({ translations: [] });
-      const langCode = CLINICAL_LANGUAGES[payload.targetLanguage] ? payload.targetLanguage : 'en';
-      const targetLang = CLINICAL_LANGUAGES[langCode] || { name: payload.targetLanguage || 'English', script: 'Latin' };
+      const targetLang = resolveLanguage(payload.targetLanguage || payload.language);
       const schema = {
         type: 'object',
         properties: {
@@ -217,24 +347,74 @@ TASK:
         additionalProperties: false
       };
       const prompt = `Translate each of the following medical intake questions and clinical touch options accurately and naturally into ${targetLang.name} (${targetLang.script}).
-Preserve clinical clarity, medical terms, and concise option lengths. Return translations in the exact same array order.
+CRITICAL REQUIREMENT: Output translations 100% in ${targetLang.name} (${targetLang.script}) ONLY. Do NOT mix English words or sentences into ${targetLang.name}. Preserve clinical clarity, natural medical terms, and concise option lengths. Return translations in the exact same array order.
 Array to translate:
-${JSON.stringify(texts)}`;
-      const body = await generate(key, model, prompt, schema, 0.05, 1024, 'minimal');
-      const parsed = parseModelJson(body);
-      return json({ translations: Array.isArray(parsed?.translations) ? parsed.translations : texts });
+${JSON.stringify(texts)}
+
+Return ONLY a valid JSON object with:
+{"translations": ["...", "..."]}`;
+
+      // 1. Try NVIDIA NIM if available
+      if (nvidiaKey) {
+        try {
+          const raw = await generateWithNvidia(nvidiaKey, [
+            { role: 'system', content: `You are an expert medical translator. Always output 100% pure native ${targetLang.name} (${targetLang.script}) with ZERO English mixing. Return valid JSON only.` },
+            { role: 'user', content: prompt }
+          ], { temperature: 0.05, max_tokens: 1500, responseFormat: { type: 'json_object' } });
+          const parsed = extractJsonFromText(raw);
+          if (Array.isArray(parsed?.translations) && parsed.translations.length === texts.length) {
+            return json({ translations: parsed.translations });
+          }
+        } catch (err) {
+          console.warn('NVIDIA batch translation notice, fallback to Gemini:', err);
+        }
+      }
+
+      // 2. Fallback to Gemini
+      if (key) {
+        const schema = {
+          type: 'object',
+          properties: {
+            translations: { type: 'array', items: { type: 'string' } }
+          },
+          required: ['translations'],
+          additionalProperties: false
+        };
+        const body = await generate(key, model, prompt, schema, 0.05, 1500, 'minimal');
+        const parsed = parseModelJson(body);
+        return json({ translations: Array.isArray(parsed?.translations) ? parsed.translations : texts });
+      }
+
+      return json({ translations: texts });
     }
 
     if (action === 'translate') {
       const text = String(payload.text || '').trim().slice(0, 1500);
       if (!text) return json({ text: '' });
-      const langCode = CLINICAL_LANGUAGES[payload.targetLanguage] ? payload.targetLanguage : 'en';
-      const targetLangName = CLINICAL_LANGUAGES[langCode]?.name || payload.targetLanguage || 'English';
+      const targetLang = resolveLanguage(payload.targetLanguage || payload.language);
       const prompt = payload.contextType === 'name' || payload.contextType === 'doctor'
-        ? `Transliterate this name phonetically into ${targetLangName}. Return only the name: ${JSON.stringify(text)}`
-        : `Translate this healthcare interface text naturally into ${targetLangName}. Preserve medical meaning, numbers and names. Return only the translation: ${JSON.stringify(text)}`;
-      const body = await generate(key, model, prompt, undefined, 0.1, 256, 'minimal');
-      return json({ text: String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["'`]|["'`]$/g, '') });
+        ? `Transliterate this name phonetically into ${targetLang.name} (${targetLang.script}). Return only the transliterated name: ${JSON.stringify(text)}`
+        : `Translate this healthcare interface text naturally and completely into ${targetLang.name} (${targetLang.script}). Do NOT mix English or other languages into the translation. Return only the pure translation: ${JSON.stringify(text)}`;
+
+      if (nvidiaKey) {
+        try {
+          const raw = await generateWithNvidia(nvidiaKey, [
+            { role: 'system', content: `You are a medical translator for Indian languages. Output pure ${targetLang.name} (${targetLang.script}) only.` },
+            { role: 'user', content: prompt }
+          ], { temperature: 0.1, max_tokens: 1024 });
+          const cleaned = raw.trim().replace(/^["'`]|["'`]$/g, '');
+          if (cleaned) return json({ text: cleaned });
+        } catch (err) {
+          console.warn('NVIDIA translate notice, fallback to Gemini:', err);
+        }
+      }
+
+      if (key) {
+        const body = await generate(key, model, prompt, undefined, 0.1, 1024, 'minimal');
+        return json({ text: String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim().replace(/^["'`]|["'`]$/g, '') });
+      }
+
+      return json({ text });
     }
 
     if (action === 'extract_registration') {
@@ -246,8 +426,8 @@ ${JSON.stringify(texts)}`;
         detectedLanguage: { type: 'string' }, confirmationMessage: { type: 'string' },
         requestedAction: { type: 'string', enum: ['fill_form','use_abha','use_aadhaar','new_patient','submit','back','home','none'] },
       }, required: ['name','age','phone','gender','abhaId','aadhaar','symptoms','symptomList','detectedLanguage','confirmationMessage','requestedAction'], additionalProperties: false };
-      const languageCode = CLINICAL_LANGUAGES[String(payload.language || '')] ? String(payload.language) : 'en';
-      const targetLanguage = CLINICAL_LANGUAGES[languageCode];
+      const targetLanguage = resolveLanguage(payload.language || payload.targetLanguage);
+      const languageCode = targetLanguage.code;
       const context = payload.context && typeof payload.context === 'object' ? payload.context : {};
       const prompt = `Extract Indian patient registration data from speech in English, Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, Kannada, Malayalam or any code-mixed form. Fields may be in any order with filler words and self-corrections; the last correction wins.
 - name: clean patient name in Title Case, without honorifics or framing phrases; empty if absent.
@@ -289,14 +469,15 @@ Transcript: ${JSON.stringify(String(payload.transcript || '').slice(0, 2000))}`;
       const caseSummary = payload.caseSummary && typeof payload.caseSummary === 'object' ? payload.caseSummary : {};
       const questionCount = Math.max(0, Math.min(30, Number(payload.questionCount || 0)));
       const phase = payload.phase === 'chief_complaint' ? 'chief_complaint' : 'interview';
-      const languageCode = CLINICAL_LANGUAGES[String(payload.language || '')] ? String(payload.language) : 'en';
-      const targetLanguage = CLINICAL_LANGUAGES[languageCode];
+      const targetLanguage = resolveLanguage(payload.language || payload.targetLanguage);
+      const languageCode = targetLanguage.code;
       const prompt = `You are a world-renowned AI Clinical Diagnostic & Anamnesis Specialist for Swasthya Setu Indian healthcare kiosks.
 Your mission is to conduct a deeply intelligent, adaptive, empathetic clinical intake tailored specifically to the patient, their disease, and the doctor's exact medical specialty.
 
 Context:
 - Interview phase: ${phase === 'chief_complaint' ? 'CHIEF COMPLAINT DISCOVERY. The patient has not described the problem yet.' : 'ADAPTIVE CLINICAL HISTORY'}.
-- REQUIRED OUTPUT LANGUAGE: ${targetLanguage.name} (${languageCode}), written in the ${targetLanguage.script} script. The question, every option, and completionMessage MUST be in ${targetLanguage.name} only. Never switch to English merely because the patient's answer or doctor metadata is English. Understand English, ${targetLanguage.name}, transliterated speech, spelling mistakes and code-mixed patient input, then respond naturally in ${targetLanguage.name}. Widely understood medical terms may be transliterated where that is clearer for patients.
+- REQUIRED OUTPUT LANGUAGE: ${targetLanguage.name} (${languageCode}), written in the ${targetLanguage.script} script.
+- CRITICAL ZERO-LANGUAGE-MIXING MANDATE: The question, EVERY option text, and completionMessage MUST be 100% purely in ${targetLanguage.name} (${targetLanguage.script}) ONLY. NEVER mix English sentences, questions, or option cards (such as "During this...", "Normal energy...", "Restless sleep...") when the patient has chosen ${targetLanguage.name}. Widely understood regional medical terms written in ${targetLanguage.script} script are expected.
 - Attending Doctor: ${payload.doctorName || 'Doctor'}; Specialty: ${payload.doctorSpecialty || 'General Medicine'}.
 - Care System: ${payload.isAyurvedic ? 'AYURVEDA / AYUSH (Complete Classical Dashavidha Pariksha / दशविध परीक्षा)' : 'ALLOPATHY / MODERN MEDICINE (Advanced SOCRATES & Differential Diagnostics)'}.
 - Patient context: age ${JSON.stringify(String(patient.age || 'not provided').slice(0, 20))}, gender ${JSON.stringify(String(patient.gender || 'not provided').slice(0, 30))}. Never infer unprovided facts.
@@ -327,17 +508,29 @@ For Ayurvedic consultations, dynamically examine the exact 10 classical paramete
 - If skin disease: Evaluate Rakta-Twak Sara, Pitta-Kapha Vikriti, and Katu-Ushna Ahara triggers.
 
 ========================================================================
-[2. ALLOPATHIC CLINICAL PROTOCOL: ADVANCED SOCRATES & DIFFERENTIAL DIAGNOSIS]
+[2. CLINICAL INTAKE PROTOCOL: DYNAMIC CONDITION-SPECIFIC MEDICAL REASONING]
 ========================================================================
-For Modern Medicine, conduct deep diagnostic questioning matching the attending specialist:
-- S (Site & Depth): Pinpoint anatomical origin (e.g., epigastric vs right hypochondrium vs retrosternal).
-- O (Onset & Evolution): Sudden vs insidious, acute exacerbation vs progressive chronic.
-- C (Character): Exact sensory quality (crushing, pulsating, stabbing, colicky, burning, stiffness).
-- R (Radiation): Neurological dermatomal or visceral referral paths (e.g. left arm/jaw, flank to groin, scapular).
-- A (Associated Symptoms & Red Flags): Diaphoresis, dyspnea, nausea, weight loss, fever with rigors, localized signs.
-- T (Temporal Pattern): Diurnal variation, nocturnal waking, continuous vs episodic.
-- E (Exacerbating & Relieving Factors): Posture, meals, exertion, rest, OTC medication response.
-- S (Severity & Functional Disability): Quantified impact on walking, sleeping, breathing, or daily living.
+Diagnostically adapt the questions and selectable touch options specifically to the clinical nature of the patient's stated disease (${JSON.stringify(payload.disease)}):
+
+A. ONCOLOGY / CANCER / TUMOR / MALIGNANCY:
+   NEVER ask generic acute pain questions ("does it radiate", "how is digestion") unless pain is the stated primary complaint!
+   Ask the highest-yield oncological questions with highly relevant, empathetic options:
+   1. Primary Anatomical Site & Type (e.g., Breast, Lung, GI/Colon, Head & Neck, Blood/Leukemia, Prostate, Gynecological, Brain, etc.).
+   2. Diagnostic Confirmation Status (Biopsy/Histopathology confirmed, Suspected on CT/PET scan, Under initial investigation, Remission/surveillance).
+   3. Current Treatment Regimen & Stage (Currently on Chemotherapy or Radiation, Surgery completed, Awaiting oncology consultation, Seeking second opinion).
+   4. Current Active Symptoms & Quality of Life (Significant unexplained weight loss, intractable pain, chemotherapy-induced nausea/fatigue, shortness of breath, no acute distress).
+
+B. CHRONIC METABOLIC & SYSTEMIC (Diabetes, Hypertension, Thyroid, Kidney, Liver):
+   Focus on disease control, duration, latest numbers (blood sugar, BP, creatinine), medication adherence (insulin vs oral pills), and target-organ complications (neuropathy, vision, chest tightness, swelling).
+
+C. CARDIOVASCULAR & RESPIRATORY (Chest pain, Breathlessness, Asthma, Palpitations):
+   Focus on exertional triggers, orthopnea, nocturnal dyspnea, radiation to jaw/left arm, inhaler usage, sputum/cough, pedal edema.
+
+D. ACUTE SYMPTOMS & PAIN (Headache, Abdominal pain, Joint pain, Back pain, Fever):
+   Apply SOCRATES (Site, onset, character, radiation, severity, aggravating/relieving factors).
+
+E. AYURVEDA / AYUSH:
+   Adapt Dashavidha to the illness: Agni/Ahara for digestive/metabolic; Vata-Vikriti/Asthi for musculoskeletal; Rakta/Pitta for skin/liver; Ojas/Bala for chronic/oncological weakness.
 
 ========================================================================
 [MANDATORY GENERATION RULES]
@@ -355,7 +548,106 @@ For Modern Medicine, conduct deep diagnostic questioning matching the attending 
 7. For EVERY unfinished question, generate a VARIABLE number of 2-8 concise, clinically meaningful touch options in ${targetLanguage.name}. Use 2-4 for simple questions and more only when genuinely useful. Never pad the list to a quota. Options must directly answer the current question and must not repeat earlier choices. The UI separately always permits typing or speaking a different answer.${payload.requireTouchOptions ? ' A previous draft lacked usable touch choices, so ensure this response contains them.' : ''}
 8. Set capturedField to the case-sheet field chiefly answered by the question. Use caseSummaryUpdate to extract all structured facts learned from the latest response; never fabricate.
 9. If isFinished is true, return an empty question and empty options, set responseType to free_text, and give a concise completionMessage. If acute emergency danger signs are identified (e.g. acute coronary syndrome, severe respiratory distress, acute abdomen), the completionMessage must urgently advise immediate emergency care.`;
-      return json(parseModelJson(await generate(key, model, prompt, schema, 0.15, 1200, 'low')));
+
+      // 1. Try NVIDIA Llama 3.2 11B Vision Instruct first
+      if (nvidiaKey) {
+        try {
+          const systemInstruction = `You are an expert Clinical Diagnostic & Anamnesis Specialist for Swasthya Setu Indian healthcare kiosks.
+Your mission is to conduct a deeply intelligent, adaptive, empathetic clinical intake tailored specifically to the patient, their disease, and the doctor's exact medical specialty.
+CRITICAL ZERO-LANGUAGE-MIXING MANDATE:
+The question, EVERY option text, and completionMessage MUST be 100% purely in ${targetLanguage.name} (${targetLanguage.script}) ONLY. NEVER mix English sentences, questions, or option cards when the patient has chosen ${targetLanguage.name}.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "question": "string purely in ${targetLanguage.name}",
+  "responseType": "single_choice" | "multiple_choice" | "free_text" | "scale",
+  "options": [
+    { "text": "string purely in ${targetLanguage.name}", "iconType": "target" | "chest" | "back" | "shoulder" | "question" | "clock" | "flame" | "pill" | "moon" | "wind" | "thermometer" | "stomach" | "headache" | "cough" | "bodypain" | "leaf" }
+  ],
+  "isFinished": boolean,
+  "completionMessage": "string purely in ${targetLanguage.name}",
+  "capturedField": "location" | "spread" | "nature" | "severity" | "duration" | "triggers" | "medications" | "associatedSymptoms" | "redFlags" | "notes",
+  "caseSummaryUpdate": {
+    "location"?: string,
+    "severity"?: string,
+    "duration"?: string,
+    "triggers"?: string,
+    "medications"?: string,
+    "associatedSymptoms"?: string,
+    "notes"?: string
+  }
+}`;
+          const rawNvidia = await generateWithNvidia(nvidiaKey, [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: prompt }
+          ], { temperature: 0.15, max_tokens: 1200, responseFormat: { type: 'json_object' } });
+          const parsedNvidia = extractJsonFromText(rawNvidia);
+          if (parsedNvidia && (parsedNvidia.isFinished || (parsedNvidia.question && Array.isArray(parsedNvidia.options) && parsedNvidia.options.length >= 2))) {
+            return json(parsedNvidia);
+          }
+        } catch (err) {
+          console.warn('NVIDIA NIM anamnesis error, falling back to Gemini:', err);
+        }
+      }
+
+      // 2. Fallback to Gemini
+      if (key) {
+        return json(parseModelJson(await generate(key, model, prompt, schema, 0.15, 1200, 'low')));
+      }
+
+      return json({ error: 'No AI model available' }, 503);
+    }
+
+    if (action === 'clinical_summary') {
+      const caseSummary = payload.caseSummary && typeof payload.caseSummary === 'object' ? payload.caseSummary : {};
+      const patient = payload.patient && typeof payload.patient === 'object' ? payload.patient : {};
+      const doctorSpecialty = String(payload.doctorSpecialty || 'General Medicine');
+      const reports = Array.isArray(payload.reports) ? payload.reports : [];
+      const targetLang = resolveLanguage(payload.language || 'en');
+
+      const prompt = `You are an expert Clinical Medical Scribe and Physician Assistant for Swasthya Setu.
+Create a clean, concise, structured doctor case summary for the physician portal in ${targetLang.name} (${targetLang.script}):
+- Patient: Age ${patient.age || 'Not provided'}, Gender ${patient.gender || 'Not provided'}
+- Chief Complaint: ${JSON.stringify(payload.disease || caseSummary.chiefComplaints || 'General consultation')}
+- Structured Triage Findings: ${JSON.stringify(caseSummary)}
+- Diagnostic Lab / OCR Data: ${JSON.stringify(reports)}
+- Attending Doctor Specialty: ${doctorSpecialty}
+
+CRITICAL: Return a structured, simple, short clinical summary for the doctor:
+{
+  "chiefComplaint": "Short primary condition name",
+  "durationAndEvolution": "Timeline of illness",
+  "keyFindings": ["Finding 1", "Finding 2", "Finding 3"],
+  "severityOrRisk": "Low" | "Moderate" | "High",
+  "diagnosticSummary": "Summary of any lab/OCR findings, or 'No lab reports uploaded'",
+  "clinicalImpression": "1-2 sentence impression for the physician",
+  "suggestedNextSteps": "Concise recommended tests or management direction"
+}`;
+
+      if (nvidiaKey) {
+        try {
+          const raw = await generateWithNvidia(nvidiaKey, [
+            { role: 'system', content: 'You are an expert medical scribe. Return strictly valid JSON.' },
+            { role: 'user', content: prompt }
+          ], { temperature: 0.1, max_tokens: 800, responseFormat: { type: 'json_object' } });
+          const parsed = extractJsonFromText(raw);
+          if (parsed) return json(parsed);
+        } catch (e) {
+          console.warn('NVIDIA clinical_summary notice, fallback to Gemini:', e);
+        }
+      }
+
+      if (key) {
+        const body = await generate(key, model, prompt, undefined, 0.1, 800, 'minimal');
+        const parsed = extractJsonFromText(String(body?.candidates?.[0]?.content?.parts?.[0]?.text || ''));
+        if (parsed) return json(parsed);
+      }
+
+      return json({
+        chiefComplaint: payload.disease || 'General Checkup',
+        clinicalImpression: 'Patient triage intake recorded in case file.',
+        keyFindings: []
+      });
     }
 
     const actions = Array.isArray(payload.actions) ? payload.actions.slice(0, 100) : [];
