@@ -36,16 +36,7 @@ await page.route('**/rest/v1/**', async route => {
   }
   await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(data) });
 });
-await page.route('**/functions/v1/**', async route => {
-  const { action, params } = route.request().postDataJSON() || {};
-  let data = {};
-  if (action === 'availability') data = { slots: ['09:00','10:00'].map(time24 => ({ time24, label: `${time24} AM`, session:'morning',capacity:6,slotsLeft:6,state:'open',isPast:false })),onLeave:false };
-  if (action === 'reschedule') {
-    submitted = params;
-    data = { ...appointment, date:params.p_date,time_24:params.p_time_24,time_label:params.p_time_label,token_number:'APT-NEW-001' };
-  }
-  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
-});
+await page.route('**/functions/v1/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
 await page.addInitScript(({ patientId }) => {
   localStorage.setItem('swasthya_session', JSON.stringify({
     isAuthenticated: true, userRole: 'patient', language: 'en',

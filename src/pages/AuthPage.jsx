@@ -11,7 +11,6 @@ import aiCommandEngine from '../engine/AICommandEngine';
 import audioFeedback from '../voicenav/AudioFeedback';
 import { authTabPrompt } from '../voicenav/AuthPrompts';
 import { registrationFields } from '../voicenav/registrationFields';
-import { getLanguageInfo } from '../voicenav/LanguagePack';
 import { db, getAuthLockStatus } from '../lib/db';
 import '../styles/auth.css';
 
@@ -313,10 +312,6 @@ export default function AuthPage() {
       }
 
       if (!active || version !== extractionVersion || !extracted) return;
-      if (extracted.needsClarification) {
-        speak?.(getLanguageInfo(language || currentLang).strings.voiceNotUnderstood, language || currentLang);
-        return false;
-      }
 
       // One semantic result can navigate the patient portal or fill it. This
       // supports indirect, conversational requests without a phrase list.

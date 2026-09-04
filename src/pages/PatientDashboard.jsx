@@ -3750,6 +3750,9 @@ export default function PatientDashboard() {
       if (hospitalSave.error) { alert(`Unable to save hospital: ${hospitalSave.error.message}`); return; }
       const doctorSave = await db.doctors.ensure({ ...effectiveDocObj, id: doctorId, hospitalName: effectiveHosp.name }, hospitalId);
       if (doctorSave.error) { alert(`Unable to save doctor: ${doctorSave.error.message}`); return; }
+      const schedule = await db.slots.getForDoctor(doctorId, effectiveDate);
+      if (schedule.error) { alert(`Unable to load appointment slots: ${schedule.error.message}`); return; }
+
       const booked = await db.appointments.book({
         patientId: session.patient.id,
         doctorId,
@@ -3996,7 +3999,6 @@ export default function PatientDashboard() {
   useEffect(() => {
     const aliases = hospital => [hospital.name, ...Object.values(HOSPITAL_LOCALIZATION[hospital.id]?.name || {})];
     const openTab = tab => {
-      setReschedulingAppointment(null);
       setShowBookingModal(false);
       setShowAllHospitalsModal(false);
       setShowAbhaModal(false);
@@ -4022,8 +4024,6 @@ export default function PatientDashboard() {
     };
     const hospitalContext = hospitals.map((hospital, index) => ({ id: hospital.id, name: hospital.name, number: index + 1, aliases: aliases(hospital) }));
     const doctorContext = (bookingHospital?.doctors?.length ? bookingHospital.doctors : allDoctorsAcrossHospitals).map((doctor, index) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty || doctor.speciality, hospital: doctor.hospitalName, number: index + 1 }));
-    const voiceSlots = reschedulingAppointment ? rescheduleSlots : liveSlots;
-    const voiceTimes = [...(voiceSlots.morning || []), ...(voiceSlots.afternoon || []), ...(voiceSlots.evening || [])].filter(slot => !slot.isPast && ['open','fast'].includes(slot.state));
 
     registerPage('patientDashboard', {
       // ── Main Dashboard Tabs ──
@@ -4039,20 +4039,19 @@ export default function PatientDashboard() {
       open_doctor_profile: openDoctorProfile,
       open_community: openCommunity,
       select_date: command => {
-        if (!reschedulingAppointment && bookingFlowView !== 'booking_steps') return false;
+        if (bookingFlowView !== 'booking_steps') return false;
         const date = String(command.value || command.target || '');
         const today = new Date().toLocaleDateString('en-CA');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || !Number.isFinite(Date.parse(date))) return false;
-        if (reschedulingAppointment) { setRescheduleDate(date); setRescheduleSlot(''); return true; }
         releaseActiveBookingHold();
         setSelectedBookingDate(date);
         setBookingStep(1);
         return true;
       },
       select_time: async command => {
-        if (!reschedulingAppointment && (bookingFlowView !== 'booking_steps' || bookingStep !== 2)) return false;
-        const slot = voiceTimes.find(item => item.time24 === command.value || item.label === command.value);
-        if (slot && reschedulingAppointment) { setRescheduleSlot(slot.time24); return true; }
+        if (bookingFlowView !== 'booking_steps' || bookingStep !== 2) return false;
+        const slots = [...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast'));
+        const slot = slots.find(item => item.time24 === command.value || item.label === command.value);
         return slot ? Boolean(await handleSelectSlotWithHold(slot)) : false;
       },
       viewAppointments: () => openTab('appointments'),
@@ -4084,10 +4083,7 @@ export default function PatientDashboard() {
       next: () => clickAction('next'),
       skip: () => clickAction('skip'),
       back: () => {
-        if (reschedulingAppointment) {
-          if (rescheduleSubmitting) return false;
-          setReschedulingAppointment(null);
-        } else if (activeTab === 'communities' && selectedCommunityId) {
+        if (activeTab === 'communities' && selectedCommunityId) {
           setSelectedCommunityId(null);
         } else if (showBookingModal) {
           setShowBookingModal(false);
@@ -4113,7 +4109,6 @@ export default function PatientDashboard() {
       },
 
       confirm: async () => {
-        if (reschedulingAppointment) return clickAction('confirm_reschedule');
         if (clickAction('confirm')) return true;
         if ((bookingFlowView === 'booking_steps' && bookingStep === 5) || showBookingModal) { await handleConfirmBooking(); return true; }
         return clickAction('next');
@@ -4136,7 +4131,7 @@ export default function PatientDashboard() {
       open_community: [`Open a particular health community or group by its name or topic. Put exact id in target and title in value. This only opens the group, not membership or posting. Current communities: ${JSON.stringify(voiceCommunities.map(item => ({ id: item.id, title: item.title, aliases: item.title_i18n, topic: item.disease_key, category: item.category, description: item.description, specialties: item.eligible_specialities })))}`],
       select_hospital: [`Select a hospital by name or one-based number. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       select_date: [`Select appointment date in the booking wizard. Today is ${new Date().toLocaleDateString('en-CA')}. Return YYYY-MM-DD in value. Current date: ${selectedBookingDate}.`],
-      select_time: [`Select an available time for ${reschedulingAppointment ? 'rescheduling the existing appointment' : 'the booking time selection step'}. Understand time words and native numbers in any language. Return its time24 in value. Available slots: ${JSON.stringify(voiceTimes.map(slot => ({ time24: slot.time24, label: slot.label })))}`],
+      select_time: [`Select an available appointment time on the time selection step. Return its time24 in value. Available slots: ${JSON.stringify([...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast')).map(slot => ({ time24: slot.time24, label: slot.label })))}`],
       bookHospital: [`Book at a named hospital. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       searchHospital: [`Search by name/city; prefer select_hospital for a known hospital. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       select_doctor: [`Select a doctor by name, unique specialty or one-based number. Put its exact id in target and name in value. Available doctors: ${JSON.stringify(doctorContext)}`],
@@ -4168,7 +4163,7 @@ export default function PatientDashboard() {
     registerPage, unregisterPage, isAyushMode, setAyushMode,
     bookingFlowView, bookingStep, selectedBookingSlot, selectedBookingDate, liveSlots,
     selectedDoctorObj, bookingHospital, showBookingModal, showAllHospitalsModal,
-    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList, allDoctorsAcrossHospitals, currentLang, voiceCommunities, selectedCommunityId, activeTab, reschedulingAppointment, rescheduleDate, rescheduleSlots, rescheduleSlot, rescheduleSubmitting
+    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList, allDoctorsAcrossHospitals, currentLang, voiceCommunities, selectedCommunityId, activeTab
   ]);
 
   // Logout handler
@@ -8987,7 +8982,7 @@ export default function PatientDashboard() {
                   {!rescheduleLoading && !rescheduleSlots.onLeave && (
                     <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: '700' }}>
                       {[...(rescheduleSlots.morning || []), ...(rescheduleSlots.afternoon || []), ...(rescheduleSlots.evening || [])]
-                        .filter(s => !s.isPast && (s.state === 'open' || s.state === 'fast')).length} time windows available
+                        .filter(s => !s.isPast && (s.state === 'open' || s.state === 'fast')).length} slots available
                     </span>
                   )}
                 </div>
@@ -9106,7 +9101,6 @@ export default function PatientDashboard() {
               </button>
               <button
                 type="submit"
-                data-voice-action="confirm_reschedule"
                 disabled={!rescheduleSlot || rescheduleLoading || rescheduleSubmitting}
                 style={{
                   flex: 1.5, padding: '10px', borderRadius: '10px', border: 0,

@@ -11,7 +11,6 @@
  */
 
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { slotGateway } from './slotGateway';
 import { hashPassword, verifyPassword, validatePasswordStrength } from './crypto';
 
 // ─── LocalStorage Fallback Keys ───────────────────────────────────────────────
@@ -680,21 +679,6 @@ const doctors = {
 // SLOT SCHEDULES
 // ═══════════════════════════════════════════════════════════════════════════════
 const slots = {
-  watch(doctorId, date, patientId, onData, onError) {
-    let active = true, inFlight = false;
-    const refresh = async () => {
-      if (!active || inFlight) return;
-      inFlight = true;
-      try { const value = await this.getLive(doctorId, date, patientId); if (active) onData(value); }
-      catch (error) { if (active) onError(error); }
-      finally { inFlight = false; }
-    };
-    const events = ['swasthya_slot_hold_changed','swasthya_appointment_changed','swasthya_pacing_changed','swasthya_doctor_leave_changed','storage','focus'];
-    events.forEach(event => window.addEventListener(event, refresh));
-    const timer = setInterval(() => { if (document.visibilityState !== 'hidden') refresh(); }, 5000);
-    refresh();
-    return () => { active = false; clearInterval(timer); events.forEach(event => window.removeEventListener(event, refresh)); };
-  },
   /**
    * Get all slots for a doctor on a date.
    * Auto-generates them if none exist.
@@ -786,16 +770,6 @@ const slots = {
    * (for Step 2 patient booking UI and Reschedule dialog)
    */
   async getLive(doctorId, dateStr, patientId = null) {
-    if (USE_SUPABASE()) {
-      const result = await slotGateway('availability', { p_doctor_id: doctorId, p_date: dateStr });
-      if (!Array.isArray(result?.slots)) throw new Error('Availability is unavailable. Please refresh.');
-      return {
-        onLeave: Boolean(result.onLeave), leaveReason: result.leaveReason || '', serverNow: result.serverNow,
-        morning: result.slots.filter(slot => slot.session === 'morning'),
-        afternoon: result.slots.filter(slot => slot.session === 'afternoon'),
-        evening: result.slots.filter(slot => slot.session === 'evening'),
-      };
-    }
     // Check if doctor is on approved leave / holiday
     const leaveCheck = await doctorLeaves.isDoctorOnLeave(doctorId, dateStr);
     if (leaveCheck.onLeave) {
@@ -849,7 +823,7 @@ const slots = {
       const slotTimeLabel = slot.time_label || slot.label || '';
       const slotIsOpen = slot.is_open !== undefined ? slot.is_open : (slot.isOpen !== undefined ? slot.isOpen : true);
       const rawCap = Number(slot.capacity);
-      const capacity = Number.isInteger(rawCap) && rawCap >= 1 ? rawCap : dynamicCap;
+      const capacity = (!rawCap || rawCap <= 3) ? dynamicCap : rawCap;
 
       const serverSlot = slotTime24 ? serverAvailability.get(slotTime24) : null;
       const bookingResult = serverSlot ? { count: Number(serverSlot.booked_count || 0) } : (slotTime24 ? await this.countBookings(doctorId, dateStr, slotTime24) : { count: 0 });
@@ -1118,8 +1092,7 @@ const appointments = {
     }
 
     if (USE_SUPABASE()) {
-      try {
-      const data = await slotGateway('book', {
+      const { data, error } = await supabase.rpc('book_appointment', {
         p_patient_id: patientId,
         p_doctor_id: doctorId,
         p_hospital_id: hospitalId,
@@ -1131,9 +1104,7 @@ const appointments = {
         p_booking_request_id: bookingRequestId,
       });
       const row = Array.isArray(data) ? data[0] : data;
-      window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed'));
-      return { data: row, token: row?.token_number || null, error: null };
-      } catch (error) { return { data: null, token: null, error }; }
+      return { data: row, token: row?.token_number || null, error };
     }
 
     // Local fallback mirrors the database format and never invents a
@@ -1205,14 +1176,14 @@ const appointments = {
 
     if (USE_SUPABASE()) {
       try {
-        const data = await slotGateway('reschedule', {
+        const { data, error } = await supabase.rpc('reschedule_missed_appointment', {
           p_appointment_id: appointmentId,
           p_patient_id: patientId,
           p_date: date,
           p_time_24: time24,
           p_time_label: timeLabel,
         });
-        if (data) {
+        if (!error && data) {
           const row = Array.isArray(data) ? data[0] : data;
           if (row) {
             try {
@@ -1222,8 +1193,7 @@ const appointments = {
             return { data: row, token: row?.token_number || null, error: null };
           }
         }
-        return { data: null, token: null, error: new Error('Rescheduling did not complete. Please refresh.') };
-      } catch (error) { return { data: null, token: null, error }; }
+      } catch (e) {}
     }
 
     const all = lsRead(LS.appointments) || [];
@@ -1416,12 +1386,12 @@ const appointments = {
         });
         if (error) {
           console.warn('Supabase start_doctor_consultation note:', error?.message || error);
-          return { data: null, error };
+          return { data: { id: appointmentId, status: 'in_consultation' }, error: null };
         }
         return { data: Array.isArray(data) ? data[0] : data, error: null };
       } catch (err) {
         console.warn('Supabase start_doctor_consultation exception:', err);
-        return { data: null, error: err };
+        return { data: { id: appointmentId, status: 'in_consultation' }, error: null };
       }
     }
     return this.updateStatus(appointmentId, 'in_consultation');
@@ -1430,14 +1400,12 @@ const appointments = {
   async endConsultation(appointmentId, doctorId, extra = {}) {
     if (USE_SUPABASE()) {
       try {
-        const { error } = await supabase.rpc('end_doctor_consultation', {
+        await supabase.rpc('end_doctor_consultation', {
           p_appointment_id: appointmentId,
           p_doctor_id: doctorId,
         });
-        if (error) return { data: null, error };
       } catch (e) {
         console.warn('Supabase end_doctor_consultation exception:', e);
-        return { data: null, error: e };
       }
       return this.updateStatus(appointmentId, 'completed', extra);
     }

@@ -7,8 +7,7 @@ import { TranscriptRegistry } from './TranscriptRegistry';
    audio feedback, and page-level command registration
    ============================================ */
 
-import React, { createContext, useContext, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react';
 import commandParser from './CommandParser';
 import audioFeedback from './AudioFeedback';
 import audioPromptManager from './AudioPromptManager';
@@ -39,9 +38,6 @@ export function getNotRecognizedMessage(lang) {
 const isSpeechSupported = ElevenLabsRecognition.supported;
 
 export function VoiceNavProvider({ children }) {
-  const { pathname, search } = useLocation();
-  const staffPortal = /^\/(physician|doctor|admin)(?:[-/]|$)/.test(pathname)
-    || (pathname === '/auth' && ['doctor', 'admin'].includes(new URLSearchParams(search).get('role')));
   const transcriptRegistryRef = useRef(new TranscriptRegistry());
   const languageContext = useLanguage();
   const currentLang = languageContext?.currentLang || 'en';
@@ -55,10 +51,7 @@ export function VoiceNavProvider({ children }) {
   const [voiceError, setVoiceError] = useState('');
   const [recognitionFeedback, setRecognitionFeedback] = useState(null); // { type: 'success'|'error', text: string }
   const [language, setLanguageState] = useState(currentLang);
-  const [voicePreference, setIsVoiceEnabled] = useState(true);
-  const isVoiceEnabled = voicePreference && !staffPortal;
-  const voiceEnabledRef = useRef(isVoiceEnabled);
-  voiceEnabledRef.current = isVoiceEnabled;
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [lastCommand, setLastCommand] = useState(null);
 
   const feedbackTimerRef = useRef(null);
@@ -125,7 +118,7 @@ export function VoiceNavProvider({ children }) {
       }
 
       if (newFinal) {
-        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + newFinal.trim()).trim();
+        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + newFinal).trim();
       }
 
       // Update live visual transcript indicator
@@ -134,17 +127,20 @@ export function VoiceNavProvider({ children }) {
         setInterimTranscript(display);
       }
 
-      // Partial hypotheses are display-only. Cancelling here can strand an
-      // already committed command if Scribe never finalizes the next partial.
-      if (!newFinal) return;
+      // Continued speech (for example a surname or self-correction) must finish
+      // before dispatching the previous committed segment.
+      if (!newFinal) {
+        if (interim.trim() && silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        return;
+      }
 
       // Reset adaptive silence timer: generous pause for natural human breathing/thinking pauses
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
 
-      // Preserve the established pause for full names and spoken identifiers.
-      const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
+      // Ultra-responsive silence pause for instant voice navigation
+      const finalPauseMs = isDictationModeRef.current ? 450 : 450;
       silenceTimerRef.current = setTimeout(() => {
         const full = accumulatedTranscriptRef.current.trim();
         if (newFinal && full && isListeningRef.current) {
@@ -247,10 +243,8 @@ export function VoiceNavProvider({ children }) {
 
   // Handle voice input — parse and dispatch
   const handleVoiceInput = useCallback(async (text, recognitionAlternatives = []) => {
-    if (!voiceEnabledRef.current) return;
     setMicState('processing');
     const invoke = async (handler, result) => {
-      if (!voiceEnabledRef.current) return false;
       try { return (await handler(result)) !== false; }
       catch (error) { console.warn('Voice action could not be applied:', error); return false; }
     };
@@ -299,7 +293,7 @@ export function VoiceNavProvider({ children }) {
       expectsFreeText: Boolean(onTranscriptCallbackRef.current),
       recognitionAlternatives,
     });
-    if (!voiceEnabledRef.current || requestPage !== currentPageRef.current) { setMicState('idle'); return; }
+    if (requestPage !== currentPageRef.current) { setMicState('idle'); return; }
     pageHandlers = commandHandlersRef.current[requestPage] || {};
     setLastCommand(result);
 
@@ -470,7 +464,7 @@ export function VoiceNavProvider({ children }) {
 
   // Start listening
   const startListening = useCallback((continuous = true) => {
-    if (!isSpeechSupported || !recognitionRef.current || !voiceEnabledRef.current) return;
+    if (!isSpeechSupported || !recognitionRef.current || !isVoiceEnabled) return;
 
     // Stop any current speech
     audioPromptManager.stop();
@@ -520,21 +514,6 @@ export function VoiceNavProvider({ children }) {
     setMicState('idle');
   }, []);
 
-  useLayoutEffect(() => {
-    audioPromptManager.setEnabled(isVoiceEnabled);
-    if (!isVoiceEnabled) {
-      stopListening();
-      audioPromptManager.stop();
-      audioFeedback.stop();
-      accumulatedTranscriptRef.current = '';
-      recognitionAlternativesRef.current = ['', '', ''];
-      setTranscript('');
-      setInterimTranscript('');
-      setVoiceError('');
-      setRecognitionFeedback(null);
-    }
-  }, [isVoiceEnabled, stopListening]);
-
   // Toggle listening
   const toggleListening = useCallback(() => {
     if (isSpeaking || audioFeedback.isSpeaking) {
@@ -555,7 +534,6 @@ export function VoiceNavProvider({ children }) {
 
   // Speak text
   const speak = useCallback(async (text, lang = null) => {
-    if (!voiceEnabledRef.current) return;
     // Stop listening while speaking
     if (isListeningRef.current) {
       stopListening();

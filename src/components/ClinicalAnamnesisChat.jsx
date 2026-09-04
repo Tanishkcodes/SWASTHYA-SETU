@@ -763,7 +763,7 @@ export default function ClinicalAnamnesisChat({
       else startConsultationChat(selectedCards, value);
     });
     return () => releaseTranscript?.();
-  }, [chatStarted, selectedCards, language, currentStepData, messages, isTyping]);
+  }, [chatStarted, selectedCards, language, currentStepData, messages]);
 
   const starterOptions = starterStep?.options?.length
     ? starterStep.options

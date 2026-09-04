@@ -41,20 +41,6 @@ test('OCR rejects cross-row and partial numeric matches', async () => {
   assert.deepEqual(result.detectedParameters.map(item=>[item.name,item.result]),[['Glucose','100']]);
 });
 
-test('registration rejects invented names and ambiguous corrections, preserving native names', async () => {
-  for (const [transcript, name, ambiguous, expected] of [
-    ['My name is Tanishk', 'Tanisha Sharma', false, ''],
-    ['Suresh no Ramesh maybe', 'Ramesh', true, ''],
-    ['मेरा नाम तनिष्क है', 'तनिष्क', false, 'तनिष्क'],
-    ['My name is Ramesh no Rajesh Kumar', 'Rajesh Kumar', false, 'Rajesh Kumar'],
-  ]) {
-    const call = server(async () => response({ candidates: [{ content: { parts: [{ text: JSON.stringify({ name, needsClarification: ambiguous, confirmationMessage: 'Saved' }) }] } }] }));
-    const result = await (await call({ action: 'extract_registration', transcript, language: 'hi', context: { field: 'name' } })).json();
-    assert.equal(result.name, expected);
-    if (!expected) { assert.equal(result.needsClarification, true); assert.equal(result.confirmationMessage, ''); }
-  }
-});
-
 test('native numerals preserve identifiers and regional speech uses local digit words', () => {
   for (const digits of ['०१२३४५६७८९', '০১২৩৪৫৬৭৮৯', '૦૧૨૩૪૫૬૭૮૯', '௦௧௨௩௪௫௬௭௮௯', '౦౧౨౩౪౫౬౭౮౯', '೦೧೨೩೪೫೬೭೮೯', '൦൧൨൩൪൫൬൭൮൯']) assert.equal(normalizeDigits(digits), '0123456789');
   for (const language of languages.filter(l => l !== 'en')) assert.doesNotMatch(localizeSpokenIdentifiers('0123456789', language), /[0-9A-Za-z]/);
@@ -302,24 +288,12 @@ test('Gemini quota failure uses Llama instead of breaking navigation', async () 
   const call = server(async (url, options) => {
     if (url.includes('googleapis')) return new Response('quota', { status: 429 });
     fallback = true;
-    assert.equal(JSON.parse(options.body).model, 'nvidia/llama-3.1-nemotron-70b-instruct');
+    assert.equal(JSON.parse(options.body).model, 'meta/llama-4-maverick-17b-128e-instruct');
     return llama({ intent: 'login_abha', confidence: 1, value: '', target: '', message: 'Opening ABHA.' });
   });
   const data = await (await call({ action: 'intent', transcript: 'Open ABHA', expectsFreeText: true })).json();
   assert.equal(data.intent, 'login_abha');
   assert.equal(fallback, true);
-});
-
-test('a Gemini timeout tries the next model instead of skipping recovery', async () => {
-  let calls = 0;
-  const call = server(async (url) => {
-    assert.match(url, /googleapis/);
-    if (++calls === 1) throw new Error('Signal timed out');
-    return response({ candidates: [{ content: { parts: [{ text: JSON.stringify({ intent:'select_time',confidence:1,target:'',value:'09:30',message:'Time selected.' }) }] } }] });
-  });
-  const result = await (await call({action:'intent',transcript:'half past nine',actions:[{intent:'select_time',description:'Choose a time'}]})).json();
-  assert.equal(result.intent,'select_time');
-  assert.equal(calls,2);
 });
 
 test('parsed hospital and doctor results actually advance the booking flow', () => {

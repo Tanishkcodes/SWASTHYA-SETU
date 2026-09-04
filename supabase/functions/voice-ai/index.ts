@@ -15,7 +15,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 });
 const parseModelJson = (body: any) => {
-  const raw = (body?.candidates?.[0]?.content?.parts || []).filter((part: any) => !part.thought && typeof part.text === 'string').map((part: any) => part.text).join('');
+  const raw = String(body?.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
   return extractJsonFromText(raw);
 };
 
@@ -96,11 +96,10 @@ async function generateWithNvidia(
     max_tokens?: number;
     top_p?: number;
     responseFormat?: { type: "json_object" };
-    timeoutMs?: number;
   } = {}
 ) {
   const url = "https://integrate.api.nvidia.com/v1/chat/completions";
-  const model = options.model || Deno.env.get('NVIDIA_CLINICAL_MODEL') || 'nvidia/llama-3.1-nemotron-70b-instruct';
+  const model = options.model || Deno.env.get('NVIDIA_CLINICAL_MODEL') || 'meta/llama-4-maverick-17b-128e-instruct';
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -108,7 +107,7 @@ async function generateWithNvidia(
       "Content-Type": "application/json",
       "Accept": "application/json"
     },
-    signal: AbortSignal.timeout(options.timeoutMs || 18000),
+    signal: AbortSignal.timeout(18000),
     body: JSON.stringify({
       model,
       messages,
@@ -123,9 +122,6 @@ async function generateWithNvidia(
   if (!response.ok) {
     const errText = await response.text();
     console.error("NVIDIA NIM error", response.status, errText);
-    if (!options.model && [404, 410].includes(response.status)) {
-      return generateWithNvidia(apiKey, messages, { ...options, model: 'meta/llama-3.2-11b-vision-instruct' });
-    }
     throw new Error(`NVIDIA NIM API error ${response.status}: ${errText}`);
   }
 
@@ -209,12 +205,10 @@ async function generate(
   maxOutputTokens = 1200,
   thinkingLevel?: 'minimal' | 'low',
 ) {
-  const candidates = Array.from(new Set([model, 'gemini-3.5-flash-lite', 'gemini-3.6-flash']));
+  const candidates = Array.from(new Set([model, 'gemini-3.1-flash-lite', 'gemini-3.5-flash-lite']));
   let lastStatus = 500;
   for (const candidate of candidates) {
-    let response: Response;
-    try {
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       signal: AbortSignal.timeout(9000),
@@ -228,15 +222,11 @@ async function generate(
         },
       }),
     });
-    } catch {
-      lastStatus = 504;
-      continue;
-    }
     if (response.ok) return response.json();
     lastStatus = response.status;
     const detail = await response.text();
     console.error('Gemini error', candidate, response.status, detail);
-    if (![400, 404, 410, 429, 500, 502, 503, 504].includes(response.status)) break;
+    if (![404, 429, 500, 502, 503, 504].includes(response.status)) break;
   }
   throw new Error(`AI request failed (${lastStatus})`);
 }
@@ -338,7 +328,7 @@ Deno.serve(async (request: Request) => {
     const nvidiaKey = Deno.env.get('NVIDIA_API_KEY') || Deno.env.get('NVIDIA_NIM_API_KEY');
     const key = Deno.env.get('GEMINI_API_KEY');
     if (!key && !nvidiaKey) return json({ error: 'No AI model (NVIDIA or Gemini) is configured on the server' }, 503);
-    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.6-flash';
+    const model = Deno.env.get('GEMINI_MODEL') || 'gemini-3.1-flash-lite';
 
     if (action === 'analyze_report') {
       const imageData = String(payload.image || payload.dataUrl || payload.fileUrl || '').trim();
@@ -638,7 +628,6 @@ For Ayurveda, cover prakriti, vikriti, sara, samhanana, pramana, satmya, satva, 
 Your mission is to conduct a deeply intelligent, adaptive, empathetic clinical intake tailored specifically to the patient, their disease, and the doctor's exact medical specialty.
 CRITICAL ZERO-LANGUAGE-MIXING MANDATE:
 The question, EVERY option text, and completionMessage MUST be 100% purely in ${targetLanguage.name} (${targetLanguage.script}) ONLY. NEVER mix English sentences, questions, or option cards when the patient has chosen ${targetLanguage.name}.
-Before returning, check each card has a distinct meaning: never offer synonyms as separate choices. Do not re-ask symptoms already denied or facts already answered. Include a suitable none/unknown/decline choice when applicable. Ask a specific unanswered question instead of a broad repeated 'any other symptoms' question. Return literal JSON booleans and 2-8 option objects with text and iconType for every unfinished question.
 
 Return ONLY a valid JSON object matching this schema:
 {
@@ -675,17 +664,16 @@ Return ONLY a valid JSON object matching this schema:
           const rawNvidia = await generateWithNvidia(nvidiaKey, [
             { role: 'system', content: systemInstruction },
             { role: 'user', content: prompt }
-          ], { model: 'meta/llama-3.2-11b-vision-instruct', temperature: 0.1, max_tokens: 1400, timeoutMs: 30000, responseFormat: { type: 'json_object' } });
+          ], { model: 'meta/llama-3.2-11b-vision-instruct', temperature: 0.1, max_tokens: 1800, responseFormat: { type: 'json_object' } });
           const parsedNvidia = extractJsonFromText(rawNvidia);
           const dimensions = ['prakriti','vikriti','sara','samhanana','pramana','satmya','satva','aharaShakti','vyayamaShakti','vaya'];
           if (!parsedNvidia || typeof parsedNvidia.isFinished !== 'boolean') return json({ error: 'Invalid interview response. Please retry.' }, 422);
           if (parsedNvidia.urgentReferral === true) parsedNvidia.isFinished = true;
           if (!parsedNvidia.isFinished) {
-            const options = Array.isArray(parsedNvidia.options) ? parsedNvidia.options.map((option: any) => typeof option === 'string' ? { text: option, iconType: 'question' } : option).filter((option: any) => typeof option?.text === 'string' && option.text.trim()) : [];
-            if (!['single_choice','multiple_choice','scale'].includes(parsedNvidia.responseType)) parsedNvidia.responseType = 'single_choice';
+            const options = Array.isArray(parsedNvidia.options) ? parsedNvidia.options.filter((option: any) => typeof option?.text === 'string' && option.text.trim()) : [];
             const unique = new Set(options.map((option: any) => option.text.trim().toLocaleLowerCase()));
             if (!String(parsedNvidia.question || '').trim() || options.length < 2 || options.length > 8 || unique.size !== options.length || !['single_choice','multiple_choice','scale'].includes(parsedNvidia.responseType)) {
-              return json({ error: 'The interview needs a clear question with distinct answer cards. Please retry.', validation: { questionPresent: Boolean(String(parsedNvidia.question || '').trim()), optionCount: options.length, uniqueCount: unique.size } }, 422);
+              return json({ error: 'The interview needs a clear question with distinct answer cards. Please retry.' }, 422);
             }
             const normalizeQuestion = (value: unknown) => String(value || '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
             if ((Array.isArray(payload.history) ? payload.history : []).some((item: any) => item.sender === 'ai' && normalizeQuestion(item.text) === normalizeQuestion(parsedNvidia.question))) return json({ error: 'The model repeated an answered question. Please retry.' }, 422);
@@ -835,34 +823,25 @@ Message: Always return a concise, polite confirmation in the SELECTED language (
 
     prompt += '\nSpecific action distinctions take precedence over generic doctor/appointment mapping: Requests for doctor details, profile, qualifications or reviews use open_doctor_profile with the catalog id; selecting a doctor for a booking uses select_doctor. Requests for a particular community or health-topic group use open_community with the catalog id; the directory uses viewCommunities. Match translated or transliterated names against the live catalog; never select an arbitrary first match. Within booking and rescheduling use select_date/select_time and the available ISO date/time24 values. A time selection does not confirm a booking. Preserve these distinctions in all nine languages.';
 
-    let navigationFailure = '';
     if (key) {
       try {
-        const generated = await generate(key, model, prompt, schema, 0.05, 2048, 'minimal');
-        const parsed = parseModelJson(generated);
+        const parsed = parseModelJson(await generate(key, model, prompt, schema, 0.05, 1024, 'minimal'));
         if (allowed.includes(parsed?.intent)) return json(parsed);
-        navigationFailure = `Gemini returned no valid action (${generated?.candidates?.[0]?.finishReason || 'empty response'})`;
       } catch (error) {
-        navigationFailure = error instanceof Error ? error.message : 'Gemini unavailable';
         console.warn('Gemini navigation unavailable; using Llama fallback.', error);
       }
     }
     if (nvidiaKey) {
-      try {
       const parsed = extractJsonFromText(await generateWithNvidia(nvidiaKey, [
         { role: 'system', content: `Classify navigation or form input. Return only JSON matching this schema: ${JSON.stringify(schema)}` },
         { role: 'user', content: prompt },
-      ], { temperature: 0, max_tokens: 2048, responseFormat: { type: 'json_object' } }));
+      ], { temperature: 0, max_tokens: 512, responseFormat: { type: 'json_object' } }));
       if (allowed.includes(parsed?.intent)) return json(parsed);
-      throw new Error('Llama returned no valid action');
-      } catch {
-        return json({ error: 'Voice understanding is temporarily unavailable. Please retry shortly.', providerStatus: navigationFailure }, 503);
-      }
     }
 
     return json({ intent: 'out_of_context', confidence: 0, target: '', value: '', message: '' });
   } catch (error) {
     console.error(error);
-    return json({ error: 'Voice understanding is temporarily unavailable. Please retry shortly.' }, 503);
+    return json({ error: error instanceof Error ? error.message : 'Voice service request failed' }, 500);
   }
 });

@@ -50,7 +50,7 @@ import { useLanguage } from './context/LanguageContext';
 // Scroll to top and stop audio on route change
 function RouteChangeListener() {
   const { pathname, search } = useLocation();
-  const { isVoiceEnabled: voiceEnabled } = useVoiceNav();
+  const voiceEnabled = pathname !== '/physician' && pathname !== '/admin-dashboard';
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -172,7 +172,9 @@ function GlobalVoiceHandler() {
 }
 
 function Layout({ children, showHeader = true }) {
-  const { isVoiceEnabled: showVoiceIndicator } = useVoiceNav();
+  const { pathname, search } = useLocation();
+  const authRole = new URLSearchParams(search).get('role');
+  const showVoiceIndicator = true;
 
   return (
     <>

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
 import aiCommandEngine from '../engine/AICommandEngine';
-import { getLanguageInfo } from '../voicenav/LanguagePack';
 
 export default function VoiceInput({
   value,
@@ -23,7 +22,6 @@ export default function VoiceInput({
     setOnTranscript, 
     clearOnTranscript, 
     setDictationMode,
-    speak,
     language
   } = useVoiceNav();
   const [isDictating, setIsDictating] = useState(false);
@@ -96,10 +94,6 @@ export default function VoiceInput({
       
       if (!isNumeric && name !== 'name' && name !== 'fullName') usefulValue = rawText.trim();
       if (!session || releaseTranscriptRef.current !== session || version !== extractionVersionRef.current) return false;
-      if (extracted?.needsClarification) {
-        speak(getLanguageInfo(language).strings.voiceNotUnderstood, language);
-        return false;
-      }
       // Only update the field while this input owns the dictation session.
       if (usefulValue) {
         onChange({
