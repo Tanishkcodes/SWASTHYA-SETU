@@ -41,7 +41,8 @@ export default function BookingConfirmationStep({
   onEditReports = () => {},
   onPrevious = () => {},
   onConfirm = () => {},
-  language = 'en'
+  language = 'en',
+  isConfirming = false
 }) {
   const c = CONFIRM_COPY[language] || CONFIRM_COPY.en;
   const [aiPoints, setAiPoints] = useState([]);
@@ -558,25 +559,43 @@ export default function BookingConfirmationStep({
 
         <button
           onClick={onConfirm}
+          disabled={isConfirming}
           data-voice-action="confirm"
           style={{
-            backgroundColor: '#059669',
+            backgroundColor: isConfirming ? '#94a3b8' : '#059669',
             color: '#ffffff',
             border: 'none',
             borderRadius: '12px',
             padding: '12px 32px',
             fontSize: '0.95rem',
             fontWeight: '800',
-            cursor: 'pointer',
+            cursor: isConfirming ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: '0 4px 14px rgba(5, 150, 105, 0.25)',
-            transition: 'all 0.15s ease'
+            boxShadow: isConfirming ? 'none' : '0 4px 14px rgba(5, 150, 105, 0.25)',
+            transition: 'all 0.15s ease',
+            opacity: isConfirming ? 0.8 : 1
           }}
         >
-          <CheckCircle2 size={18} />
-          <span>{c.confirm}</span>
+          {isConfirming ? (
+            <>
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid #ffffff',
+                borderTopColor: 'transparent',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              <span>{language === 'hi' ? 'पुष्टि हो रही है...' : 'Confirming...'}</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={18} />
+              <span>{c.confirm}</span>
+            </>
+          )}
         </button>
       </div>
     </div>

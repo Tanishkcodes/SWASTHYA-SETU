@@ -2028,7 +2028,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
   const patientAge = p.age ? `${p.age} Years` : '—';
   const patientGender = p.gender || '—';
   const patientPhone = p.phone || '—';
-  const patientAbha = p.abhaId || p.abha_id || p.ayushId || (p.phone ? `ABHA${p.phone.slice(-10)}` : '—');
+  const patientAbha = p.abhaId || p.abha_id || p.ayushId || '—';
   const patientTime = p.time || '—';
   const patientDate = date(p.date) !== '—' ? date(p.date) : 'Today';
   const patientToken = String(p.token || '001').replace('#', '');

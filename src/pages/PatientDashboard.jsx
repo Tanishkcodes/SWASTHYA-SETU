@@ -149,6 +149,12 @@ const DASHBOARD_I18N = {
     filters: "Filters",
     years: "years",
     yrs: "yrs",
+    backToDoctors: 'Back to Doctors',
+    ayurveda: 'Ayurveda',
+    reviews: 'reviews',
+    noReviewsYet: 'New doctor · No reviews yet',
+    cantFindDoctor: "Can't find the right doctor?",
+    requestCallback: 'Request a Callback',
   },
   hi: {
     trustHeader: 'आपका स्वास्थ्य, हमारी प्राथमिकता',
@@ -264,6 +270,12 @@ const DASHBOARD_I18N = {
     filters: "फ़िल्टर",
     years: "वर्ष",
     yrs: "वर्ष",
+    backToDoctors: 'डॉक्टरों पर वापस जाएँ',
+    ayurveda: 'आयुर्वेद',
+    reviews: 'समीक्षाएं',
+    noReviewsYet: 'नया डॉक्टर · अभी कोई समीक्षा नहीं',
+    cantFindDoctor: 'क्या सही डॉक्टर नहीं मिल रहा?',
+    requestCallback: 'कॉलबैक का अनुरोध करें',
   },
   mr: {
     trustHeader: 'तुमचे आरोग्य, आमचे प्राधान्य',
@@ -379,6 +391,12 @@ const DASHBOARD_I18N = {
     filters: "फिल्टर्स",
     years: "वर्षे",
     yrs: "वर्षे",
+    backToDoctors: 'डॉक्टरांकडे परत जा',
+    ayurveda: 'आयुर्वेद',
+    reviews: 'पुनरावलोकने',
+    noReviewsYet: 'नवीन डॉक्टर · अद्याप पुनरावलोकने नाहीत',
+    cantFindDoctor: 'योग्य डॉक्टर सापडत नाही का?',
+    requestCallback: 'कॉल परत करण्याची विनंती करा',
   },
   gu: {
     trustHeader: 'તમારું સ્વાસ્થ્ય, અમારી પ્રાથમિકતા',
@@ -494,6 +512,12 @@ const DASHBOARD_I18N = {
     filters: "ફિલ્ટર્સ",
     years: "વર્ષ",
     yrs: "વર્ષ",
+    backToDoctors: 'ડૉક્ટર્સ પર પાછા જાઓ',
+    ayurveda: 'આયુર્વેદ',
+    reviews: 'સમીક્ષાઓ',
+    noReviewsYet: 'નવા ડૉક્ટર · હજુ કોઈ સમીક્ષા નથી',
+    cantFindDoctor: 'યોગ્ય ડૉક્ટર નથી મળી રહ્યા?',
+    requestCallback: 'કૉલબૅકની વિનંતી કરો',
   },
   ta: {
     trustHeader: 'உங்கள் நல்வாழ்வு, எங்கள் முன்னுரிமை',
@@ -609,6 +633,12 @@ const DASHBOARD_I18N = {
     filters: "வடிகட்டிகள்",
     years: "ஆண்டுகள்",
     yrs: "ஆண்டுகள்",
+    backToDoctors: 'மருத்துவர்களிடம் திரும்பு',
+    ayurveda: 'ஆயுர்வேதம்',
+    reviews: 'மதிப்புரைகள்',
+    noReviewsYet: 'புதிய மருத்துவர் · மதிப்பாய்வுகள் இல்லை',
+    cantFindDoctor: 'சரியான மருத்துவர் கிடைக்கவில்லையா?',
+    requestCallback: 'மறுஅழைப்பு கோரவும்',
   },
   te: {
     trustHeader: 'మీ ఆరోగ్యం, మా ప్రాధాన్యత',
@@ -724,6 +754,12 @@ const DASHBOARD_I18N = {
     filters: "ఫిల్టర్లు",
     years: "సంవత్సరాలు",
     yrs: "సంవత్సరాలు",
+    backToDoctors: 'వైద్యుల వద్దకు తిరిగి వెళ్లండి',
+    ayurveda: 'ఆయుర్వేదం',
+    reviews: 'సమీక్షలు',
+    noReviewsYet: 'కొత్త వైద్యుడు · ఇంకా సమీక్షలు లేవు',
+    cantFindDoctor: 'సరైన వైద్యుడు దొరకలేదా?',
+    requestCallback: 'కాల్‌బ్యాక్ అభ్యర్థించండి',
   },
   kn: {
     trustHeader: 'ನಿಮ್ಮ ಆರೋಗ್ಯ, ನಮ್ಮ ಆದ್ಯತೆ',
@@ -839,6 +875,12 @@ const DASHBOARD_I18N = {
     filters: "ಫಿಲ್ಟರ್‌ಗಳು",
     years: "ವರ್ಷಗಳು",
     yrs: "ವರ್ಷಗಳು",
+    backToDoctors: 'ವೈದ್ಯರ ಬಳಿಗೆ ಹಿಂತಿರುಗಿ',
+    ayurveda: 'ಆಯುರ್ವೇದ',
+    reviews: 'ವಿಮರ್ಶೆಗಳು',
+    noReviewsYet: 'ಹೊಸ ವೈದ್ಯರು · ಇನ್ನೂ ವಿಮರ್ಶೆಗಳಿಲ್ಲ',
+    cantFindDoctor: 'ಸರಿಯಾದ ವೈದ್ಯರು ಸಿಗುತ್ತಿಲ್ಲವೇ?',
+    requestCallback: 'ಕಾಲ್‌ಬ್ಯಾಕ್ ವಿನಂತಿಸಿ',
   },
   bn: {
     trustHeader: 'আপনার স্বাস্থ্য, আমাদের অগ্রাধিকার',
@@ -954,6 +996,12 @@ const DASHBOARD_I18N = {
     filters: "ফিল্টার",
     years: "বছর",
     yrs: "বছর",
+    backToDoctors: 'ডাক্তারদের কাছে ফিরে যান',
+    ayurveda: 'আয়ুর্বেদ',
+    reviews: 'পর্যালোচনা',
+    noReviewsYet: 'নতুন ডাক্তার · এখনও কোনো পর্যালোচনা নেই',
+    cantFindDoctor: 'সঠিক ডাক্তার খুঁজে পাচ্ছেন না?',
+    requestCallback: 'কলব্যাকের অনুরোধ করুন',
   },
   pa: {
     portal: 'ਮਰੀਜ਼ ਪੋਰਟਲ',
@@ -1015,7 +1063,51 @@ const DASHBOARD_I18N = {
     reportsDesc: 'ਅਪਲੋਡ ਕੀਤੀਆਂ ਮੈਡੀਕਲ ਰਿਪੋਰਟਾਂ।',
     donationsDesc: 'ਲੋੜਵੰਦ ਮਰੀਜ਼ਾਂ ਦੀ ਮਦਦ ਕਰੋ।',
     communitiesDesc: 'ਸਿਹਤ ਭਾਈਚਾਰੇ ਨਾਲ ਜੁੜੋ।',
-    helpDesc: '24/7 ਹੈਲਪਲਾਈਨ ਅਤੇ ਸਹਾਇਤਾ।'
+    helpDesc: '24/7 ਹੈਲਪਲਾਈਨ ਅਤੇ ਸਹਾਇਤਾ।',
+    backToDashboard: "ਡੈਸ਼ਬੋਰਡ 'ਤੇ ਵਾਪਸ ਜਾਓ",
+    selectDoctorTitle: "ਡਾਕਟਰ ਚੁਣੋ",
+    chooseDoctorFrom: "{hospital} ਵਿੱਚੋਂ ਡਾਕਟਰ ਚੁਣੋ",
+    allopathic: "ਐਲੋਪੈਥੀ",
+    select: "ਚੁਣੋ",
+    viewProfile: "ਪ੍ਰੋਫਾਈਲ ਦੇਖੋ",
+    changeHospital: "ਹਸਪਤਾਲ ਬਦਲੋ",
+    wizardStep1: "ਮਿਤੀ ਚੁਣੋ",
+    wizardStep2: "ਸਮਾਂ ਚੁਣੋ",
+    wizardStep3: "ਲੱਛਣ ਅਤੇ ਕੇਸ",
+    wizardStep4: "ਰਿਪੋਰਟ ਅਪਲੋਡ",
+    wizardStep5: "ਪੁਸ਼ਟੀ",
+    step1SelectDate: "ਕਦਮ 1: ਮਿਤੀ ਚੁਣੋ",
+    step1Desc: "ਡਾਕਟਰ ਦੀ ਸਲਾਹ ਲਈ ਸੁਵਿਧਾਜਨਕ ਮਿਤੀ ਚੁਣੋ",
+    moreDates: "ਹੋਰ ਮਿਤੀਆਂ",
+    nextSelectTime: "ਅੱਗੇ: ਸਮਾਂ ਚੁਣੋ",
+    step2SelectTime: "ਕਦਮ 2: ਸਮਾਂ ਸਲਾਟ ਚੁਣੋ",
+    liveDoctorSchedule: "{doctor} ਦੇ ਸ਼ਡਿਊਲ ਅਨੁਸਾਰ ਲਾਈਵ ਉਪਲਬਧਤਾ",
+    morningSlots: "ਸਵੇਰ ਦੇ ਸਲਾਟ",
+    afternoonSlots: "ਦੁਪਹਿਰ ਦੇ ਸਲਾਟ",
+    eveningSlots: "ਸ਼ਾਮ ਦੇ ਸਲਾਟ",
+    slotsAvailable: "ਸਲਾਟ ਉਪਲਬਧ ਹਨ",
+    slotLeft: "ਸਲਾਟ ਬਾਕੀ",
+    slotsLeft: "ਸਲਾਟ ਬਾਕੀ",
+    selected: "ਚੁਣਿਆ ਗਿਆ",
+    fullyBooked: "ਪੂਰੀ ਤਰ੍ਹਾਂ ਬੁੱਕ",
+    closed: "ਬੰਦ",
+    fillingFast: "ਤੇਜ਼ੀ ਨਾਲ ਭਰ ਰਿਹਾ",
+    available: "ਉਪਲਬਧ",
+    loadingLiveSchedule: "ਸ਼ਡਿਊਲ ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    noSlotsAvailable: "ਇਸ ਮਿਤੀ ਲਈ ਕੋਈ ਸਲਾਟ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਹੋਰ ਮਿਤੀ ਚੁਣੋ।",
+    liveAvailabilityBadge: "ਲਾਈਵ ਉਪਲਬਧਤਾ · ਹਰ 15 ਸਕਿੰਟ ਬਾਅਦ ਅਪਡੇਟ",
+    previous: "ਪਿਛਲਾ",
+    nextCase: "ਅੱਗੇ: ਲੱਛਣ ਅਤੇ ਕੇਸ",
+    searchDoctorPlaceholder: "ਡਾਕਟਰ ਦਾ ਨਾਮ ਜਾਂ ਵਿਸ਼ੇਸ਼ਤਾ ਲੱਭੋ...",
+    filters: "ਫਿਲਟਰ",
+    years: "ਸਾਲ",
+    yrs: "ਸਾਲ",
+    backToDoctors: 'ਡਾਕਟਰਾਂ ਕੋਲ ਵਾਪਸ ਜਾਓ',
+    ayurveda: 'ਆਯੁਰਵੇਦ',
+    reviews: 'ਸਮੀਖਿਆਵਾਂ',
+    noReviewsYet: 'ਨਵਾਂ ਡਾਕਟਰ · ਅਜੇ ਕੋਈ ਸਮੀਖਿਆ ਨਹੀਂ',
+    cantFindDoctor: 'ਕੀ ਸਹੀ ਡਾਕਟਰ ਨਹੀਂ ਮਿਲ ਰਿਹਾ?',
+    requestCallback: 'ਕਾਲਬੈਕ ਲਈ ਬੇਨਤੀ ਕਰੋ',
   },
   ml: {
     trustHeader: 'നിങ്ങളുടെ ആരോഗ്യം, ഞങ്ങളുടെ മുൻഗണന',
@@ -1131,6 +1223,12 @@ const DASHBOARD_I18N = {
     filters: "ഫിൽട്ടറുകൾ",
     years: "വർഷം",
     yrs: "വർഷം",
+    backToDoctors: 'ഡോക്ടർമാരിലേക്ക് മടങ്ങുക',
+    ayurveda: 'ആയുർവേദം',
+    reviews: 'അവലോകനങ്ങൾ',
+    noReviewsYet: 'പുതിയ ഡോക്ടർ · ഇതുവരെ അവലോകനങ്ങളൊന്നുമില്ല',
+    cantFindDoctor: 'ശരിയായ ഡോക്ടറെ കണ്ടെത്താനായില്ലേ?',
+    requestCallback: 'കോൾബാക്ക് അഭ്യർത്ഥിക്കുക',
   },
   or: {
     portal: 'ରୋଗୀ ପୋର୍ଟାଲ',
@@ -1192,7 +1290,51 @@ const DASHBOARD_I18N = {
     reportsDesc: 'ଡାଇଗ୍ନୋଷ୍ଟିକ୍ ରିପୋର୍ଟ ଏବଂ AI OCR ବିବରଣୀ।',
     donationsDesc: 'ଅସହାୟ ରୋଗୀମାନଙ୍କୁ ସାହାଯ୍ୟ କରନ୍ତୁ।',
     communitiesDesc: 'ସ୍ୱାସ୍ଥ୍ୟ ସମୁଦାୟ ସହିତ ଯୋଡ଼ି ହୁଅନ୍ତୁ।',
-    helpDesc: '24/7 ଜାତୀୟ ହେଲ୍ପଲାଇନ୍ ଏବଂ ସହାୟତା।'
+    helpDesc: '24/7 ଜାତୀୟ ହେଲ୍ପଲାଇନ୍ ଏବଂ ସହାୟତା।',
+    backToDashboard: "ଡ୍ୟାସବୋର୍ଡକୁ ଫେରନ୍ତୁ",
+    selectDoctorTitle: "ଡାକ୍ତର ବାଛନ୍ତୁ",
+    chooseDoctorFrom: "{hospital} ରୁ ଡାକ୍ତର ବାଛନ୍ତୁ",
+    allopathic: "ଆଲୋପାଥି",
+    select: "ବାଛନ୍ତୁ",
+    viewProfile: "ପ୍ରୋଫାଇଲ୍ ଦେଖନ୍ତୁ",
+    changeHospital: "ଡାକ୍ତରଖାନା ବଦଳାନ୍ତୁ",
+    wizardStep1: "ତାରିଖ ବାଛନ୍ତୁ",
+    wizardStep2: "ସମୟ ବାଛନ୍ତୁ",
+    wizardStep3: "ଲକ୍ଷଣ ଏବଂ ବିବରଣୀ",
+    wizardStep4: "ରିପୋର୍ଟ ଅପଲୋଡ୍",
+    wizardStep5: "ନିଶ୍ଚିତକରଣ",
+    step1SelectDate: "ପଦକ୍ଷେପ ୧: ତାରିଖ ବାଛନ୍ତୁ",
+    step1Desc: "ଡାକ୍ତରଙ୍କ ପରାମର୍ଶ ପାଇଁ ସୁବିଧାଜନକ ତାରିଖ ବାଛନ୍ତୁ",
+    moreDates: "ଅନ୍ୟ ତାରିଖ",
+    nextSelectTime: "ପରବର୍ତ୍ତୀ: ସମୟ ବାଛନ୍ତୁ",
+    step2SelectTime: "ପଦକ୍ଷେପ ୨: ସମୟ ସ୍ଲଟ୍ ବାଛନ୍ତୁ",
+    liveDoctorSchedule: "{doctor} ଙ୍କ ସୂଚୀ ଅନୁଯାୟୀ ଲାଇଭ୍ ଉପଲବ୍ଧତା",
+    morningSlots: "ସକାଳ ସ୍ଲଟ୍",
+    afternoonSlots: "ଅପରାହ୍ନ ସ୍ଲଟ୍",
+    eveningSlots: "ସନ୍ଧ୍ୟା ସ୍ଲଟ୍",
+    slotsAvailable: "ସ୍ଲଟ୍ ଉପଲବ୍ଧ",
+    slotLeft: "ସ୍ଲଟ୍ ବାକି",
+    slotsLeft: "ସ୍ଲଟ୍ ବାକି",
+    selected: "ମନୋନୀତ",
+    fullyBooked: "ସମ୍ପୂର୍ଣ୍ଣ ବୁକ୍",
+    closed: "ବନ୍ଦ",
+    fillingFast: "ଶୀଘ୍ର ଭର୍ତ୍ତି ହେଉଛି",
+    available: "ଉପଲବ୍ଧ",
+    loadingLiveSchedule: "ସୂଚୀ ଲୋଡ୍ ହେଉଛି…",
+    noSlotsAvailable: "ଏହି ତାରିଖ ପାଇଁ କୌଣସି ସ୍ଲଟ୍ ଉପଲବ୍ଧ ନାହିଁ। ଦୟାକରି ଅନ୍ୟ ଏକ ତାରିଖ ବାଛନ୍ତୁ।",
+    liveAvailabilityBadge: "ଲାଇଭ୍ ଉପଲବ୍ଧତା · ପ୍ରତି 15 ସେକେଣ୍ଡରେ ଅଦ୍ୟତନ",
+    previous: "ପୂର୍ବ",
+    nextCase: "ପରବର୍ତ୍ତୀ: ଲକ୍ଷଣ ଏବଂ କେସ୍",
+    searchDoctorPlaceholder: "ଡାକ୍ତରଙ୍କ ନାମ କିମ୍ବା ବିଶେଷଜ୍ଞତା ଖୋଜନ୍ତୁ...",
+    filters: "ଫିଲ୍ଟର୍",
+    years: "ବର୍ଷ",
+    yrs: "ବର୍ଷ",
+    backToDoctors: 'ଡାକ୍ତରଙ୍କ ପାଖକୁ ଫେରନ୍ତୁ',
+    ayurveda: 'ଆୟୁର୍ବେଦ',
+    reviews: 'ସମୀକ୍ଷା',
+    noReviewsYet: 'ନୂତନ ଡାକ୍ତର · ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ସମୀକ୍ଷା ନାହିଁ',
+    cantFindDoctor: 'ଉପଯୁକ୍ତ ଡାକ୍ତର ମିଳୁନାହାଁନ୍ତି କି?',
+    requestCallback: 'କଲବ୍ୟାକ୍ ଅନୁରୋଧ କରନ୍ତୁ',
   }
 };
 
@@ -1566,7 +1708,85 @@ function localizeDoctor(doc, lang = 'en') {
   if (!doc) return lang === 'hi' ? 'डॉक्टर' : 'Doctor';
   const clean = String(doc).trim();
   const target = lang || 'en';
-  return aiTranslationService.translate(clean, target, 'doctor') || clean;
+
+  if (target === 'en') {
+    // If text is in Devanagari or other Indic script, transliterate back to English
+    if (/^[\u0900-\u0DFF]/.test(clean)) {
+      return aiTranslationService.translate(clean, 'en', 'doctor') || clean;
+    }
+    return clean;
+  }
+
+  // 1. Check exact dictionary match in DOCTOR_LOCALIZATION
+  const lowerKey = clean.toLowerCase();
+  if (DOCTOR_LOCALIZATION[lowerKey] && DOCTOR_LOCALIZATION[lowerKey][target]) {
+    return DOCTOR_LOCALIZATION[lowerKey][target];
+  }
+
+  // Also check without "dr. " or with "dr. "
+  if (lowerKey.startsWith('dr. ') || lowerKey.startsWith('dr ')) {
+    const withoutPrefix = lowerKey.replace(/^dr\.?\s+/i, '').trim();
+    if (DOCTOR_LOCALIZATION[withoutPrefix] && DOCTOR_LOCALIZATION[withoutPrefix][target]) {
+      return DOCTOR_LOCALIZATION[withoutPrefix][target];
+    }
+  } else {
+    const withPrefix = `dr. ${lowerKey}`;
+    if (DOCTOR_LOCALIZATION[withPrefix] && DOCTOR_LOCALIZATION[withPrefix][target]) {
+      return DOCTOR_LOCALIZATION[withPrefix][target];
+    }
+  }
+
+  // 2. Title / honorific prefixes mapping across all Indic languages:
+  // Admin may add more doctors, e.g. "Dr. Suresh Patel", "Dr. Anita Desai", "Vaidya Rajesh Kumar", etc.
+  const prefixPatterns = [
+    { regex: /^(dr\.?|doctor)\s+/i, map: {
+      hi: 'डॉ. ', mr: 'डॉ. ', gu: 'ડૉ. ', ta: 'டாக்டர் ', te: 'డాక్టర్ ', kn: 'ಡಾ. ', bn: 'ডাঃ ', pa: 'ਡਾ. ', ml: 'ഡോ. ', or: 'ଡାକ୍ତର '
+    }},
+    { regex: /^(vaidya|vd\.?)\s+/i, map: {
+      hi: 'वैद्य ', mr: 'वैद्य ', gu: 'વૈદ્ય ', ta: 'வைத்யா ', te: 'వైద్య ', kn: 'ವೈದ್ಯ ', bn: 'বৈদ্য ', pa: 'ਵੈਦ ', ml: 'വൈദ്യൻ ', or: 'ବୈଦ୍ୟ '
+    }},
+    { regex: /^(prof\.?|professor)\s+/i, map: {
+      hi: 'प्रो. ', mr: 'प्रा. ', gu: 'પ્રો. ', ta: 'பேராசிரியர் ', te: 'ప్రొఫెసర్ ', kn: 'ಪ್ರೊ. ', bn: 'অধ্যাপক ', pa: 'ਪ੍ਰੋ. ', ml: 'പ്രൊഫ. ', or: 'ପ୍ରଫେସର '
+    }}
+  ];
+
+  for (const item of prefixPatterns) {
+    if (item.regex.test(clean)) {
+      const localizedPrefix = item.map[target] || item.map.hi || 'Dr. ';
+      const restOfName = clean.replace(item.regex, '').trim();
+      const transliteratedName = aiTranslationService.translate(restOfName, target, 'name') || restOfName;
+      return `${localizedPrefix}${transliteratedName}`;
+    }
+  }
+
+  // If no prefix, directly transliterate whole name
+  return aiTranslationService.translate(clean, target, 'name') || clean;
+}
+
+function localizeExp(expStr, lang = 'en') {
+  if (!expStr) return '';
+  if (!lang || lang === 'en') return expStr;
+
+  const match = String(expStr).match(/(\d+)(\+?)\s*(?:yrs|years|yr|year)?\s*(?:exp|experience)?\.?/i);
+  if (match) {
+    const num = match[1];
+    const plus = match[2] || '';
+    const expWordMap = {
+      hi: 'वर्ष अनुभव',
+      mr: 'वर्षे अनुभव',
+      gu: 'વર્ષનો અનુભવ',
+      ta: 'ஆண்டுகள் அனுபவம்',
+      te: 'సంవత్సరాల అనుభవం',
+      kn: 'ವರ್ಷಗಳ ಅನುಭವ',
+      bn: 'বছরের অভিজ্ঞতা',
+      pa: 'ਸਾਲਾਂ ਦਾ ਤਜਰਬਾ',
+      ml: 'വർഷത്തെ പരിചയം',
+      or: 'ବର୍ଷର ଅଭିଜ୍ଞତା'
+    };
+    const expWord = expWordMap[lang] || expWordMap.hi;
+    return `${num}${plus} ${expWord}`;
+  }
+  return expStr;
 }
 
 const SPECIALTY_MAP = {
@@ -2415,6 +2635,7 @@ export default function PatientDashboard() {
   const [bookingReason, setBookingReason] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [newlyBookedToken, setNewlyBookedToken] = useState(null);
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
 
   // Appointment Details / QR Modal
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -3153,23 +3374,42 @@ export default function PatientDashboard() {
   const rawPatientName = session.patient?.name ? session.patient.name.trim() : '';
   const patientName = localizeName(rawPatientName, currentLang);
   const displayName = patientName || tr('profile');
-  const abhaId = session.patient?.abhaId || (session.patient?.phone ? `ABHA-${session.patient.phone}` : 'ABHA Pending');
+  const abhaId = session.patient?.abhaId || '';
   const age = session.patient?.age || '';
   const gender = session.patient?.gender || '';
   const phone = session.patient?.phone || '';
 
-  // Real Initials for avatar
+  // First initial letter of name strictly in English (A-Z), regardless of selected language
   const initials = useMemo(() => {
-    if (rawPatientName) {
-      const parts = rawPatientName.split(' ').filter(Boolean);
-      if (parts.length >= 2) {
-        return (parts[0][0] + parts[1][0]).toUpperCase();
-      }
-      return parts[0].substring(0, 2).toUpperCase();
+    const raw = String(session.patient?.name || rawPatientName || '').trim();
+    // Look for first English A-Z letter
+    const englishMatch = raw.match(/[a-zA-Z]/);
+    if (englishMatch) {
+      return englishMatch[0].toUpperCase();
     }
-    if (phone) return 'PT';
-    return 'P';
-  }, [rawPatientName, phone]);
+    // Indic script to Latin mapping fallback
+    const indicToLatin = {
+      'अ': 'A', 'आ': 'A', 'इ': 'I', 'ई': 'I', 'उ': 'U', 'ऊ': 'U',
+      'ए': 'E', 'ऐ': 'A', 'ओ': 'O', 'औ': 'A', 'क': 'K', 'ख': 'K',
+      'ग': 'G', 'घ': 'G', 'च': 'C', 'छ': 'C', 'ज': 'J', 'झ': 'J',
+      'ट': 'T', 'ठ': 'T', 'ड': 'D', 'ढ': 'D', 'त': 'T', 'थ': 'T',
+      'द': 'D', 'ध': 'D', 'न': 'N', 'प': 'P', 'फ': 'P', 'ब': 'B',
+      'भ': 'B', 'म': 'M', 'य': 'Y', 'र': 'R', 'ल': 'L', 'व': 'V',
+      'श': 'S', 'ष': 'S', 'स': 'S', 'ह': 'H',
+      'અ': 'A', 'આ': 'A', 'ઇ': 'I', 'ક': 'K', 'ત': 'T', 'પ': 'P', 'સ': 'S',
+      'அ': 'A', 'ஆ': 'A', 'இ': 'I', 'க': 'K', 'த': 'T', 'ப': 'P', 'ச': 'S',
+      'అ': 'A', 'ఆ': 'A', 'ఇ': 'I', 'క': 'K', 'త': 'T', 'ప': 'P', 'స': 'S',
+      'ಅ': 'A', 'ಆ': 'A', 'ಇ': 'I', 'ಕ': 'K', 'ತ': 'T', 'ಪ': 'P', 'ಸ': 'S',
+      'অ': 'A', 'আ': 'A', 'ই': 'I', 'ক': 'K', 'ত': 'T', 'প': 'P', 'স': 'S',
+      'ਅ': 'A', 'ਆ': 'A', 'ਕ': 'K', 'ਤ': 'T', 'ਪ': 'P', 'ਸ': 'S',
+      'അ': 'A', 'ആ': 'A', 'ക': 'K', 'ത': 'T', 'പ': 'P', 'സ': 'S'
+    };
+    const firstChar = raw[0];
+    if (firstChar && indicToLatin[firstChar]) {
+      return indicToLatin[firstChar];
+    }
+    return 'T';
+  }, [session.patient?.name, rawPatientName]);
 
   // Dynamic greeting based on time of day
   const greetingText = useMemo(() => {
@@ -3675,12 +3915,19 @@ export default function PatientDashboard() {
   // Submit Booking Form
   const handleConfirmBooking = async (e) => {
     e?.preventDefault();
-    if (!session.patient?.id || !bookingHospital || !selectedDoctorObj) {
+    if (!session.patient?.id) {
+      alert('Please log in as a patient to book an appointment.');
+      return;
+    }
+    const effectiveHosp = bookingHospital || (hospitals && hospitals[0]);
+    const effectiveDocObj = selectedDoctorObj || (effectiveHosp?.doctors && effectiveHosp.doctors[0]);
+    if (!effectiveHosp || !effectiveDocObj) {
       alert('Patient, hospital, or doctor information is missing. Please restart the booking.');
       return;
     }
+
     const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const hospitalId = bookingHospital.id || slug(bookingHospital.name);
+    const hospitalId = effectiveHosp.id || slug(effectiveHosp.name);
     const seededDoctorIds = {
       'dr-randeep-guleria': 'd0000001-0001-0001-0001-000000000001',
       'dr-ananya-sharma': 'd0000001-0002-0002-0002-000000000001',
@@ -3692,7 +3939,7 @@ export default function PatientDashboard() {
       'dr-priya-verma': 'd0000001-0008-0008-0008-000000000001',
       'dr-rohan-mehta': 'd0000001-0009-0009-0009-000000000001',
     };
-    const doctorId = selectedDoctorObj.id || seededDoctorIds[slug(selectedDoctorObj.name)] || `${hospitalId}-${slug(selectedDoctorObj.name)}`;
+    const doctorId = effectiveDocObj.id || seededDoctorIds[slug(effectiveDocObj.name)] || `${hospitalId}-${slug(effectiveDocObj.name)}`;
     const isWizard = bookingFlowView === 'booking_steps';
     const effectiveDate = isWizard ? selectedBookingDate : selectedDate;
     const effectiveSlot = isWizard ? selectedBookingSlot : selectedSlot;
@@ -3721,138 +3968,139 @@ export default function PatientDashboard() {
       }
     }
 
-    const hospitalSave = await db.hospitals.ensure({ ...bookingHospital, id: hospitalId });
-    if (hospitalSave.error) { alert(`Unable to save hospital: ${hospitalSave.error.message}`); return; }
-    const doctorSave = await db.doctors.ensure({ ...selectedDoctorObj, id: doctorId, hospitalName: bookingHospital.name }, hospitalId);
-    if (doctorSave.error) { alert(`Unable to save doctor: ${doctorSave.error.message}`); return; }
-    const schedule = await db.slots.getForDoctor(doctorId, effectiveDate);
-    if (schedule.error) { alert(`Unable to load appointment slots: ${schedule.error.message}`); return; }
-
-    // Only one confirmation call may be in flight in this browser. The same
-    // stable request ID also makes server retries idempotent across reconnects.
     if (bookingSubmitInFlightRef.current) return;
-    bookingSubmitInFlightRef.current = true;
 
-    const booked = await db.appointments.book({
-      patientId: session.patient.id,
-      doctorId,
-      hospitalId,
-      date: effectiveDate,
-      time24,
-      timeLabel: effectiveSlot,
-      reason: bookingReason || bookingCaseNotes || bookingCaseSymptoms.join(', '),
-      holdId: null,
-      bookingRequestId: bookingRequestIdRef.current,
-    });
-    if (booked.error || !booked.data) {
-      bookingSubmitInFlightRef.current = false;
-      const bookingError = booked.error?.message || 'unknown error';
-      if (/slot|attending|passed|capacity|filled|closed/i.test(bookingError)) {
-        setSelectedBookingSlot('');
-        setBookingStep(2);
-      }
-      alert(`Appointment could not be booked: ${bookingError}`);
-      return;
-    }
-    const effectiveDoctorName = selectedDoctorObj?.name || selectedDoctor || 'Dr. Ananya Sharma';
-    const effectiveSpecialty = selectedDoctorObj?.specialty || selectedDept || 'General Medicine';
+    try {
+      bookingSubmitInFlightRef.current = true;
+      setIsSubmittingBooking(true);
 
-    const tokenStr = booked.token;
-    if (!tokenStr) {
-      bookingSubmitInFlightRef.current = false;
-      alert('Appointment was saved without a token. Please contact the registration desk.');
-      return;
-    }
-    const dateObj = new Date(effectiveDate);
-    const dayStr = dateObj.getDate().toString().padStart(2, '0');
-    const monthStr = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+      const hospitalSave = await db.hospitals.ensure({ ...effectiveHosp, id: hospitalId });
+      if (hospitalSave.error) { alert(`Unable to save hospital: ${hospitalSave.error.message}`); return; }
+      const doctorSave = await db.doctors.ensure({ ...effectiveDocObj, id: doctorId, hospitalName: effectiveHosp.name }, hospitalId);
+      if (doctorSave.error) { alert(`Unable to save doctor: ${doctorSave.error.message}`); return; }
+      const schedule = await db.slots.getForDoctor(doctorId, effectiveDate);
+      if (schedule.error) { alert(`Unable to load appointment slots: ${schedule.error.message}`); return; }
 
-    const newApt = {
-      id: booked.data.id,
-      doctorId: booked.data?.doctor_id || doctorId,
-      hospitalId: booked.data?.hospital_id || hospitalId,
-      doctorName: effectiveDoctorName,
-      doctor: effectiveDoctorName,
-      specialty: effectiveSpecialty,
-      hospital: bookingHospital?.name || 'Sawai Man Singh Hospital',
-      hospitalType: bookingHospital?.type || tr('government'),
-      day: dayStr || '30',
-      month: monthStr || 'AUG',
-      year: dateObj.getFullYear(),
-      date: effectiveDate,
-      time: effectiveSlot,
-      time_24: effectiveTime24,
-      token: tokenStr,
-      status: 'Confirmed',
-      statusType: 'confirmed',
-      computedStatus: 'upcoming',
-      displayStatus: 'Confirmed',
-      isMissed: false,
-      room: selectedDoctorObj?.room || '104',
-      dept: effectiveSpecialty,
-      reason: bookingReason || bookingCaseNotes || 'General Consultation'
-    };
-
-    bookingRequestIdRef.current = createBookingRequestId();
-
-    setNewlyBookedToken(`${tr('tokenWord')} ${tokenStr}`);
-    setAppointments(prev => [newApt, ...prev]);
-    setToken(tokenStr);
-    setSubmitted();
-
-    // Persist Step 4 uploads as medical-report records, then mirror them into
-    // the current session so the Medical Reports tab updates immediately.
-    if (bookingReports && bookingReports.length > 0) {
-      const savedReports = await Promise.all(bookingReports.map(async r => {
-        const category = r.type === 'pdf' ? 'pdf' : /prescription|\brx\b/i.test(r.name || '') ? 'prescription' : 'lab';
-        const saved = await db.reports.upload({
-          patientId: session.patient.id,
-          appointmentId: booked.data.id,
-          reportType: category,
-          title: r.name || 'Uploaded Clinical Document',
-          file: r.file,
-          dataUrl: r.dataUrl,
-          ocrText: r.ocrSummary || '',
-        });
-        if (saved.error) throw saved.error;
-        const docEntry = {
-          id: saved.data?.id || r.id || 'doc_' + Date.now(),
-          title: r.name || 'Uploaded Clinical Document',
-          name: r.name || 'Uploaded Clinical Document',
-          type: r.type === 'pdf' ? 'PDF Document' : 'Medical Report',
-          category,
-          dataUrl: r.dataUrl,
-          file_url: saved.data?.file_url || r.dataUrl,
-          imageData: r.dataUrl,
-          uploadedAt: new Date().toISOString(),
-          timestamp: new Date().toISOString(),
-          ocr_text: r.ocrSummary || ''
-        };
-        if (addDocument) addDocument(docEntry);
-        return docEntry;
-      })).catch(error => {
-        console.error('Unable to save Step 4 medical reports', error);
-        return null;
+      const booked = await db.appointments.book({
+        patientId: session.patient.id,
+        doctorId,
+        hospitalId,
+        date: effectiveDate,
+        time24,
+        timeLabel: effectiveSlot,
+        reason: bookingReason || bookingCaseNotes || bookingCaseSymptoms.join(', '),
+        holdId: null,
+        bookingRequestId: bookingRequestIdRef.current,
       });
-      if (!savedReports) {
-        alert('The appointment was booked, but one or more medical reports could not be saved. Please upload them again from Medical Reports.');
+      if (booked.error || !booked.data) {
+        const bookingError = booked.error?.message || 'unknown error';
+        if (/slot|attending|passed|capacity|filled|closed/i.test(bookingError)) {
+          setSelectedBookingSlot('');
+          setBookingStep(2);
+        }
+        alert(`Appointment could not be booked: ${bookingError}`);
+        return;
       }
-    }
+      const effectiveDoctorName = effectiveDocObj?.name || selectedDoctor || 'Dr. Ananya Sharma';
+      const effectiveSpecialty = effectiveDocObj?.specialty || effectiveDocObj?.speciality || selectedDept || 'General Medicine';
 
-    if (isWizard) {
+      const tokenStr = booked.token;
+      if (!tokenStr) {
+        alert('Appointment was saved without a token. Please contact the registration desk.');
+        return;
+      }
+      const dateObj = new Date(effectiveDate);
+      const dayStr = dateObj.getDate().toString().padStart(2, '0');
+      const monthStr = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+
+      const newApt = {
+        id: booked.data.id,
+        doctorId: booked.data?.doctor_id || doctorId,
+        hospitalId: booked.data?.hospital_id || hospitalId,
+        doctorName: effectiveDoctorName,
+        doctor: effectiveDoctorName,
+        specialty: effectiveSpecialty,
+        hospital: effectiveHosp?.name || 'Sawai Man Singh Hospital',
+        hospitalType: effectiveHosp?.type || tr('government'),
+        day: dayStr || '30',
+        month: monthStr || 'AUG',
+        year: dateObj.getFullYear(),
+        date: effectiveDate,
+        time: effectiveSlot,
+        time_24: time24,
+        token: tokenStr,
+        status: 'Confirmed',
+        statusType: 'confirmed',
+        computedStatus: 'upcoming',
+        displayStatus: 'Confirmed',
+        isMissed: false,
+        room: effectiveDocObj?.room || '104',
+        dept: effectiveSpecialty,
+        reason: bookingReason || bookingCaseNotes || 'General Consultation'
+      };
+
+      bookingRequestIdRef.current = createBookingRequestId();
+
+      setNewlyBookedToken(`${tr('tokenWord')} ${tokenStr}`);
+      setAppointments(prev => [newApt, ...prev]);
+      setToken(tokenStr);
+      setSubmitted();
+
+      // Persist Step 4 uploads as medical-report records
+      if (bookingReports && bookingReports.length > 0) {
+        try {
+          await Promise.all(bookingReports.map(async r => {
+            const category = r.type === 'pdf' ? 'pdf' : /prescription|\brx\b/i.test(r.name || '') ? 'prescription' : 'lab';
+            const saved = await db.reports.upload({
+              patientId: session.patient.id,
+              appointmentId: booked.data.id,
+              reportType: category,
+              title: r.name || 'Uploaded Clinical Document',
+              file: r.file,
+              dataUrl: r.dataUrl,
+              ocrText: r.ocrSummary || '',
+            });
+            if (saved.error) throw saved.error;
+            const docEntry = {
+              id: saved.data?.id || r.id || 'doc_' + Date.now(),
+              title: r.name || 'Uploaded Clinical Document',
+              name: r.name || 'Uploaded Clinical Document',
+              type: r.type === 'pdf' ? 'PDF Document' : 'Medical Report',
+              category,
+              dataUrl: r.dataUrl,
+              file_url: saved.data?.file_url || r.dataUrl,
+              imageData: r.dataUrl,
+              uploadedAt: new Date().toISOString(),
+              timestamp: new Date().toISOString(),
+              ocr_text: r.ocrSummary || ''
+            };
+            if (addDocument) addDocument(docEntry);
+            return docEntry;
+          }));
+        } catch (e) {
+          console.warn('Unable to save all reports:', e);
+        }
+      }
+
+      if (isWizard) {
+        setSelectedAppointment(newApt);
+        setBookingFlowView('main');
+        setBookingStep(1);
+        return;
+      }
+      setBookingSuccess(true);
+      setTimeout(() => {
+        setBookingSuccess(false);
+        setShowBookingModal(false);
+        setNewlyBookedToken(null);
+      }, 1800);
+    } catch (err) {
+      console.error('Error in handleConfirmBooking:', err);
+      alert(`An error occurred while confirming the appointment: ${err?.message || err}`);
+    } finally {
       bookingSubmitInFlightRef.current = false;
-      setSelectedAppointment(newApt);
-      setBookingFlowView('main');
-      setBookingStep(1);
-      return;
+      setIsSubmittingBooking(false);
     }
-    setBookingSuccess(true);
-    bookingSubmitInFlightRef.current = false;
-    setTimeout(() => {
-      setBookingSuccess(false);
-      setShowBookingModal(false);
-      setNewlyBookedToken(null);
-    }, 1800);
   };
 
   // Cancel Appointment
@@ -4661,7 +4909,7 @@ export default function PatientDashboard() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: '800',
-                  fontSize: '0.875rem'
+                  fontSize: '0.95rem'
                 }}>
                   {initials}
                 </div>
@@ -4825,10 +5073,10 @@ export default function PatientDashboard() {
                   {/* Page Title */}
                   <div style={{ marginBottom: '1.5rem' }}>
                     <h1 style={{ fontSize: '1.85rem', fontWeight: '900', color: '#0f172a', margin: '0 0 4px 0', letterSpacing: '-0.4px' }}>
-                      Select a Doctor
+                      {tr('selectDoctorTitle')}
                     </h1>
                     <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>
-                      Choose a doctor from {bookingHospital.name}
+                      {tr('chooseDoctorFrom').replace('{hospital}', localizeHospitalName(bookingHospital.name, currentLang))}
                     </p>
                   </div>
 
@@ -4865,7 +5113,7 @@ export default function PatientDashboard() {
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800', color: '#0f172a' }}>
-                            {bookingHospital.name}
+                            {localizeHospitalName(bookingHospital.name, currentLang)}
                           </h3>
                           <span style={{
                             backgroundColor: '#fff1e6',
@@ -4876,7 +5124,7 @@ export default function PatientDashboard() {
                             borderRadius: '6px',
                             letterSpacing: '0.4px'
                           }}>
-                            POPULAR
+                            {tr('popular')}
                           </span>
                         </div>
 
@@ -4982,7 +5230,7 @@ export default function PatientDashboard() {
                       }}
                     >
                       <Filter size={15} color="#64748b" />
-                      <span>Filters</span>
+                      <span>{tr('filters')}</span>
                       <ChevronDown size={14} color="#64748b" />
                     </button>
                   </div>
@@ -5013,7 +5261,7 @@ export default function PatientDashboard() {
                       }}
                     >
                       <Stethoscope size={22} color={doctorCareSystem === 'allopathy' ? '#0f766e' : '#94a3b8'} />
-                      <span>Allopathy</span>
+                      <span>{tr('allopathic')}</span>
                     </button>
 
                     <button
@@ -5035,7 +5283,7 @@ export default function PatientDashboard() {
                       }}
                     >
                       <Leaf size={22} color={doctorCareSystem === 'ayurveda' ? '#ea580c' : '#94a3b8'} />
-                      <span>Ayurveda</span>
+                      <span>{tr('ayurveda')}</span>
                     </button>
                   </div>
 
@@ -5101,17 +5349,17 @@ export default function PatientDashboard() {
 
                           {/* Doctor Info */}
                           <h4 style={{ margin: '0 0 3px 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a', lineHeight: 1.3 }}>
-                            {fullProf.name}
+                            {localizeDoctor(fullProf.name, currentLang)}
                           </h4>
                           <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>
                             {fullProf.degrees.split(',')[0] || 'MBBS'}
                           </div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '14px' }}>
                             <Briefcase size={13} color="#64748b" />
-                            <span>{fullProf.exp}</span>
+                            <span>{localizeExp(fullProf.exp, currentLang)}</span>
                           </div>
                           <div style={{ fontSize: '0.78rem', color: fullProf.rating ? '#a16207' : '#64748b', fontWeight: '700', marginBottom: '12px' }}>
-                            {fullProf.rating ? `★ ${fullProf.rating} (${fullProf.reviewsCount} reviews)` : 'New doctor · No reviews yet'}
+                            {fullProf.rating ? `★ ${fullProf.rating} (${fullProf.reviewsCount} ${tr('reviews')})` : tr('noReviewsYet')}
                           </div>
 
                           {/* Select Button */}
@@ -5138,7 +5386,7 @@ export default function PatientDashboard() {
                             onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
                             onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
                           >
-                            <span>{ui('Select')}</span>
+                            <span>{tr('select')}</span>
                             <ArrowRight size={15} />
                           </button>
 
@@ -5157,7 +5405,7 @@ export default function PatientDashboard() {
                             }}
                             onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
                             onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-                          >{ui('View Profile')}</button>
+                          >{tr('viewProfile')}</button>
                         </div>
                       );
                     })}
@@ -5176,7 +5424,7 @@ export default function PatientDashboard() {
                     color: '#475569'
                   }}>
                     <AlertCircle size={16} color="#64748b" />
-                    <span>{ui("Can't find the right doctor?")}{' '}</span>
+                    <span>{tr('cantFindDoctor')}{' '}</span>
                     <button
                       onClick={() => alert("Our medical coordinator will call you back within 15 minutes.")}
                       style={{
@@ -5189,7 +5437,7 @@ export default function PatientDashboard() {
                         textDecoration: 'underline'
                       }}
                     >
-                      Request a Callback
+                      {tr('requestCallback')}
                     </button>
                   </div>
 
@@ -5278,7 +5526,7 @@ export default function PatientDashboard() {
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '900', color: '#0f172a' }}>
-                            {selectedDoctorObj.name}
+                            {localizeDoctor(selectedDoctorObj.name, currentLang)}
                           </h2>
                           <CheckCircle2 size={20} color="#16a34a" />
                         </div>
@@ -5289,22 +5537,22 @@ export default function PatientDashboard() {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#64748b', flexWrap: 'wrap', marginBottom: '8px' }}>
                           <span style={{ color: selectedDoctorObj.rating ? '#eab308' : '#64748b', fontWeight: '700' }}>
-                            {selectedDoctorObj.rating ? `★ ${selectedDoctorObj.rating} (${selectedDoctorObj.reviewsCount} reviews)` : 'New doctor · No reviews yet'}
+                            {selectedDoctorObj.rating ? `★ ${selectedDoctorObj.rating} (${selectedDoctorObj.reviewsCount} ${tr('reviews')})` : tr('noReviewsYet')}
                           </span>
                           <span>•</span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Briefcase size={13} /> {selectedDoctorObj.exp}
+                            <Briefcase size={13} /> {localizeExp(selectedDoctorObj.exp, currentLang)}
                           </span>
                           <span>•</span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Stethoscope size={13} /> {selectedDoctorObj.specialty}
+                            <Stethoscope size={13} /> {localizeSpecialty(selectedDoctorObj.specialty, currentLang)}
                           </span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', color: '#0f172a', fontWeight: '700', marginBottom: '3px' }}>
                           <Building2 size={14} color="#0f766e" />
-                          <span>{bookingHospital?.name || 'Sawai Man Singh Hospital'}</span>
-                          <span style={{ backgroundColor: '#fff1e6', color: '#ea580c', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px' }}>POPULAR</span>
+                          <span>{localizeHospitalName(bookingHospital?.name, currentLang) || 'Sawai Man Singh Hospital'}</span>
+                          <span style={{ backgroundColor: '#fff1e6', color: '#ea580c', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px' }}>{tr('popular')}</span>
                         </div>
 
                         <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
@@ -5398,7 +5646,7 @@ export default function PatientDashboard() {
                     }}>
                       <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <User size={16} color="#0f766e" />
-                        <span>About {selectedDoctorObj.name}</span>
+                        <span>About {localizeDoctor(selectedDoctorObj.name, currentLang)}</span>
                       </h3>
                       <p style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
                         {selectedDoctorObj.about}
@@ -5635,7 +5883,7 @@ export default function PatientDashboard() {
                       }}
                     >
                       <ArrowLeft size={16} />
-                      <span>Back to Doctors</span>
+                      <span>{tr('backToDoctors')}</span>
                     </button>
 
                     <h1 style={{
@@ -5645,7 +5893,7 @@ export default function PatientDashboard() {
                       color: '#0f172a',
                       letterSpacing: '-0.5px'
                     }}>
-                      Book Appointment
+                      {tr('bookAppointmentTitle')}
                     </h1>
 
                     <div style={{ width: '130px' }} />
@@ -5669,11 +5917,11 @@ export default function PatientDashboard() {
                       margin: '0 auto'
                     }}>
                       {[
-                        { step: 1, label: ui('Select Date') },
-                        { step: 2, label: ui('Select Time') },
-                        { step: 3, label: ui('Case') },
-                        { step: 4, label: ui('Upload Reports') },
-                        { step: 5, label: ui('Confirmation') }
+                        { step: 1, label: tr('wizardStep1') },
+                        { step: 2, label: tr('wizardStep2') },
+                        { step: 3, label: tr('wizardStep3') },
+                        { step: 4, label: tr('wizardStep4') },
+                        { step: 5, label: tr('wizardStep5') }
                       ].map((item, idx, arr) => {
                         const isCompleted = bookingStep > item.step;
                         const isCurrent = bookingStep === item.step;
@@ -5776,14 +6024,14 @@ export default function PatientDashboard() {
 
                       <div>
                         <h3 style={{ margin: '0 0 3px 0', fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>
-                          {selectedDoctorObj.name}
+                          {localizeDoctor(selectedDoctorObj.name, currentLang)}
                         </h3>
                         <div style={{ fontSize: '0.85rem', color: '#475569', fontWeight: '600' }}>
                           {selectedDoctorObj.degrees || 'MBBS (General Medicine)'}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
                           <User size={13} color="#0f766e" />
-                          <span>{selectedDoctorObj.exp || '12+ Years Experience'}</span>
+                          <span>{localizeExp(selectedDoctorObj.exp || '12+ Years Experience', currentLang)}</span>
                         </div>
                       </div>
                     </div>
@@ -5816,7 +6064,7 @@ export default function PatientDashboard() {
                       </div>
                       <div>
                         <div style={{ fontSize: '0.95rem', fontWeight: '800', color: '#059669' }}>
-                          {bookingHospital?.name || 'Sawai Man Singh Hospital'}
+                          {localizeHospitalName(bookingHospital?.name, currentLang) || 'Sawai Man Singh Hospital'}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '1px' }}>
                           {bookingHospital?.city || bookingHospital?.address || ''}
@@ -6168,13 +6416,12 @@ export default function PatientDashboard() {
                                     : isDisabled ? '#e2e8f0' : '#e2e8f0';
                               const textColor = isSelected ? '#ffffff' : isThrottled || isConsultationBlocked ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
 
-                              const statusLabel = isSelected ? ui('Selected')
+                              const statusLabel = isSelected ? tr('selected')
                                 : isConsultationBlocked ? ui('Doctor attending current patient')
                                   : isThrottled ? ui('Paused (High OPD Load)')
-                                    : slot.state === 'full' ? ui('Fully Booked')
-                                      : slot.state === 'closed' ? ui('Closed')
-                                        : slot.state === 'fast' ? ui(`${slot.slotsLeft} slot left`)
-                                          : ui(`${slot.slotsLeft} slots left`);
+                                    : slot.state === 'full' ? tr('fullyBooked')
+                                      : slot.state === 'closed' ? tr('closed')
+                                        : `${slot.slotsLeft} ${slot.slotsLeft === 1 ? tr('slotLeft') : tr('slotsLeft')}`;
                               const statusColor = isSelected ? '#ccfbf1'
                                 : isThrottled || isConsultationBlocked ? '#b45309'
                                   : slot.state === 'full' || slot.state === 'closed' ? '#94a3b8'
@@ -6248,8 +6495,8 @@ export default function PatientDashboard() {
                             <Clock size={24} />
                           </div>
                           <div>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>{ui('Step 2: Select Time Slot')}</h3>
-                            <p style={{ margin: '3px 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>{ui(`Live availability from ${selectedDoctorObj.name}'s schedule`)}</p>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.3px' }}>{tr('step2SelectTime')}</h3>
+                            <p style={{ margin: '3px 0 0 0', fontSize: '0.875rem', color: '#64748b' }}>{tr('liveDoctorSchedule').replace('{doctor}', localizeDoctor(selectedDoctorObj.name, currentLang))}</p>
                           </div>
                         </div>
 
@@ -6358,14 +6605,14 @@ export default function PatientDashboard() {
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.85rem', marginBottom: '2.25rem' }}>
-                            {renderSlotGroup(liveSlots.morning, '☀️', 'Morning Slots')}
-                            {renderSlotGroup(liveSlots.afternoon, '🌤️', 'Afternoon Slots')}
-                            {renderSlotGroup(liveSlots.evening, '🌙', 'Evening Slots')}
+                            {renderSlotGroup(liveSlots.morning, '☀️', tr('morningSlots'))}
+                            {renderSlotGroup(liveSlots.afternoon, '🌤️', tr('afternoonSlots'))}
+                            {renderSlotGroup(liveSlots.evening, '🌙', tr('eveningSlots'))}
 
                             {/* All sessions empty message */}
                             {[...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast).length === 0 && (
                               <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem 0' }}>
-                                No slots available for this date. Please select a different date.
+                                {tr('noSlotsAvailable')}
                               </div>
                             )}
                           </div>
@@ -6375,10 +6622,10 @@ export default function PatientDashboard() {
                         {!liveSlots.onLeave && (
                           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                             {[
-                              { dot: '#059669', label: 'Available' },
-                              { dot: '#ea580c', label: 'Filling Fast' },
-                              { dot: '#cbd5e1', label: 'Fully Booked' },
-                              { dot: '#cbd5e1', label: 'Closed', strikethrough: true }
+                              { dot: '#059669', label: tr('available') },
+                              { dot: '#ea580c', label: tr('fillingFast') },
+                              { dot: '#cbd5e1', label: tr('fullyBooked') },
+                              { dot: '#cbd5e1', label: tr('closed'), strikethrough: true }
                             ].map(l => (
                               <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.75rem', fontWeight: '600', color: '#64748b' }}>
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: l.dot, display: 'inline-block' }} />
@@ -6511,6 +6758,7 @@ export default function PatientDashboard() {
                       onEditReports={() => setBookingStep(4)}
                       onPrevious={() => setBookingStep(4)}
                       onConfirm={handleConfirmBooking}
+                      isConfirming={isSubmittingBooking}
                       language={currentLang || 'en'}
                     />
                   )}
@@ -7159,9 +7407,7 @@ export default function PatientDashboard() {
                             const localizedHosp = localizeHospitalName(apt.hospital, currentLang);
                             const localizedMon = localizeMonth(apt.month, currentLang);
 
-                            // Clean undivided token representation (e.g. APT-20260901-004 -> Token #004)
-                            const cleanTokenNum = apt.token ? (apt.token.match(/APT-\d+-([A-Za-z0-9]+)/i)?.[1] || (apt.token.includes('#') ? apt.token.split('#')[1] : apt.token)) : '';
-                            const tokenPill = cleanTokenNum ? `${tr('tokenWord')} #${cleanTokenNum}` : (apt.token ? `${tr('tokenWord')} ${apt.token}` : '');
+                            const tokenPill = apt.token ? (apt.token.includes('#') ? `${tr('tokenWord')} #${apt.token.split('#')[1]}` : `${tr('tokenWord')} ${apt.token}`) : '';
 
                             return (
                               <div
@@ -7209,7 +7455,7 @@ export default function PatientDashboard() {
                                 {/* Content Body */}
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   {/* Row 1: Doctor Name + Status Badge */}
-                                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', marginBottom: '4px' }}>
                                     <h4 style={{
                                       margin: 0,
                                       fontSize: '0.92rem',
@@ -7223,10 +7469,11 @@ export default function PatientDashboard() {
                                     </h4>
                                     <span style={{
                                       display: 'inline-block',
-                                      padding: '2px 7px',
+                                      padding: '3px 8px',
                                       borderRadius: '6px',
                                       fontSize: '0.68rem',
                                       fontWeight: '800',
+                                      lineHeight: 1.2,
                                       whiteSpace: 'nowrap',
                                       flexShrink: 0,
                                       backgroundColor: apt.isMissed ? '#fef2f2' : apt.computedStatus === 'in_consultation' ? '#f3e8ff' : '#dcfce7',
@@ -7241,72 +7488,46 @@ export default function PatientDashboard() {
                                   <div style={{
                                     fontSize: '0.78rem',
                                     color: '#64748b',
-                                    margin: '2px 0 6px 0',
+                                    margin: '0 0 8px 0',
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
-                                    textOverflow: 'ellipsis'
+                                    textOverflow: 'ellipsis',
+                                    lineHeight: 1.3
                                   }}>
                                     <span>{localizedSpec}</span>
                                     {localizedHosp && <span> · <strong style={{ color: '#0f766e', fontWeight: '600' }}>{localizedHosp}</strong></span>}
                                   </div>
 
-                                  {/* Row 3: Time, Clean Token Pill & Cancel Button */}
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', color: '#64748b', whiteSpace: 'nowrap' }}>
-                                        <Clock size={12} />
-                                        <span>{apt.time}</span>
-                                      </span>
-                                      {tokenPill && (
-                                        <>
-                                          <span style={{ color: '#cbd5e1' }}>•</span>
-                                          <span
-                                            title={apt.token}
-                                            style={{
-                                              display: 'inline-block',
-                                              fontWeight: '700',
-                                              fontSize: '0.72rem',
-                                              color: '#0f766e',
-                                              backgroundColor: '#f0fdfa',
-                                              border: '1px solid #ccfbf1',
-                                              padding: '1px 6px',
-                                              borderRadius: '6px',
-                                              whiteSpace: 'nowrap',
-                                              wordBreak: 'keep-all'
-                                            }}
-                                          >
-                                            {tokenPill}
-                                          </span>
-                                        </>
-                                      )}
-                                    </div>
-
-                                    {!apt.isMissed && apt.computedStatus !== 'completed' && apt.computedStatus !== 'cancelled' && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setAppointmentToCancel(apt);
-                                        }}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: '#ef4444',
-                                          fontSize: '0.7rem',
-                                          fontWeight: '700',
-                                          cursor: 'pointer',
-                                          padding: '2px 4px',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '3px',
-                                          marginLeft: 'auto'
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-                                        onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-                                      >
-                                        <Trash2 size={11} />
-                                        <span>{tr('cancelAppointment')}</span>
-                                      </button>
+                                  {/* Row 3: Time & Clean Token Pill */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexWrap: 'nowrap' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', color: '#64748b', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                      <Clock size={12} />
+                                      <span>{apt.time}</span>
+                                    </span>
+                                    {tokenPill && (
+                                      <>
+                                        <span style={{ color: '#cbd5e1', flexShrink: 0 }}>•</span>
+                                        <span
+                                          title={apt.token}
+                                          style={{
+                                            display: 'inline-block',
+                                            fontWeight: '700',
+                                            fontSize: '0.72rem',
+                                            color: '#0f766e',
+                                            backgroundColor: '#f0fdfa',
+                                            border: '1px solid #ccfbf1',
+                                            padding: '2px 7px',
+                                            borderRadius: '6px',
+                                            whiteSpace: 'nowrap',
+                                            wordBreak: 'keep-all',
+                                            overflowWrap: 'normal',
+                                            hyphens: 'none',
+                                            flexShrink: 0
+                                          }}
+                                        >
+                                          {tokenPill}
+                                        </span>
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -9157,9 +9378,9 @@ export default function PatientDashboard() {
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '24px',
-            maxWidth: '460px',
+            maxWidth: '480px',
             width: '100%',
-            padding: '2rem',
+            padding: '1.75rem',
             boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
             position: 'relative'
           }}>
@@ -9192,14 +9413,25 @@ export default function PatientDashboard() {
               backgroundColor: '#f8fafc',
               border: '2px dashed #0d9488',
               borderRadius: '18px',
-              padding: '1.5rem',
+              padding: '1.25rem 1rem',
               textAlign: 'center',
               marginBottom: '1.25rem'
             }}>
               <div style={{ fontSize: '0.78rem', fontWeight: '800', color: '#0f766e', letterSpacing: '0.6px', textTransform: 'uppercase' }}>
                 {tr('assignedToken')}
               </div>
-              <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0f172a', margin: '4px 0' }}>
+              <div style={{
+                fontSize: (selectedAppointment.token && selectedAppointment.token.length > 12) ? '1.35rem' : '2.1rem',
+                fontWeight: '900',
+                color: '#0f172a',
+                margin: '6px 0',
+                whiteSpace: 'nowrap',
+                wordBreak: 'keep-all',
+                overflowWrap: 'normal',
+                hyphens: 'none',
+                letterSpacing: '-0.2px',
+                textAlign: 'center'
+              }}>
                 {selectedAppointment.token?.includes('#') ? `${tr('tokenWord')} #${selectedAppointment.token.split('#')[1]}` : `${tr('tokenWord')} ${selectedAppointment.token}`}
               </div>
               <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '600' }}>
@@ -9220,9 +9452,13 @@ export default function PatientDashboard() {
                 <span style={{ color: '#64748b' }}>{tr('selectSlot')}:</span>
                 <strong style={{ color: '#0f172a' }}>{selectedAppointment.day} {localizeMonth(selectedAppointment.month, currentLang)} • {selectedAppointment.time}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#64748b' }}>Patient ABHA:</span>
-                <strong style={{ color: '#0f172a' }}>{abhaId}</strong>
+                {abhaId ? (
+                  <strong style={{ color: '#0f172a' }}>{abhaId}</strong>
+                ) : (
+                  <span style={{ color: '#64748b', fontSize: '0.85rem', fontStyle: 'italic', fontWeight: '500' }}>Not Linked</span>
+                )}
               </div>
             </div>
 
@@ -9536,7 +9772,7 @@ export default function PatientDashboard() {
               <div style={{ backgroundColor: 'rgba(0, 0, 0, 0.2)', padding: '10px 14px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '0.68rem', opacity: 0.8, textTransform: 'uppercase' }}>ABHA Address / Number</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>{abhaId}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '800', letterSpacing: '0.5px' }}>{abhaId || 'Not Linked'}</div>
                 </div>
                 <QrCode size={24} color="#86efac" />
               </div>
@@ -9664,8 +9900,7 @@ export default function PatientDashboard() {
                 const localizedSpec = localizeSpecialty(apt.specialty, currentLang);
                 const localizedHosp = localizeHospitalName(apt.hospital, currentLang);
                 const localizedMon = localizeMonth(apt.month, currentLang);
-                const cleanTokenNum = apt.token ? (apt.token.match(/APT-\d+-([A-Za-z0-9]+)/i)?.[1] || (apt.token.includes('#') ? apt.token.split('#')[1] : apt.token)) : '';
-                const tokenPill = cleanTokenNum ? `${tr('tokenWord')} #${cleanTokenNum}` : (apt.token ? `${tr('tokenWord')} ${apt.token}` : '');
+                const tokenPill = apt.token ? (apt.token.includes('#') ? `${tr('tokenWord')} #${apt.token.split('#')[1]}` : `${tr('tokenWord')} ${apt.token}`) : '';
 
                 return (
                   <div
@@ -9694,24 +9929,27 @@ export default function PatientDashboard() {
                     <div>
                       <div style={{ fontWeight: '800', color: '#0f172a', fontSize: '0.95rem' }}>{localizedDoc}</div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{localizedSpec} • {localizedHosp}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#0f766e', fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexWrap: 'nowrap' }}>
                         <span>{apt.day} {localizedMon}</span>
                         <span>•</span>
                         <span>{apt.time}</span>
                         {tokenPill && (
                           <>
-                            <span>•</span>
+                            <span style={{ color: '#cbd5e1', flexShrink: 0 }}>•</span>
                             <span style={{
                               display: 'inline-block',
                               color: '#0f766e',
                               backgroundColor: '#f0fdfa',
                               border: '1px solid #ccfbf1',
-                              padding: '1px 6px',
+                              padding: '2px 7px',
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: '700',
                               whiteSpace: 'nowrap',
-                              wordBreak: 'keep-all'
+                              wordBreak: 'keep-all',
+                              overflowWrap: 'normal',
+                              hyphens: 'none',
+                              flexShrink: 0
                             }}>
                               {tokenPill}
                             </span>
@@ -9719,42 +9957,20 @@ export default function PatientDashboard() {
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       <span style={{
                         backgroundColor: apt.isMissed ? '#fef2f2' : apt.computedStatus === 'in_consultation' ? '#f3e8ff' : '#dcfce7',
                         color: apt.isMissed ? '#dc2626' : apt.computedStatus === 'in_consultation' ? '#7c3aed' : '#15803d',
-                        fontSize: '0.72rem',
+                        border: apt.isMissed ? '1px solid #fecaca' : 'none',
+                        fontSize: '0.68rem',
                         fontWeight: '800',
-                        padding: '4px 10px',
-                        borderRadius: '12px'
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1.2
                       }}>
-                        {apt.isMissed ? 'Missed — reschedule' : apt.computedStatus === 'in_consultation' ? 'In consultation' : tr('confirmed')}
+                        {apt.isMissed ? 'Not Consulted (Missed)' : apt.computedStatus === 'in_consultation' ? 'In Consultation' : tr('confirmed')}
                       </span>
-                      {!apt.isMissed && apt.computedStatus !== 'completed' && apt.computedStatus !== 'cancelled' && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setAppointmentToCancel(apt);
-                          }}
-                          style={{
-                            background: '#fef2f2',
-                            border: '1px solid #fecaca',
-                            borderRadius: '8px',
-                            color: '#dc2626',
-                            padding: '4px 8px',
-                            cursor: 'pointer',
-                            fontSize: '0.72rem',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Trash2 size={12} />
-                          <span>{tr('cancelAppointment')}</span>
-                        </button>
-                      )}
                     </div>
                   </div>
                 );
