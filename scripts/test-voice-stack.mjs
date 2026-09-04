@@ -267,12 +267,24 @@ test('Gemini quota failure uses Llama instead of breaking navigation', async () 
   const call = server(async (url, options) => {
     if (url.includes('googleapis')) return new Response('quota', { status: 429 });
     fallback = true;
-    assert.equal(JSON.parse(options.body).model, 'meta/llama-4-maverick-17b-128e-instruct');
+    assert.equal(JSON.parse(options.body).model, 'nvidia/llama-3.1-nemotron-70b-instruct');
     return llama({ intent: 'login_abha', confidence: 1, value: '', target: '', message: 'Opening ABHA.' });
   });
   const data = await (await call({ action: 'intent', transcript: 'Open ABHA', expectsFreeText: true })).json();
   assert.equal(data.intent, 'login_abha');
   assert.equal(fallback, true);
+});
+
+test('a Gemini timeout tries the next model instead of skipping recovery', async () => {
+  let calls = 0;
+  const call = server(async (url) => {
+    assert.match(url, /googleapis/);
+    if (++calls === 1) throw new Error('Signal timed out');
+    return response({ candidates: [{ content: { parts: [{ text: JSON.stringify({ intent:'select_time',confidence:1,target:'',value:'09:30',message:'Time selected.' }) }] } }] });
+  });
+  const result = await (await call({action:'intent',transcript:'half past nine',actions:[{intent:'select_time',description:'Choose a time'}]})).json();
+  assert.equal(result.intent,'select_time');
+  assert.equal(calls,2);
 });
 
 test('parsed hospital and doctor results actually advance the booking flow', () => {
@@ -302,6 +314,30 @@ test('ambiguous and unknown hospital names do not advance the flow', () => {
   assert.equal(actions.selectHospital({ value: 'City' }), false);
   assert.equal(actions.selectHospital({ value: 'Unknown Hospital' }), false);
   assert.equal(mutations, 0);
+});
+
+test('doctor profile action opens the requested profile without starting a booking', () => {
+  const doctor = { id: 'doctor-42', name: 'Dr. Meera Rao', hospitalId: 'hospital-9' };
+  const state = { tab: 'communities', view: 'main', doctor: null };
+  const actions = createPatientSelectionActions({ hospitals: [], doctors: [doctor], openTab: tab => { state.tab = tab; }, onDoctor: () => { throw Error('Must not book'); }, onCrossHospitalDoctor: () => { throw Error('Must not book'); }, onCrossHospitalDoctorProfile: doc => { state.doctor = doc; state.view = 'doctor_profile'; } });
+  assert.equal(actions.openDoctorProfile({ target: doctor.id, value: 'मीरा राव' }), true);
+  assert.equal(state.tab, 'appointments');
+  assert.equal(state.view, 'doctor_profile');
+  assert.equal(state.doctor, doctor);
+  assert.equal(actions.openDoctorProfile({ value: 'Unknown doctor' }), false);
+});
+
+test('specific community action opens the requested group from another tab and rejects ambiguity', () => {
+  const communities = [{ id: 'group-a', title: 'Heart Health', title_i18n: { hi: 'हृदय स्वास्थ्य' } }, { id: 'group-b', title: 'Diabetes Support' }, { id: 'group-c', title: 'Diabetes Nutrition' }];
+  const state = { tab: 'reports', selectedCommunityId: null };
+  const actions = createPatientSelectionActions({ hospitals: [], doctors: [], communities, openTab: tab => { state.tab = tab; }, onCommunity: community => { state.selectedCommunityId = community.id; } });
+  assert.equal(actions.openCommunity({ target: 'group-a', value: 'हृदय स्वास्थ्य' }), true);
+  assert.equal(state.tab, 'communities');
+  assert.equal(state.selectedCommunityId, 'group-a');
+  assert.equal(actions.openCommunity({ value: 'Diabetes' }), false);
+  assert.equal(state.selectedCommunityId, 'group-a');
+  assert.equal(actions.openCommunity({ value: 'Diabetes Support' }), true);
+  assert.equal(state.selectedCommunityId, 'group-b');
 });
 
 test('field dictation releases only its own listener and restores the latest form listener', () => {

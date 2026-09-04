@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Activity, AlertCircle, ArrowLeft, Baby, Brain, Check, ChevronRight, Droplet,
   Heart, HeartHandshake, Leaf, MessageCircle, RefreshCw, Ribbon, Search,
@@ -32,7 +32,8 @@ const localText=(row,key,lang)=>row?.[`${key}_i18n`]?.[lang]||(lang==='en'?row?.
 const formatCount=value=>new Intl.NumberFormat('en-IN',{notation:value>=10000?'compact':'standard',maximumFractionDigits:1}).format(value||0);
 function timeAgo(value,lang){const delta=Math.round((new Date(value).getTime()-Date.now())/1000);const f=new Intl.RelativeTimeFormat(lang||'en',{numeric:'auto'});if(Math.abs(delta)<3600)return f.format(Math.round(delta/60),'minute');if(Math.abs(delta)<86400)return f.format(Math.round(delta/3600),'hour');return f.format(Math.round(delta/86400),'day')}
 
-export default function CommunitiesTab({patientId}){
+export default function CommunitiesTab({patientId, selectedCommunityId, onSelectCommunity, onDirectoryLoaded}){
+  const feedRequest = useRef(0);
   const {currentLang}=useLanguage();
   const explicit={...(COPY[currentLang]||{}),...(SHORT_COPY[currentLang]||{})};
   const tr=Object.fromEntries(Object.entries(COPY.en).map(([key,value])=>[key,explicit[key]||(currentLang==='en'?value:aiTranslationService.translate(value,currentLang,'general'))]));
@@ -61,6 +62,7 @@ export default function CommunitiesTab({patientId}){
       db.communities.getImpact()
     ]);
     setCommunities(data||[]);
+    if (!dirError) onDirectoryLoaded?.(data || []);
     setJoined((members||[]).map(item=>item.community_id));
     setImpact(liveImpact||{members:0,posts:0,reactions:0,experts:0});
     if(dirError||memberError||impactError)setError((dirError||memberError||impactError).message);
@@ -70,18 +72,39 @@ export default function CommunitiesTab({patientId}){
   useEffect(()=>{loadDirectory()},[patientId]);
 
   const openCommunity=async community=>{
+    const request = ++feedRequest.current;
     setSelected(community);
+    onSelectCommunity?.(community.id);
+    setPosts([]);
+    setReactions({});
+    setCommentPost(null);
     setFeedLoading(true);
     setError('');
     const {data,error:postError}=await db.communities.getPosts(community.id);
+    if (request !== feedRequest.current) return;
     setPosts(data||[]);
     if(postError)setError(postError.message);
     else{
       const {data:mine}=await db.communities.getPatientReactions(patientId,(data||[]).map(post=>post.id));
+      if (request !== feedRequest.current) return;
       setReactions(Object.fromEntries((mine||[]).map(item=>[item.post_id,item.reaction_type])));
     }
     setFeedLoading(false);
   };
+
+  const closeCommunity = () => {
+    ++feedRequest.current;
+    setSelected(null); setPosts([]); setCommentPost(null); setFeedLoading(false);
+    onSelectCommunity?.(null);
+  };
+  useEffect(() => {
+    if (selectedCommunityId === undefined) return;
+    if (!selectedCommunityId) { if (selected) closeCommunity(); return; }
+    if (selected?.id === selectedCommunityId) return;
+    const community = communities.find(item => item.id === selectedCommunityId);
+    if (community) openCommunity(community);
+  }, [selectedCommunityId, communities, selected?.id]);
+  useEffect(() => () => { ++feedRequest.current; }, []);
 
   const toggleMembership=async community=>{
     const isJoined=joined.includes(community.id);
@@ -150,7 +173,7 @@ export default function CommunitiesTab({patientId}){
     const theme=THEMES[selected.theme_key]||THEMES[selected.disease_key]||THEMES.general,Icon=theme.icon,isJoined=joined.includes(selected.id);
     return (
       <section className="community-detail" style={{'--community-color':theme.color,'--community-soft':theme.soft}}>
-        <button className="community-back" onClick={()=>{setSelected(null);setPosts([])}}><ArrowLeft size={17}/>{tr.back}</button>
+        <button className="community-back" onClick={closeCommunity}><ArrowLeft size={17}/>{tr.back}</button>
         <div className="community-detail-hero">
           <div className="community-detail-icon"><Icon size={58}/></div>
           <div className="community-detail-copy">

@@ -135,8 +135,7 @@ class AICommandEngine {
     try {
       const allIntents = new Set([
         ...Object.keys(globalCommands),
-        ...Object.keys(availableCommands),
-        ...Object.keys(MULTILINGUAL_ACTION_DESCRIPTIONS)
+        ...Object.keys(availableCommands)
       ]);
 
       const actions = Array.from(allIntents).map(intent => {

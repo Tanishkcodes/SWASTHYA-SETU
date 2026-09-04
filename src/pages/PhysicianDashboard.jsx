@@ -3959,10 +3959,12 @@ export default function PhysicianDashboard() {
     const targetDocId = did || doctor?.id || selected.doctorId || null;
     try {
       if (selected.id && targetDocId) {
-        await db.appointments.startConsultation(selected.id, targetDocId);
+        const { error } = await db.appointments.startConsultation(selected.id, targetDocId);
+        if (error) throw error;
       }
     } catch (e) {
-      console.warn('Status update note:', e);
+      alert(e.message || 'The consultation could not be started. Please retry.');
+      return;
     }
     if (targetDocId) recordConsultationStart(targetDocId, selected.id);
     setSelected(x => ({ ...x, status: 'in_consultation', doctor }));
@@ -3974,10 +3976,12 @@ export default function PhysicianDashboard() {
     const targetDocId = did || doctor?.id || selected.doctorId || null;
     try {
       if (selected.id && targetDocId) {
-        await db.appointments.endConsultation(selected.id, targetDocId, extra);
+        const { error } = await db.appointments.endConsultation(selected.id, targetDocId, extra);
+        if (error) throw error;
       }
     } catch (e) {
-      console.warn('Status update note:', e);
+      alert(e.message || 'The consultation could not be completed. Please retry.');
+      return;
     }
     if (targetDocId) recordConsultationEnd(targetDocId, selected.id);
     setRows(v => v.map(x => (x.id === selected.id ? { ...x, status: 'completed', computedStatus: 'completed', displayStatus: 'Completed', badgeClass: 'completed' } : x)));

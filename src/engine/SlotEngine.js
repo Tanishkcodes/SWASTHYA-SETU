@@ -21,61 +21,17 @@ export const DEFAULT_CAPACITY_PER_SLOT = 6;
 
 /**
  * Dynamically determine a doctor's consultation capacity per 30-minute block.
- * Based on doctor's specialty, experience level, custom doctor settings, and hospital OPD pacing.
- * High-volume general physicians and senior doctors can handle 6-8 patients per 30 mins,
- * while specialized consultations take 5-6 slots, avoiding the artificial 3-slot bottleneck.
+ * Uses explicit capacity settings; specialty and seniority never invent extra inventory.
  */
 export function getDoctorDynamicCapacity(doctorId) {
-  if (!doctorId) return DEFAULT_CAPACITY_PER_SLOT;
   try {
-    // 1. Explicit doctor-configured capacity in localStorage
-    const customCapacity = localStorage.getItem(`ss_doc_capacity_${doctorId}`);
-    if (customCapacity) {
-      const parsed = parseInt(customCapacity, 10);
-      if (!isNaN(parsed) && parsed >= 4) return parsed;
-    }
-
-    // 2. Look up doctor in localStorage doctor database
-    const rawDocs = localStorage.getItem('ss_db_doctors');
-    if (rawDocs) {
-      const doctorsList = JSON.parse(rawDocs) || [];
-      const cleanId = String(doctorId).toLowerCase().trim();
-      const doc = doctorsList.find(d =>
-        String(d.id || '').toLowerCase() === cleanId ||
-        String(d.name || '').toLowerCase().includes(cleanId) ||
-        cleanId.includes(String(d.id || '').toLowerCase())
-      );
-
-      if (doc) {
-        if (doc.capacity_per_slot && Number(doc.capacity_per_slot) >= 4) {
-          return Number(doc.capacity_per_slot);
-        }
-        const spec = String(doc.speciality || doc.specialty || '').toLowerCase();
-        const exp = Number(doc.experience || 10);
-
-        // General Physician / Internal Medicine: High volume OPD (6 to 8 patients / 30m)
-        if (spec.includes('general') || spec.includes('physician') || spec.includes('medicine')) {
-          return exp >= 15 ? 8 : 6;
-        }
-        // Pediatrics & Dermatology: 6 to 7 patients / 30m
-        if (spec.includes('pediat') || spec.includes('derma')) {
-          return exp >= 12 ? 7 : 6;
-        }
-        // Cardiology, Orthopedics, Pulmonology, Neurology: 5 to 6 patients / 30m
-        if (spec.includes('cardio') || spec.includes('ortho') || spec.includes('pulmo') || spec.includes('neuro') || spec.includes('surg')) {
-          return exp >= 18 ? 6 : 5;
-        }
-        // Ayurveda & Holistic Care: 5 patients / 30m
-        if (spec.includes('ayurved') || doc.system === 'Ayurveda') {
-          return 5;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('Error calculating dynamic doctor capacity:', e);
-  }
-
-  // Default dynamic baseline is 6 slots per 30 minutes
+    const custom = Number(localStorage.getItem(`ss_doc_capacity_${doctorId}`));
+    if (Number.isInteger(custom) && custom >= 1 && custom <= 30) return custom;
+    const doctors = JSON.parse(localStorage.getItem('ss_db_doctors') || '[]');
+    const doctor = doctors.find(item => String(item.id) === String(doctorId));
+    const capacity = Number(doctor?.capacity_per_slot);
+    if (Number.isInteger(capacity) && capacity >= 1 && capacity <= 30) return capacity;
+  } catch { /* Demo data may be absent. */ }
   return DEFAULT_CAPACITY_PER_SLOT;
 }
 
@@ -445,20 +401,6 @@ export function getDoctorSchedule(doctorId, dateStr = todayStr()) {
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      // Migrate / upgrade stored slots if they have outdated low capacity (<= 3)
-      if (parsed && Array.isArray(parsed.slots)) {
-        let changed = false;
-        parsed.slots = parsed.slots.map(s => {
-          if (!s.capacity || Number(s.capacity) <= 3) {
-            changed = true;
-            return { ...s, capacity: dynamicCap };
-          }
-          return s;
-        });
-        if (changed) {
-          localStorage.setItem(key, JSON.stringify(parsed));
-        }
-      }
       return parsed;
     } catch (e) {
       console.warn('Error reading stored schedule:', e);

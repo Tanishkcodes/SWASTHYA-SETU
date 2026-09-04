@@ -2543,6 +2543,15 @@ export default function PatientDashboard() {
 
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState('appointments');
+  const [voiceCommunities, setVoiceCommunities] = useState([]);
+  const [selectedCommunityId, setSelectedCommunityId] = useState(null);
+  useEffect(() => {
+    let active = true;
+    db.communities.getDirectory().then(({ data, error }) => {
+      if (active && !error) setVoiceCommunities(data || []);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [session.patient?.id]);
   useEffect(() => {
     const tab = new URLSearchParams(location.search).get('tab');
     if (['appointments', 'history', 'reports', 'donations', 'communities', 'help'].includes(tab)) setActiveTab(tab);
@@ -2886,68 +2895,23 @@ export default function PatientDashboard() {
     return () => { active = false; };
   }, [session.patient?.id, session.patient?.phone, session.patient?.abhaId]);
 
-  const getRescheduleDoctorId = (apt) => {
-    if (!apt) return '';
-    const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const seededDoctorIds = {
-      'dr-randeep-guleria': 'd0000001-0001-0001-0001-000000000001',
-      'dr-ananya-sharma': 'd0000001-0002-0002-0002-000000000001',
-      'dr-anil-mehta': 'd0000001-0003-0003-0003-000000000002',
-      'dr-vaidya-krishnamurthy': 'd0000001-0004-0004-0004-000000000002',
-    };
-    const docName = apt.doctorName || apt.doctor || '';
-    const cleanDocSlug = slug(docName);
-    return apt.doctorId || apt.doctor_id || seededDoctorIds[cleanDocSlug] || (cleanDocSlug ? cleanDocSlug : 'd0000001-0002-0002-0002-000000000001');
-  };
+  const getRescheduleDoctorId = apt => apt?.doctorId || apt?.doctor_id || '';
 
   useEffect(() => {
     if (!reschedulingAppointment || !rescheduleDate) return undefined;
     const effectiveDocId = getRescheduleDoctorId(reschedulingAppointment);
-    if (!effectiveDocId) return undefined;
-    let active = true;
-    let inFlight = false;
-    const load = async (silent = false) => {
-      if (inFlight) return;
-      inFlight = true;
-      if (!silent) setRescheduleLoading(true);
-      try {
-        const result = await db.slots.getLive(effectiveDocId, rescheduleDate, session.patient?.id || null);
-        if (!active) return;
-        setRescheduleSlots(result);
-        const available = [...(result.morning || []), ...(result.afternoon || []), ...(result.evening || [])]
-          .filter(slot => slot.state === 'open' || slot.state === 'fast');
-        setRescheduleSlot(current => available.some(slot => slot.time24 === current || slot.time_24 === current) ? current : '');
-        if (result.onLeave) setRescheduleError(`Doctor is unavailable on this date: ${result.leaveReason || 'approved leave'}.`);
-        else if (available.length === 0) setRescheduleError('No appointment times are available on this date. Please choose another date.');
-        else if (!silent) setRescheduleError('');
-      } catch (error) {
-        if (!active) return;
-        setRescheduleSlots({ morning: [], afternoon: [], evening: [], onLeave: false, leaveReason: '' });
-        setRescheduleSlot('');
-        setRescheduleError(error?.message || 'Unable to load available times.');
-      } finally {
-        inFlight = false;
-        if (active) setRescheduleLoading(false);
-      }
-    };
-    load();
-    // Match normal booking's refresh cadence and local slot-change signals.
-    const refresh = () => load(true);
-    const timer = setInterval(refresh, 15000);
-    const events = [
-      'swasthya_slot_hold_changed',
-      'swasthya_doctor_leave_changed',
-      'swasthya_appointment_changed',
-      'swasthya_pacing_changed',
-      'storage',
-      'focus'
-    ];
-    events.forEach(name => window.addEventListener(name, refresh));
-    return () => {
-      active = false;
-      clearInterval(timer);
-      events.forEach(name => window.removeEventListener(name, refresh));
-    };
+    if (!effectiveDocId) { setRescheduleError('Doctor identity is missing from this appointment. Please contact the registration desk.'); return undefined; }
+    setRescheduleLoading(true);
+    setRescheduleSlot('');
+    return db.slots.watch(effectiveDocId, rescheduleDate, session.patient?.id || null, result => {
+      setRescheduleSlots(result); setRescheduleLoading(false);
+      const available = [...result.morning, ...result.afternoon, ...result.evening].filter(slot => ['open','fast'].includes(slot.state));
+      setRescheduleSlot(current => available.some(slot => slot.time24 === current) ? current : '');
+      setRescheduleError(result.onLeave ? result.leaveReason : available.length ? '' : 'No appointment times are currently available.');
+    }, error => {
+      setRescheduleSlots({ morning: [], afternoon: [], evening: [], onLeave: false });
+      setRescheduleSlot(''); setRescheduleLoading(false); setRescheduleError(error.message);
+    });
   }, [reschedulingAppointment?.id, reschedulingAppointment?.doctorId, reschedulingAppointment?.doctor_id, reschedulingAppointment?.doctorName, rescheduleDate, session.patient?.id]);
 
   // Appointment History State (Filters, Search & Pagination)
@@ -3673,44 +3637,32 @@ export default function PatientDashboard() {
 
   useEffect(() => {
     if (!selectedDoctorObj || !bookingHospital) return;
-    let active = true;
-    const load = async (silent = false) => {
-      if (!silent) setSlotsLoading(true);
-      const slug = value => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const hospitalId = bookingHospital.id || slug(bookingHospital.name);
-      const seededDoctorIds = {
-        'dr-randeep-guleria': 'd0000001-0001-0001-0001-000000000001',
-        'dr-ananya-sharma': 'd0000001-0002-0002-0002-000000000001',
-        'dr-anil-mehta': 'd0000001-0003-0003-0003-000000000002',
-        'dr-vaidya-krishnamurthy': 'd0000001-0004-0004-0004-000000000002',
-      };
-      const doctorId = selectedDoctorObj.id || seededDoctorIds[slug(selectedDoctorObj.name)] || `${hospitalId}-${slug(selectedDoctorObj.name)}`;
-      const hospitalSave = await db.hospitals.ensure({ ...bookingHospital, id: hospitalId });
-      const doctorSave = hospitalSave.error ? hospitalSave : await db.doctors.ensure({ ...selectedDoctorObj, id: doctorId, hospitalName: bookingHospital.name }, hospitalId);
-      const result = doctorSave.error ? { morning: [], afternoon: [], evening: [], onLeave: false } : await db.slots.getLive(doctorId, selectedBookingDate, session.patient?.id || null);
-      if (active) {
-        setLiveSlots(result);
-        const available = [...(result.morning || []), ...(result.afternoon || []), ...(result.evening || [])]
-          .filter(slot => slot.state === 'open' || slot.state === 'fast');
-        setSelectedBookingSlot(current => available.some(slot => slot.label === current) ? current : '');
-        setSlotsLoading(false);
-      }
+    let active = true, unsubscribe;
+    setSlotsLoading(true); setSelectedBookingSlot('');
+    const failed = error => {
+      if (!active) return;
+      setLiveSlots({ morning: [], afternoon: [], evening: [], onLeave: false, error: error.message });
+      setSelectedBookingSlot(''); setSlotsLoading(false);
     };
-    load();
-    // Cross-device bookings and consultation overruns do not emit this
-    // browser's local events, so refresh live availability quietly every 15s.
-    const serverRefresh = setInterval(() => load(true), 15000);
-
-    const handleHoldSync = () => load(true);
-    window.addEventListener('swasthya_slot_hold_changed', handleHoldSync);
-    window.addEventListener('storage', handleHoldSync);
-    return () => {
-      active = false;
-      clearInterval(serverRefresh);
-      window.removeEventListener('swasthya_slot_hold_changed', handleHoldSync);
-      window.removeEventListener('storage', handleHoldSync);
+    const connect = async () => {
+      try {
+        // Catalog IDs are shared with appointments and rescheduling. Never invent a doctor ID.
+        if (!selectedDoctorObj.id || !bookingHospital.id) throw new Error('Doctor details are still loading. Please select the doctor again.');
+        const hospitalSave = await db.hospitals.ensure(bookingHospital);
+        if (hospitalSave.error) throw hospitalSave.error;
+        const doctorSave = await db.doctors.ensure({ ...selectedDoctorObj, hospitalName: bookingHospital.name }, bookingHospital.id);
+        if (doctorSave.error) throw doctorSave.error;
+        if (!active) return;
+        unsubscribe = db.slots.watch(selectedDoctorObj.id, selectedBookingDate, session.patient?.id || null, result => {
+          setLiveSlots(result); setSlotsLoading(false);
+          const available = [...result.morning, ...result.afternoon, ...result.evening].filter(slot => ['open','fast'].includes(slot.state));
+          setSelectedBookingSlot(current => available.some(slot => slot.label === current) ? current : '');
+        }, failed);
+      } catch (error) { failed(error); }
     };
-  }, [bookingStep, selectedBookingDate, selectedDoctorObj, bookingHospital]);
+    connect();
+    return () => { active = false; unsubscribe?.(); };
+  }, [selectedBookingDate, selectedDoctorObj, bookingHospital, session.patient?.id]);
 
   // Slot selection is deliberately optimistic. Capacity is atomically checked
   // only when the patient confirms, so intake time never blocks other patients.
@@ -3798,9 +3750,6 @@ export default function PatientDashboard() {
       if (hospitalSave.error) { alert(`Unable to save hospital: ${hospitalSave.error.message}`); return; }
       const doctorSave = await db.doctors.ensure({ ...effectiveDocObj, id: doctorId, hospitalName: effectiveHosp.name }, hospitalId);
       if (doctorSave.error) { alert(`Unable to save doctor: ${doctorSave.error.message}`); return; }
-      const schedule = await db.slots.getForDoctor(doctorId, effectiveDate);
-      if (schedule.error) { alert(`Unable to load appointment slots: ${schedule.error.message}`); return; }
-
       const booked = await db.appointments.book({
         patientId: session.patient.id,
         doctorId,
@@ -4047,6 +3996,7 @@ export default function PatientDashboard() {
   useEffect(() => {
     const aliases = hospital => [hospital.name, ...Object.values(HOSPITAL_LOCALIZATION[hospital.id]?.name || {})];
     const openTab = tab => {
+      setReschedulingAppointment(null);
       setShowBookingModal(false);
       setShowAllHospitalsModal(false);
       setShowAbhaModal(false);
@@ -4056,10 +4006,13 @@ export default function PatientDashboard() {
       setBookingFlowView('main');
       return true;
     };
-    const { selectHospital: openHospital, selectDoctor } = createPatientSelectionActions({
+    const { selectHospital: openHospital, selectDoctor, openDoctorProfile, openCommunity } = createPatientSelectionActions({
       hospitals, doctors: allDoctorsAcrossHospitals, selectedHospital: bookingHospital, hospitalAliases: aliases, openTab,
       onHospital: hospital => { setSearchQuery(''); handleOpenBooking(hospital); },
       onDoctor: handleSelectDoctorForBooking, onCrossHospitalDoctor: handleSelectDoctorAcrossHospitals,
+      selectedDoctor: selectedDoctorObj,
+      onDoctorProfile: handleOpenDoctorProfile, onCrossHospitalDoctorProfile: handleOpenDoctorProfileAcrossHospitals,
+      communities: voiceCommunities, onCommunity: community => setSelectedCommunityId(community.id),
     });
     const clickAction = action => {
       const button = Array.from(document.querySelectorAll('[data-voice-action]')).find(element => element.dataset.voiceAction === action && !element.disabled && element.getClientRects().length);
@@ -4069,6 +4022,8 @@ export default function PatientDashboard() {
     };
     const hospitalContext = hospitals.map((hospital, index) => ({ id: hospital.id, name: hospital.name, number: index + 1, aliases: aliases(hospital) }));
     const doctorContext = (bookingHospital?.doctors?.length ? bookingHospital.doctors : allDoctorsAcrossHospitals).map((doctor, index) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty || doctor.speciality, hospital: doctor.hospitalName, number: index + 1 }));
+    const voiceSlots = reschedulingAppointment ? rescheduleSlots : liveSlots;
+    const voiceTimes = [...(voiceSlots.morning || []), ...(voiceSlots.afternoon || []), ...(voiceSlots.evening || [])].filter(slot => !slot.isPast && ['open','fast'].includes(slot.state));
 
     registerPage('patientDashboard', {
       // ── Main Dashboard Tabs ──
@@ -4081,27 +4036,30 @@ export default function PatientDashboard() {
       bookHospital: openHospital,
       select_hospital: openHospital,
       select_doctor: selectDoctor,
+      open_doctor_profile: openDoctorProfile,
+      open_community: openCommunity,
       select_date: command => {
-        if (bookingFlowView !== 'booking_steps') return false;
+        if (!reschedulingAppointment && bookingFlowView !== 'booking_steps') return false;
         const date = String(command.value || command.target || '');
         const today = new Date().toLocaleDateString('en-CA');
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || !Number.isFinite(Date.parse(date))) return false;
+        if (reschedulingAppointment) { setRescheduleDate(date); setRescheduleSlot(''); return true; }
         releaseActiveBookingHold();
         setSelectedBookingDate(date);
         setBookingStep(1);
         return true;
       },
       select_time: async command => {
-        if (bookingFlowView !== 'booking_steps' || bookingStep !== 2) return false;
-        const slots = [...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast'));
-        const slot = slots.find(item => item.time24 === command.value || item.label === command.value);
+        if (!reschedulingAppointment && (bookingFlowView !== 'booking_steps' || bookingStep !== 2)) return false;
+        const slot = voiceTimes.find(item => item.time24 === command.value || item.label === command.value);
+        if (slot && reschedulingAppointment) { setRescheduleSlot(slot.time24); return true; }
         return slot ? Boolean(await handleSelectSlotWithHold(slot)) : false;
       },
       viewAppointments: () => openTab('appointments'),
       viewHistory: () => openTab('history'),
       viewReports: () => openTab('reports'),
       viewDonations: () => openTab('donations'),
-      viewCommunities: () => openTab('communities'),
+      viewCommunities: () => { setSelectedCommunityId(null); return openTab('communities'); },
       viewHelp: () => openTab('help'),
       viewProfile: () => { setProfileDropdownOpen(true); return true; },
       showAbhaCard: () => { setShowAbhaModal(true); return true; },
@@ -4126,7 +4084,12 @@ export default function PatientDashboard() {
       next: () => clickAction('next'),
       skip: () => clickAction('skip'),
       back: () => {
-        if (showBookingModal) {
+        if (reschedulingAppointment) {
+          if (rescheduleSubmitting) return false;
+          setReschedulingAppointment(null);
+        } else if (activeTab === 'communities' && selectedCommunityId) {
+          setSelectedCommunityId(null);
+        } else if (showBookingModal) {
           setShowBookingModal(false);
         } else if (showAllHospitalsModal) {
           setShowAllHospitalsModal(false);
@@ -4150,6 +4113,7 @@ export default function PatientDashboard() {
       },
 
       confirm: async () => {
+        if (reschedulingAppointment) return clickAction('confirm_reschedule');
         if (clickAction('confirm')) return true;
         if ((bookingFlowView === 'booking_steps' && bookingStep === 5) || showBookingModal) { await handleConfirmBooking(); return true; }
         return clickAction('next');
@@ -4168,9 +4132,11 @@ export default function PatientDashboard() {
         return true;
       },
     }, {
+      open_doctor_profile: [`Open or view a doctor's profile, qualifications, experience, reviews or details WITHOUT starting booking. Resolve the requested doctor using this catalog; put exact id in target and name in value. For this/selected doctor use the selected doctor id: ${selectedDoctorObj?.id || 'none'}. Available doctors: ${JSON.stringify(allDoctorsAcrossHospitals.map(doctor => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty || doctor.speciality, hospital: doctor.hospitalName })))}`],
+      open_community: [`Open a particular health community or group by its name or topic. Put exact id in target and title in value. This only opens the group, not membership or posting. Current communities: ${JSON.stringify(voiceCommunities.map(item => ({ id: item.id, title: item.title, aliases: item.title_i18n, topic: item.disease_key, category: item.category, description: item.description, specialties: item.eligible_specialities })))}`],
       select_hospital: [`Select a hospital by name or one-based number. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       select_date: [`Select appointment date in the booking wizard. Today is ${new Date().toLocaleDateString('en-CA')}. Return YYYY-MM-DD in value. Current date: ${selectedBookingDate}.`],
-      select_time: [`Select an available appointment time on the time selection step. Return its time24 in value. Available slots: ${JSON.stringify([...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast')).map(slot => ({ time24: slot.time24, label: slot.label })))}`],
+      select_time: [`Select an available time for ${reschedulingAppointment ? 'rescheduling the existing appointment' : 'the booking time selection step'}. Understand time words and native numbers in any language. Return its time24 in value. Available slots: ${JSON.stringify(voiceTimes.map(slot => ({ time24: slot.time24, label: slot.label })))}`],
       bookHospital: [`Book at a named hospital. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       searchHospital: [`Search by name/city; prefer select_hospital for a known hospital. Available hospitals: ${JSON.stringify(hospitalContext)}`],
       select_doctor: [`Select a doctor by name, unique specialty or one-based number. Put its exact id in target and name in value. Available doctors: ${JSON.stringify(doctorContext)}`],
@@ -4202,7 +4168,7 @@ export default function PatientDashboard() {
     registerPage, unregisterPage, isAyushMode, setAyushMode,
     bookingFlowView, bookingStep, selectedBookingSlot, selectedBookingDate, liveSlots,
     selectedDoctorObj, bookingHospital, showBookingModal, showAllHospitalsModal,
-    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList, allDoctorsAcrossHospitals, currentLang
+    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList, allDoctorsAcrossHospitals, currentLang, voiceCommunities, selectedCommunityId, activeTab, reschedulingAppointment, rescheduleDate, rescheduleSlots, rescheduleSlot, rescheduleSubmitting
   ]);
 
   // Logout handler
@@ -6340,6 +6306,7 @@ export default function PatientDashboard() {
                         </div>
 
                         {/* Loading State or On Leave State */}
+                        {liveSlots.error && <p role="status">{liveSlots.error}</p>}
                         {slotsLoading ? (
                           <div style={{ textAlign: 'center', padding: '3rem 0', color: '#64748b' }}>
                             <div style={{
@@ -8331,7 +8298,7 @@ export default function PatientDashboard() {
 
           {/* TAB 5: COMMUNITIES */}
           {activeTab === 'communities' && (
-            <CommunitiesTab patientId={session.patient?.id} />
+            <CommunitiesTab patientId={session.patient?.id} selectedCommunityId={selectedCommunityId} onSelectCommunity={setSelectedCommunityId} onDirectoryLoaded={setVoiceCommunities} />
           )}
 
           {/* TAB 6: HELP & SUPPORT */}
@@ -9020,7 +8987,7 @@ export default function PatientDashboard() {
                   {!rescheduleLoading && !rescheduleSlots.onLeave && (
                     <span style={{ fontSize: '0.72rem', color: '#0f766e', fontWeight: '700' }}>
                       {[...(rescheduleSlots.morning || []), ...(rescheduleSlots.afternoon || []), ...(rescheduleSlots.evening || [])]
-                        .filter(s => !s.isPast && (s.state === 'open' || s.state === 'fast')).length} slots available
+                        .filter(s => !s.isPast && (s.state === 'open' || s.state === 'fast')).length} time windows available
                     </span>
                   )}
                 </div>
@@ -9139,6 +9106,7 @@ export default function PatientDashboard() {
               </button>
               <button
                 type="submit"
+                data-voice-action="confirm_reschedule"
                 disabled={!rescheduleSlot || rescheduleLoading || rescheduleSubmitting}
                 style={{
                   flex: 1.5, padding: '10px', borderRadius: '10px', border: 0,
