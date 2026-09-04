@@ -1,5 +1,6 @@
 import { UI_STRINGS } from '../voicenav/LanguagePack';
 import voiceAIService from '../voicenav/VoiceAIService';
+import { MULTI_DICT } from './AiTranslationService';
 
 const OFFLINE_UI_TRANSLATIONS = {
   hi: {
@@ -148,6 +149,8 @@ class DOMTranslator {
     if (!node.nodeValue || !node.nodeValue.trim()) return false;
     // Ignore numbers/symbols only
     if (/^[\d\s\W_]+$/.test(node.nodeValue)) return false;
+    // If text already contains Indic script, React or dictionary already translated it; do NOT queue or overwrite!
+    if (/[\u0900-\u0D7F]/.test(node.nodeValue)) return false;
 
     return true;
   }
@@ -343,6 +346,10 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
 
   _knownTranslation(text) {
     if (!this.targetLang || this.targetLang === 'en') return text;
+    const lower = text.toLowerCase().trim();
+    if (MULTI_DICT && MULTI_DICT[lower] && MULTI_DICT[lower][this.targetLang]) {
+      return MULTI_DICT[lower][this.targetLang];
+    }
     const english = UI_STRINGS.en || {};
     const target = UI_STRINGS[this.targetLang] || {};
     const key = Object.keys(english).find(item => english[item] === text);

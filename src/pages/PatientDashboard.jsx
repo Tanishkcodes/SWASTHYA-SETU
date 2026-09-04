@@ -11,7 +11,7 @@ import BookingConfirmationStep from '../components/BookingConfirmationStep';
 import DonationsTab from '../components/DonationsTab';
 import CommunitiesTab from '../components/CommunitiesTab';
 import HelpSupportTab from '../components/HelpSupportTab';
-import aiTranslationService from '../engine/AiTranslationService';
+import aiTranslationService, { MULTI_DICT } from '../engine/AiTranslationService';
 import aiCommandEngine from '../engine/AICommandEngine';
 import OCRProcessor from '../engine/OCRProcessor';
 import {
@@ -2519,9 +2519,22 @@ export default function PatientDashboard() {
   // Translation helper
   const tr = (key) => {
     const langDict = DASHBOARD_I18N[currentLang] || DASHBOARD_I18N.en;
-    return langDict[key] || DASHBOARD_I18N.en[key] || key;
+    if (langDict && langDict[key]) return langDict[key];
+    if (DASHBOARD_I18N.en && DASHBOARD_I18N.en[key]) return DASHBOARD_I18N.en[key];
+    const lowerKey = String(key).toLowerCase().trim();
+    if (MULTI_DICT && MULTI_DICT[lowerKey] && MULTI_DICT[lowerKey][currentLang]) {
+      return MULTI_DICT[lowerKey][currentLang];
+    }
+    return key;
   };
-  const ui = (text) => currentLang === 'en' ? text : aiTranslationService.translate(text, currentLang, 'general');
+  const ui = (text) => {
+    if (!text || currentLang === 'en') return text;
+    const lower = String(text).toLowerCase().trim();
+    if (MULTI_DICT && MULTI_DICT[lower] && MULTI_DICT[lower][currentLang]) {
+      return MULTI_DICT[lower][currentLang];
+    }
+    return aiTranslationService.translate(text, currentLang, 'general');
+  };
   const uiName = (text) => currentLang === 'en' ? text : aiTranslationService.translate(text, currentLang, 'name');
 
   // Sidebar Collapsible State (Default open on laptop/desktop, default closed on mobile/tablet)
@@ -6386,11 +6399,17 @@ export default function PatientDashboard() {
                       ───────────────────────────────────────────────────────── */}
                   {bookingStep === 2 && (() => {
                     // Render slot grid for one session group
-                    const renderSlotGroup = (slots, emoji, label) => {
+                    const renderSlotGroup = (slots, emoji, sessionKey, fallbackLabel) => {
                       const visibleSlots = (slots || []).filter(slot => !slot.isPast);
                       if (visibleSlots.length === 0) return null;
+                      const sessionMap = {
+                        morning: tr('morningSlots'),
+                        afternoon: tr('afternoonSlots'),
+                        evening: tr('eveningSlots')
+                      };
+                      const label = sessionMap[sessionKey] || fallbackLabel || sessionKey;
                       return (
-                        <div key={label}>
+                        <div key={`slot-session-group-${sessionKey}`}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.925rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>
                             <span style={{ fontSize: '1.15rem' }}>{emoji}</span>
                             <span>{label}</span>
@@ -6417,8 +6436,8 @@ export default function PatientDashboard() {
                               const textColor = isSelected ? '#ffffff' : isThrottled || isConsultationBlocked ? '#92400e' : isDisabled ? '#94a3b8' : '#0f172a';
 
                               const statusLabel = isSelected ? tr('selected')
-                                : isConsultationBlocked ? ui('Doctor attending current patient')
-                                  : isThrottled ? ui('Paused (High OPD Load)')
+                                : isConsultationBlocked ? (tr('doctorAttendingPatient') || ui('Doctor attending current patient'))
+                                  : isThrottled ? (tr('pausedHighOpdLoad') || ui('Paused (High OPD Load)'))
                                     : slot.state === 'full' ? tr('fullyBooked')
                                       : slot.state === 'closed' ? tr('closed')
                                         : `${slot.slotsLeft} ${slot.slotsLeft === 1 ? tr('slotLeft') : tr('slotsLeft')}`;
@@ -6605,9 +6624,9 @@ export default function PatientDashboard() {
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.85rem', marginBottom: '2.25rem' }}>
-                            {renderSlotGroup(liveSlots.morning, '☀️', tr('morningSlots'))}
-                            {renderSlotGroup(liveSlots.afternoon, '🌤️', tr('afternoonSlots'))}
-                            {renderSlotGroup(liveSlots.evening, '🌙', tr('eveningSlots'))}
+                            {renderSlotGroup(liveSlots.morning, '☀️', 'morning', tr('morningSlots'))}
+                            {renderSlotGroup(liveSlots.afternoon, '🌤️', 'afternoon', tr('afternoonSlots'))}
+                            {renderSlotGroup(liveSlots.evening, '🌙', 'evening', tr('eveningSlots'))}
 
                             {/* All sessions empty message */}
                             {[...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast).length === 0 && (
@@ -8970,9 +8989,12 @@ export default function PatientDashboard() {
                         let hour = Number(match[1]) % 12;
                         if (match[3] === 'PM') hour += 12;
                         return hour * 60 + Number(match[2]) > now.getHours() * 60 + now.getMinutes();
-                      }).map(([label, period]) => (
-                        <option key={label} value={label}>{label} ({period})</option>
-                      ))}
+                      }).map(([label, period]) => {
+                        const periodLabel = period === 'Morning' ? tr('morningSlots') : period === 'Afternoon' ? tr('afternoonSlots') : tr('eveningSlots');
+                        return (
+                          <option key={label} value={label}>{label} ({periodLabel})</option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
@@ -9264,11 +9286,11 @@ export default function PatientDashboard() {
                           const isSelected = rescheduleSlot === slotTime;
                           const isUnavailable = !['open', 'fast'].includes(slot.state) || Boolean(slot.isThrottled) || Boolean(slot.consultationBlocked);
 
-                          const statusBadge = isSelected ? 'Selected'
-                            : slot.state === 'full' ? 'Full'
-                            : isUnavailable ? 'Closed'
-                            : slot.state === 'fast' ? `${slot.slotsLeft} left`
-                            : `${slot.slotsLeft} open`;
+                          const statusBadge = isSelected ? tr('selected')
+                            : slot.state === 'full' ? tr('fullyBooked')
+                            : isUnavailable ? tr('closed')
+                            : slot.state === 'fast' ? `${slot.slotsLeft} ${tr('slotsLeft')}`
+                            : `${slot.slotsLeft} ${tr('available')}`;
 
                           return (
                             <button
