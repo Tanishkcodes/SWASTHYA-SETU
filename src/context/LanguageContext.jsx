@@ -3,10 +3,11 @@
    Manages multi-lingual state and syncs audio TTS engine
    ============================================ */
 
-import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useLayoutEffect } from 'react';
 import { useSession } from './SessionContext';
 import { UI_STRINGS, getAllLanguages } from '../voicenav/LanguagePack';
 import domTranslator from '../engine/DOMTranslator';
+import audioPromptManager from '../voicenav/AudioPromptManager';
 
 const LanguageContext = createContext(null);
 
@@ -24,22 +25,19 @@ const LANG_SWITCH_SPOKEN = {
 
 export function LanguageProvider({ children }) {
   const { session, setLanguage } = useSession();
-  const [currentLang, setCurrentLangState] = useState(session?.language || 'en');
+  const currentLang = session?.language || 'en';
 
   // Sync DOM Translator and document language whenever currentLang changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     domTranslator.start(currentLang);
     document.documentElement.lang = currentLang;
   }, [currentLang]);
 
   const setCurrentLang = useCallback((langCode) => {
-    setCurrentLangState(langCode);
+    if (!UI_STRINGS[langCode]) return;
     if (setLanguage) setLanguage(langCode);
-    import('../voicenav/AudioPromptManager').then(m => {
-      m.default.setLanguage(langCode, false);
-      const spokenMsg = LANG_SWITCH_SPOKEN[langCode] || `Language changed to ${langCode}`;
-      m.default.interruptWith(spokenMsg, langCode);
-    }).catch(() => {});
+    audioPromptManager.setLanguage(langCode, false);
+    audioPromptManager.interruptWith(LANG_SWITCH_SPOKEN[langCode], langCode);
   }, [setLanguage]);
 
   // Translate function

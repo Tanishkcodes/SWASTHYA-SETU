@@ -1,4 +1,5 @@
 import voiceAIService from '../voicenav/VoiceAIService';
+import { normalizeDigits } from '../voicenav/numberLocale.js';
 
 const MULTILINGUAL_ACTION_DESCRIPTIONS = {
   bookAppointment: 'Book doctor appointment, consult doctor, physician, see specialist, OPD booking, hospital visit, checkup, feeling sick, fever, illness, pain, headache, cough, cold, emergency doctor, bukhar, dard, ilaj, bimar, chikitsak, vaidya, டாக்டர், மருத்துவர், மருத்துவரை பார்க்க, వైద్యుడు, డాక్టర్, ডাক্তার, ವೈದ್ಯರು, ഡോക്ടർ, તબીબ, डॉक्टर',
@@ -106,7 +107,7 @@ class AICommandEngine {
     };
 
     // Replace words
-    let converted = String(text).split(/([\s,.-]+)/).map(token => digits[token.toLowerCase()] ?? token).join('');
+    let converted = normalizeDigits(text).split(/([\s,.-]+)/).map(token => digits[token.toLowerCase()] ?? token).join('');
     // Collapse spaces between adjacent single digits e.g. "9 8 7 6 5 4 3 2 1 0" -> "9876543210"
     converted = converted.replace(/(?<=\b\d)\s+(?=\d\b)/g, '');
     return converted;
@@ -160,16 +161,8 @@ class AICommandEngine {
         });
       }
 
-      if (result && result.intent && result.intent !== 'out_of_context') {
-        // If Gemini returned free_text on a page that is NOT expecting form text,
-        // check if user was describing symptoms/illness -> map to doctor appointment!
-        if (result.intent === 'free_text' && !expectsFreeText) {
-          const raw = transcript.toLowerCase();
-          if (/\b(?:doctor|daktar|fever|dard|pain|bukhar|bimar|cough|cold|headache|stomach|chikitsak|vaidya|மருத்துவர்|நோயாளி|డాక్టర్|వ్యాధి|వైద్యులు|രോഗം|അസുഖം)\b/i.test(raw)) {
-            result.intent = 'bookAppointment';
-          }
-        }
-
+      if (result && result.intent) {
+        // Preserve semantic decisions, including clarification and free-form data.
         this._cache.set(cacheKey, result);
         if (this._cache.size > 150) {
           const firstKey = this._cache.keys().next().value;
@@ -278,7 +271,7 @@ class AICommandEngine {
   async extractRegistrationDetails(transcript, language = 'en', context = {}) {
     if (!transcript || transcript.trim().length === 0) return null;
 
-    const cacheKey = `extract::${language}::${context.activeTab || 'new'}::${transcript.toLowerCase().trim()}`;
+    const cacheKey = `extract::${language}::${JSON.stringify(context)}::${transcript.toLowerCase().trim()}`;
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
@@ -290,8 +283,8 @@ class AICommandEngine {
       try {
         const parsed = await voiceAIService.extractRegistration(transcript, language, context);
         if (parsed && !parsed.error) {
-          const phone = String(parsed.phone || '').replace(/\D/g, '');
-          const age = String(parsed.age || '').match(/\d{1,3}/)?.[0] || '';
+          const phone = normalizeDigits(parsed.phone).replace(/\D/g, '');
+          const age = normalizeDigits(parsed.age).match(/\d{1,3}/)?.[0] || '';
           const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : '';
           const res = {
             name: (parsed.name && parsed.name.trim().length >= 2) ? parsed.name.trim() : fallback.name,

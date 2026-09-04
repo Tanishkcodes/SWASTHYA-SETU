@@ -59,9 +59,7 @@ export default function LanguageSelectPage() {
     setSessionLanguage(langCode); // Update session context
     setCurrentLang(langCode); // Update UI text language
     
-    // Announce selection in that language
-    const langInfo = languages.find(l => l.code === langCode);
-    speak(langInfo.script, langCode);
+    // LanguageContext announces the change once in the selected language.
   };
 
   const handleNext = () => {

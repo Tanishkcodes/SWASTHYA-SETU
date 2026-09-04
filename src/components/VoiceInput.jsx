@@ -59,7 +59,7 @@ export default function VoiceInput({
       if (!rawText || !rawText.trim()) return false;
       const session = releaseTranscriptRef.current;
       
-      const extracted = await aiCommandEngine.extractRegistrationDetails(rawText, language);
+      const extracted = await aiCommandEngine.extractRegistrationDetails(rawText, language, { field: name });
       
       let usefulValue = null;
       const isNumeric = type === 'number' || type === 'tel' || name === 'age' || name === 'phone' || name === 'aadhaar' || name === 'abhaId';

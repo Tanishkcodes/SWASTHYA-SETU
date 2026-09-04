@@ -107,7 +107,7 @@ class VoiceAIService {
     return response.json();
   }
 
-  async batchTranslate(texts, targetLanguage) {
+  async batchTranslate(texts, targetLanguage, { strict = false } = {}) {
     if (!Array.isArray(texts) || texts.length === 0) return { translations: [] };
     const langCode = targetLanguage || 'en';
     if (langCode === 'en') return { translations: texts };
@@ -124,8 +124,10 @@ class VoiceAIService {
         return { translations: data.translations };
       }
     } catch (e) {
+      if (strict) throw e;
       console.warn('Direct batch_translate notice:', e);
     }
+    if (strict) throw new Error('Invalid batch translation response');
 
     // 2. Delimited fallback
     try {

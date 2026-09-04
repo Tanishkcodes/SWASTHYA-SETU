@@ -1,4 +1,5 @@
 import voiceAIService from './VoiceAIService';
+import { localizeSpokenIdentifiers } from './numberLocale.js';
 
 /* ============================================
    SWASTHYA SETU — Audio Feedback System
@@ -12,6 +13,12 @@ function isMutedPortal() {
          path.includes('/doctor') || 
          path.includes('/admin');
 }
+
+const SPEECH_SCRIPTS = {
+  hi: /[\u0900-\u097F]/, mr: /[\u0900-\u097F]/, ta: /[\u0B80-\u0BFF]/,
+  te: /[\u0C00-\u0C7F]/, bn: /[\u0980-\u09FF]/, gu: /[\u0A80-\u0AFF]/,
+  kn: /[\u0C80-\u0CFF]/, ml: /[\u0D00-\u0D7F]/,
+};
 
 class AudioFeedbackEngine {
   constructor() {
@@ -29,6 +36,7 @@ class AudioFeedbackEngine {
     this.pitch = 1.03; // Warm and feminine without artificial high pitch
     this.onSpeakingChange = null;
     this._audioCache = new Map();
+    this._textCache = new Map();
   }
 
   _getAudioContext() {
@@ -162,7 +170,25 @@ class AudioFeedbackEngine {
     this.isSpeaking = true;
     this.onSpeakingChange?.(true);
     try {
-      const text = this._preprocessTextForTTS(rawText, lang);
+      let text = this._preprocessTextForTTS(rawText, lang);
+      // A language hint does not translate English text for ElevenLabs.
+      const script = SPEECH_SCRIPTS[lang];
+      if ((script && (!script.test(text) || /[A-Za-z]{3,}/.test(text))) || (lang === 'en' && /[\u0900-\u0D7F]/.test(text))) {
+        const translationKey = JSON.stringify([lang, text]);
+        let localized = this._textCache.get(translationKey);
+        if (!localized) {
+          localized = (await voiceAIService.translate(text, lang, 'speech'))?.text;
+          if (!localized || (script && !script.test(localized))) {
+            if (id === this.activePlaybackId) this.stop();
+            return false;
+          }
+          this._textCache.set(translationKey, localized);
+          if (this._textCache.size > 150) this._textCache.delete(this._textCache.keys().next().value);
+        }
+        text = localized;
+      }
+      text = localizeSpokenIdentifiers(text, lang);
+      if (id !== this.activePlaybackId) return false;
       const key = JSON.stringify([text, lang, options.speed]);
       let blob = this._audioCache.get(key);
       if (!blob) {

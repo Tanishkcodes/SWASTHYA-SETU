@@ -56,6 +56,10 @@ class AudioPromptManager {
   setLanguage(lang, autoReplay = true) {
     const prevLang = this.currentLang;
     this.currentLang = lang;
+    if (prevLang !== lang) {
+      clearTimeout(this._langChangeTimer);
+      audioFeedback.stop();
+    }
 
     if (isMutedPortal()) return;
 

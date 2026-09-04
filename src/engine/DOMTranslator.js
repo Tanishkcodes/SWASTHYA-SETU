@@ -37,9 +37,11 @@ class DOMTranslator {
     this.observer = null;
     this.batch = new Map();
     this.batchTimeout = null;
+    this.appliedTexts = new WeakMap();
     this.originalTexts = new WeakMap(); // Maps TextNode -> original English string
     this.translationCache = new Map(); // Maps "lang:english_text" -> "translated_text"
     this.isTranslating = false;
+    this.englishKeys = new Map(Object.entries(UI_STRINGS.en || {}).map(([key, text]) => [text, key]));
   }
 
   start(langCode) {
@@ -92,6 +94,9 @@ class DOMTranslator {
               this._queueNode(node);
               shouldProcess = true;
             } else if (node.nodeType === Node.ELEMENT_NODE) {
+              ['placeholder', 'title', 'alt', 'aria-label'].forEach(attr => {
+                if (node.hasAttribute(attr)) { this._queueAttribute(node, attr); shouldProcess = true; }
+              });
               const walker = document.createTreeWalker(node, NodeFilter.SHOW_ALL, null, false);
               let childNode;
               while ((childNode = walker.nextNode())) {
@@ -99,7 +104,7 @@ class DOMTranslator {
                   this._queueNode(childNode);
                   shouldProcess = true;
                 } else if (childNode.nodeType === Node.ELEMENT_NODE) {
-                  ['placeholder', 'title', 'alt'].forEach(attr => {
+                  ['placeholder', 'title', 'alt', 'aria-label'].forEach(attr => {
                     if (childNode.hasAttribute(attr)) {
                       this._queueAttribute(childNode, attr);
                       shouldProcess = true;
@@ -117,7 +122,7 @@ class DOMTranslator {
              }
           }
         } else if (mut.type === 'attributes') {
-          if (['placeholder', 'title', 'alt'].includes(mut.attributeName) && !mut.target._isTranslatingAttr) {
+          if (['placeholder', 'title', 'alt', 'aria-label'].includes(mut.attributeName) && !mut.target._isTranslatingAttr) {
             this._queueAttribute(mut.target, mut.attributeName);
             shouldProcess = true;
           }
@@ -131,7 +136,7 @@ class DOMTranslator {
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['placeholder', 'title', 'alt']
+      attributeFilter: ['placeholder', 'title', 'alt', 'aria-label']
     });
   }
 
@@ -148,7 +153,8 @@ class DOMTranslator {
     // Ignore empty or just whitespace
     if (!node.nodeValue || !node.nodeValue.trim()) return false;
     // Ignore numbers/symbols only
-    if (/^[\d\s\W_]+$/.test(node.nodeValue)) return false;
+    if (!/[\p{L}]/u.test(node.nodeValue)) return false;
+    if (this.originalTexts.has(node) && this.appliedTexts.get(node) === node.nodeValue) return true;
     // If text already contains Indic script, React or dictionary already translated it; do NOT queue or overwrite!
     if (/[\u0900-\u0D7F]/.test(node.nodeValue)) return false;
 
@@ -164,7 +170,7 @@ class DOMTranslator {
         this._queueNode(node);
         found = true;
       } else if (node.nodeType === Node.ELEMENT_NODE) {
-        ['placeholder', 'title', 'alt'].forEach(attr => {
+        ['placeholder', 'title', 'alt', 'aria-label'].forEach(attr => {
           if (node.hasAttribute(attr)) {
             this._queueAttribute(node, attr);
             found = true;
@@ -177,6 +183,10 @@ class DOMTranslator {
 
   _queueNode(node) {
     let original = this.originalTexts.get(node);
+    if (original && this.appliedTexts.get(node) !== node.nodeValue) {
+      original = node.nodeValue;
+      this.originalTexts.set(node, original);
+    }
     if (!original) {
       original = node.nodeValue;
       this.originalTexts.set(node, original);
@@ -205,11 +215,11 @@ class DOMTranslator {
 
   _queueAttribute(element, attrName) {
     const value = element.getAttribute(attrName);
-    if (!value || !value.trim() || /^[\d\s\W_]+$/.test(value)) return;
+    if (element.closest('.notranslate, [translate="no"]') || !value?.trim() || !/[\p{L}]/u.test(value)) return;
 
     const originalKey = `attr_${attrName}`;
     let original = this.originalTexts.get(element)?.[originalKey];
-    if (!original) {
+    if (!original || this.appliedTexts.get(element)?.[attrName] !== value) {
       original = value;
       const map = this.originalTexts.get(element) || {};
       map[originalKey] = original;
@@ -237,9 +247,9 @@ class DOMTranslator {
     this.batch.get(cleanText).push({ type: 'attr', element, attrName });
   }
 
-  _scheduleBatch(delay = 350) {
-    if (this.batchTimeout) clearTimeout(this.batchTimeout);
-    this.batchTimeout = setTimeout(() => this._processBatch(), delay);
+  _scheduleBatch(delay = 40) {
+    if (this.batchTimeout) return;
+    this.batchTimeout = setTimeout(() => { this.batchTimeout = null; this._processBatch(); }, delay);
   }
 
   async _processBatch() {
@@ -261,66 +271,20 @@ class DOMTranslator {
     });
 
     try {
-      const langNames = { hi: 'Hindi', ta: 'Tamil', te: 'Telugu', bn: 'Bengali', mr: 'Marathi', gu: 'Gujarati', kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi', or: 'Odia', en: 'English' };
-      const langName = langNames[batchLanguage] || batchLanguage;
-
-      // Prefer the server-side translation path so provider credentials never
-      // enter the browser bundle. TTS quota exhaustion does not disable this.
-      if (voiceAIService.available) {
-        const results = await Promise.allSettled(stringsToTranslate.map(async originalStr => {
-          const result = await voiceAIService.translate(originalStr, langName, 'general');
-          return { originalStr, translatedStr: result?.text };
-        }));
-        const translated = new Set();
-        results.forEach(result => {
-          if (result.status !== 'fulfilled' || !result.value.translatedStr) return;
-          translated.add(result.value.originalStr);
-          this._applyBatchTranslation(currentBatch, batchLanguage, result.value.originalStr, result.value.translatedStr);
-        });
-        stringsToTranslate = stringsToTranslate.filter(text => !translated.has(text));
-        if (stringsToTranslate.length === 0) return;
-      }
-
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.warn('Dynamic translation service is unavailable; known interface translations remain active.');
-        return;
-      }
-
-      const prompt = `Translate this JSON array of UI strings into ${langName}. Keep formatting, variables, and punctuation intact. Only return the JSON array of translated strings.
-Input: ${JSON.stringify(stringsToTranslate)}`;
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        let rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
-        const translatedArray = JSON.parse(rawJson);
-
-        if (Array.isArray(translatedArray) && translatedArray.length === stringsToTranslate.length) {
-          stringsToTranslate.forEach((originalStr, index) => {
-            this._applyBatchTranslation(currentBatch, batchLanguage, originalStr, translatedArray[index]);
+      // Bound concurrency and send multiple labels per request instead of one call per word.
+      const chunks = [];
+      for (let i = 0; i < stringsToTranslate.length; i += 20) chunks.push(stringsToTranslate.slice(i, i + 20));
+      const worker = async () => {
+        while (chunks.length && this.targetLang === batchLanguage && this.isActive) {
+          const texts = chunks.shift();
+          const { translations } = await voiceAIService.batchTranslate(texts, batchLanguage, { strict: true });
+          if (!Array.isArray(translations) || translations.length !== texts.length) continue;
+          texts.forEach((text, index) => {
+            if (translations[index] && translations[index] !== text) this._applyBatchTranslation(currentBatch, batchLanguage, text, translations[index]);
           });
         }
-      } else if (response.status === 429) {
-        // Rate limited. Put items back in batch and retry later
-        console.warn("DOMTranslator hit rate limit. Retrying in 5s...");
-        currentBatch.forEach((items, originalStr) => {
-          if (!this.batch.has(originalStr)) this.batch.set(originalStr, []);
-          this.batch.get(originalStr).push(...items);
-        });
-        this._scheduleBatch(5000);
-      } else {
-        console.warn(`DOMTranslator AI batch failed with status ${response.status}`);
-      }
+      };
+      await Promise.allSettled([worker(), worker()]);
     } catch (e) {
       console.warn("DOMTranslator AI batch failed", e);
     } finally {
@@ -339,8 +303,14 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
     if (this.targetLang !== language) return;
     const items = currentBatch.get(originalStr) || [];
     items.forEach(item => {
-      if (item.type === 'attr') this._applyAttrTranslation(item.element, item.attrName, translatedStr);
-      else this._applyTranslation(item, translatedStr);
+      if (item.type === 'attr') {
+        const current = item.element.getAttribute(item.attrName);
+        const original = this.originalTexts.get(item.element)?.[`attr_${item.attrName}`];
+        if (original?.trim() === originalStr && (current === original || current === this.appliedTexts.get(item.element)?.[item.attrName])) this._applyAttrTranslation(item.element, item.attrName, translatedStr);
+      } else {
+        const original = this.originalTexts.get(item);
+        if (original?.trim() === originalStr && (item.nodeValue === original || item.nodeValue === this.appliedTexts.get(item))) this._applyTranslation(item, translatedStr);
+      }
     });
   }
 
@@ -352,7 +322,7 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
     }
     const english = UI_STRINGS.en || {};
     const target = UI_STRINGS[this.targetLang] || {};
-    const key = Object.keys(english).find(item => english[item] === text);
+    const key = this.englishKeys.get(text);
     return (key && target[key]) || OFFLINE_UI_TRANSLATIONS[this.targetLang]?.[text] || null;
   }
 
@@ -364,7 +334,9 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
     const trailingSpace = original.match(/\s*$/)?.[0] || '';
     
     element._isTranslatingAttr = true;
-    element.setAttribute(attrName, leadingSpace + translatedStr + trailingSpace);
+    const applied = leadingSpace + translatedStr + trailingSpace;
+    this.appliedTexts.set(element, { ...this.appliedTexts.get(element), [attrName]: applied });
+    if (element.getAttribute(attrName) !== applied) element.setAttribute(attrName, applied);
     setTimeout(() => { element._isTranslatingAttr = false; }, 50);
   }
 
@@ -378,7 +350,9 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
     const trailingSpace = trailingSpaceMatch ? trailingSpaceMatch[0] : '';
     
     node._isTranslating = true;
-    node.nodeValue = leadingSpace + translatedStr + trailingSpace;
+    const applied = leadingSpace + translatedStr + trailingSpace;
+    this.appliedTexts.set(node, applied);
+    if (node.nodeValue !== applied) node.nodeValue = applied;
     setTimeout(() => { node._isTranslating = false; }, 50);
   }
 
@@ -386,14 +360,14 @@ Input: ${JSON.stringify(stringsToTranslate)}`;
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ALL, null, false);
     let node;
     while ((node = walker.nextNode())) {
-      if (node.nodeType === Node.TEXT_NODE && this.originalTexts.has(node)) {
+      if (node.nodeType === Node.TEXT_NODE && this.originalTexts.has(node) && this.appliedTexts.get(node) === node.nodeValue) {
         node._isTranslating = true;
         node.nodeValue = this.originalTexts.get(node);
         setTimeout(() => { node._isTranslating = false; }, 50);
       } else if (node.nodeType === Node.ELEMENT_NODE && this.originalTexts.has(node)) {
         const map = this.originalTexts.get(node);
-        ['placeholder', 'title', 'alt'].forEach(attr => {
-          if (map[`attr_${attr}`]) {
+        ['placeholder', 'title', 'alt', 'aria-label'].forEach(attr => {
+          if (map[`attr_${attr}`] && this.appliedTexts.get(node)?.[attr] === node.getAttribute(attr)) {
             node._isTranslatingAttr = true;
             node.setAttribute(attr, map[`attr_${attr}`]);
             setTimeout(() => { node._isTranslatingAttr = false; }, 50);
