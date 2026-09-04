@@ -125,7 +125,7 @@ export function VoiceNavProvider({ children }) {
       }
 
       if (newFinal) {
-        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + newFinal).trim();
+        accumulatedTranscriptRef.current = (accumulatedTranscriptRef.current + ' ' + newFinal.trim()).trim();
       }
 
       // Update live visual transcript indicator
@@ -134,20 +134,17 @@ export function VoiceNavProvider({ children }) {
         setInterimTranscript(display);
       }
 
-      // Continued speech (for example a surname or self-correction) must finish
-      // before dispatching the previous committed segment.
-      if (!newFinal) {
-        if (interim.trim() && silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-        return;
-      }
+      // Partial hypotheses are display-only. Cancelling here can strand an
+      // already committed command if Scribe never finalizes the next partial.
+      if (!newFinal) return;
 
       // Reset adaptive silence timer: generous pause for natural human breathing/thinking pauses
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
 
-      // Ultra-responsive silence pause for instant voice navigation
-      const finalPauseMs = 450;
+      // Preserve the established pause for full names and spoken identifiers.
+      const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
       silenceTimerRef.current = setTimeout(() => {
         const full = accumulatedTranscriptRef.current.trim();
         if (newFinal && full && isListeningRef.current) {
