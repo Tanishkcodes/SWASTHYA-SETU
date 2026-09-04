@@ -30,17 +30,14 @@ class AudioPromptManager {
     this._landingGestureRetry = null;
   }
 
-  // The kiosk's first greeting is intentionally always Hindi, independent of
-  // the previously selected UI language. Devanagari gives TTS engines the most
-  // reliable pronunciation of “Swasthya Setu”.
+  // The initial greeting uses bundled recordings only, independent of API availability.
   async speakInitialLandingWelcome() {
     if (isMutedPortal()) return;
     this.currentPageId = 'landing';
     if (!this.isEnabled || this.hasSpokenWelcome.landing_initial_hi) return;
-    const text = 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।';
     // Use the bundled studio recording first so the greeting is immediate and
     // independent of ElevenLabs credits/network availability.
-    const spoken = await audioFeedback.playWelcomeAudio('/welcome_hi.mp3', text, 'hi');
+    const spoken = await audioFeedback.playWelcomeAudio('/welcome_hi.mp3', '/welcome_sarah.mp3');
     if (spoken) {
       this.hasSpokenWelcome.landing_initial_hi = true;
       return;

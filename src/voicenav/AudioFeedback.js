@@ -109,8 +109,53 @@ class AudioFeedbackEngine {
     return cleaned;
   }
 
-  async playWelcomeAudio(_audioUrl, fallbackText, lang = 'hi') {
-    return this.speak(fallbackText, lang);
+  async playWelcomeAudio(audioUrl = '/welcome_hi.mp3', fallbackUrl = '/welcome_sarah.mp3') {
+    if (isMutedPortal()) return false;
+    this.stop();
+    const id = this.activePlaybackId;
+    this.isSpeaking = true;
+    this.onSpeakingChange?.(true);
+    return new Promise(resolve => {
+      let loadTimer;
+      let attempt = 0;
+      this.currentResolve = success => { clearTimeout(loadTimer); resolve(success); };
+      const finish = success => {
+        if (id !== this.activePlaybackId) return;
+        clearTimeout(loadTimer);
+        this.currentResolve = null;
+        this.stop();
+        resolve(success);
+      };
+      const play = (url, canFallback) => {
+        if (id !== this.activePlaybackId) return;
+        const currentAttempt = ++attempt;
+        const audio = new Audio(url);
+        this.elevenLabsAudio = audio;
+        const failed = () => {
+          if (id !== this.activePlaybackId || currentAttempt !== attempt) return;
+          clearTimeout(loadTimer);
+          ++attempt;
+          audio.pause();
+          if (canFallback && fallbackUrl && fallbackUrl !== url) play(fallbackUrl, false);
+          else finish(false);
+        };
+        audio.onended = () => {
+          if (currentAttempt === attempt) finish(true);
+        };
+        audio.onplaying = () => {
+          if (currentAttempt === attempt) clearTimeout(loadTimer);
+        };
+        audio.onerror = failed;
+        loadTimer = setTimeout(failed, 8000);
+        audio.play().catch(error => {
+          if (id !== this.activePlaybackId || currentAttempt !== attempt) return;
+          // Autoplay denial retries the original recording on the next user gesture.
+          if (error.name === 'NotAllowedError') finish(false);
+          else failed();
+        });
+      };
+      play(audioUrl, true);
+    });
   }
 
   async speak(rawText, lang = 'en', options = {}) {
@@ -137,7 +182,6 @@ class AudioFeedbackEngine {
         this.currentResolve = resolve;
         const finish = success => {
           if (id !== this.activePlaybackId) return;
-          if (!success) window.dispatchEvent(new CustomEvent('voice-output-error'));
           this.stop();
           resolve(success);
         };
@@ -148,7 +192,6 @@ class AudioFeedbackEngine {
     } catch (error) {
       if (id === this.activePlaybackId) {
         this.stop();
-        window.dispatchEvent(new CustomEvent('voice-output-error'));
       }
       console.warn('ElevenLabs speech unavailable:', error.message);
       return false;

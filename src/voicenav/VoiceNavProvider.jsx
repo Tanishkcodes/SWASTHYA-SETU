@@ -66,12 +66,6 @@ export function VoiceNavProvider({ children }) {
 
   // Synchronize language and speech recognition engine whenever currentLang changes
   useEffect(() => {
-    const outputError = () => setVoiceError('ElevenLabs audio is unavailable. Please retry; the text remains on screen.');
-    window.addEventListener('voice-output-error', outputError);
-    return () => window.removeEventListener('voice-output-error', outputError);
-  }, []);
-
-  useEffect(() => {
     setLanguageState(currentLang);
     languageRef.current = currentLang;
     commandParser.setLanguage(currentLang);
@@ -172,7 +166,9 @@ export function VoiceNavProvider({ children }) {
         setMicState('idle');
         return;
       }
-      setVoiceError(event.message || 'ElevenLabs speech is unavailable. Tap the microphone to retry.');
+      // Provider outages should return the microphone to idle without a red banner.
+      console.warn('Voice input unavailable:', event.message || event.error);
+      setVoiceError('');
       setIsListening(false);
       isListeningRef.current = false;
       setMicState('idle');
