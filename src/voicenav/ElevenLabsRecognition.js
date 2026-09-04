@@ -67,9 +67,10 @@ export default class ElevenLabsRecognition {
         };
         source.connect(processor);
         processor.connect(context.destination);
-      } else if (['partial_transcript', 'committed_transcript'].includes(data.message_type) && data.text?.trim()) {
+        this.onstart?.();
+      } else if (['partial_transcript', 'committed_transcript', 'committed_transcript_with_timestamps'].includes(data.message_type) && data.text?.trim()) {
         const result = [{ transcript: data.text, confidence: 1 }];
-        result.isFinal = data.message_type === 'committed_transcript';
+        result.isFinal = data.message_type !== 'partial_transcript';
         this.onresult?.({ resultIndex: 0, results: [result] });
       } else if (data.message_type?.includes('error')) {
         fail(data.error || 'ElevenLabs speech recognition failed.');

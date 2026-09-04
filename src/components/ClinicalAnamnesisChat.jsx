@@ -751,13 +751,13 @@ export default function ClinicalAnamnesisChat({
   };
 
   useEffect(() => {
-    setOnTranscript?.((spokenText) => {
+    const releaseTranscript = setOnTranscript?.((spokenText) => {
       const value = String(spokenText || '').trim();
       if (!value) return;
       if (chatStarted) handleUserChoice(value);
       else startConsultationChat(selectedCards, value);
     });
-    return () => clearOnTranscript?.();
+    return () => releaseTranscript?.();
   }, [chatStarted, selectedCards, language, currentStepData, messages]);
 
   const starterOptions = starterStep?.options?.length

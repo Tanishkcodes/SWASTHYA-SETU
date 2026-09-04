@@ -181,6 +181,8 @@ class AICommandEngine {
       console.warn("Cloud AI intent understanding unavailable, using smart multilingual engine fallback:", e);
     }
 
+    if (expectsFreeText) return { intent: 'free_text', confidence: 1, value: transcript };
+
     // 2. Multilingual Semantic Fallback (Handles all 9 Indian languages offline)
     const fallbackResult = this._multilingualFallbackIntent(transcript, availableCommands, globalCommands, ctx);
     if (fallbackResult) {

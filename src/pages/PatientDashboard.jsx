@@ -1,4 +1,4 @@
-import { resolveVoiceSelection } from '../voicenav/resolveVoiceSelection';
+import { createPatientSelectionActions } from '../voicenav/PatientVoiceActions';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
@@ -2543,6 +2543,10 @@ export default function PatientDashboard() {
 
   // Active Sidebar Tab
   const [activeTab, setActiveTab] = useState('appointments');
+  useEffect(() => {
+    const tab = new URLSearchParams(location.search).get('tab');
+    if (['appointments', 'history', 'reports', 'donations', 'communities', 'help'].includes(tab)) setActiveTab(tab);
+  }, [location.search]);
 
 
 
@@ -3172,198 +3176,14 @@ export default function PatientDashboard() {
     });
   }, []);
 
-  // Voice navigation registration — comprehensive for all dashboard features
-  useEffect(() => {
-    const normalizeEntity = value => String(value || '')
-      .normalize('NFKD')
-      .toLocaleLowerCase()
-      .replace(/[^\p{L}\p{N}]+/gu, ' ')
-      .trim();
-    const catalog = hospitalCatalogRef.current || [];
-    const aliasesForHospital = hospital => {
-      const localizedNames = Object.values(HOSPITAL_LOCALIZATION[hospital.id]?.name || {});
-      const idWords = String(hospital.id || '').replace(/-/g, ' ');
-      const idPrefix = String(hospital.id || '').split('-')[0];
-      return Array.from(new Set([hospital.name, idWords, idPrefix, ...localizedNames].filter(Boolean)));
-    };
-    const matchNamedItem = (spoken, items, getAliases) => {
-      const query = normalizeEntity(spoken);
-      if (!query) return null;
-      const queryTokens = new Set(query.split(' ').filter(token => token.length > 1));
-      let best = null;
-      let bestScore = 0;
-      items.forEach(item => {
-        getAliases(item).forEach(rawAlias => {
-          const alias = normalizeEntity(rawAlias);
-          if (!alias || alias.length < 3) return;
-          const exactPhrase = query === alias || query.includes(` ${alias} `)
-            || query.startsWith(`${alias} `) || query.endsWith(` ${alias}`);
-          if (exactPhrase && alias.length >= 3) {
-            if (bestScore < 2) { best = item; bestScore = 2; }
-            return;
-          }
-          const aliasTokens = alias.split(' ').filter(token => token.length > 1);
-          const overlap = aliasTokens.filter(token => queryTokens.has(token)).length;
-          const score = aliasTokens.length ? overlap / aliasTokens.length : 0;
-          if (overlap >= 1 && score > bestScore) { best = item; bestScore = score; }
-        });
-      });
-      return bestScore >= 0.6 ? best : null;
-    };
-    const findHospital = result => matchNamedItem(
-      `${result?.value || ''} ${result?.raw || ''}`,
-      catalog,
-      aliasesForHospital
-    );
-    const openNamedHospital = result => {
-      const hospital = findHospital(result);
-      if (!hospital) return false;
-      setSearchQuery('');
-      setActiveTab('appointments');
-      handleOpenBooking(hospital);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return true;
-    };
-    const selectNamedDoctor = result => {
-      const currentHospital = bookingHospitalRef.current;
-      const doctors = currentHospital?.doctors || [];
-      const doctor = matchNamedItem(
-        `${result?.value || ''} ${result?.raw || ''}`,
-        doctors,
-        item => [item.name, item.specialty, item.speciality]
-      );
-      if (!doctor) return false;
-      handleSelectDoctorForBooking(doctor);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return true;
-    };
-    const hospitalNames = catalog.map(hospital => hospital.name).join(', ');
-    const currentDoctorNames = (bookingHospitalRef.current?.doctors || []).map(doctor => `${doctor.name} (${doctor.specialty || doctor.speciality || 'Doctor'})`).join(', ');
-
-    registerPage('patientDashboard', {
-      // ── Tab navigation ─────────────────────────────────────────────────
-      appointments: () => setActiveTab('appointments'),
-      viewAppointments: () => setActiveTab('appointments'),
-      history: () => setActiveTab('history'),
-      viewHistory: () => setActiveTab('history'),
-      records: () => setActiveTab('reports'),
-      viewReports: () => setActiveTab('reports'),
-      prescriptions: () => setActiveTab('reports'),
-      donations: () => setActiveTab('donations'),
-      viewDonations: () => setActiveTab('donations'),
-      communities: () => setActiveTab('communities'),
-      viewCommunities: () => setActiveTab('communities'),
-      help: () => setActiveTab('help'),
-      viewHelp: () => setActiveTab('help'),
-
-      // ── Booking actions ───────────────────────────────────────────────
-      bookAppointment: result => {
-        if (openNamedHospital(result)) return;
-        setActiveTab('appointments');
-        setBookingFlowView('main');
-        setShowAllHospitalsModal(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      },
-      bookHospital: result => {
-        if (!openNamedHospital(result)) {
-          setActiveTab('appointments');
-          setBookingFlowView('main');
-        }
-      },
-      startConsultation: () => navigate('/language'),
-      scanRecord: () => navigate('/scan'),
-
-      // ── Booking flow step navigation ──────────────────────────────────
-      next: () => {
-        const btn = document.querySelector('[data-voice-action="next"]');
-        if (btn && !btn.disabled) { btn.click(); }
-      },
-      back: () => {
-        const btn = document.querySelector('[data-voice-action="back"]');
-        if (btn && !btn.disabled) { btn.click(); return; }
-        if (showBookingModal) setShowBookingModal(false);
-        else if (showAllHospitalsModal) setShowAllHospitalsModal(false);
-        else if (bookingFlowView !== 'main') setBookingFlowView('main');
-      },
-      confirm: () => {
-        const btn = document.querySelector('[data-voice-action="confirm"]');
-        if (btn && !btn.disabled) { btn.click(); return; }
-        const confirmBtn = document.querySelector('[data-booking-confirm]');
-        if (confirmBtn) confirmBtn.click();
-      },
-      skip: () => {
-        const btn = document.querySelector('[data-voice-action="skip"]');
-        if (btn && !btn.disabled) { btn.click(); }
-      },
-
-      // ── Doctor / hospital selection by voice (number) ─────────────────
-      select_doctor: result => {
-        const doctor = resolveVoiceSelection(bookingHospitalRef.current?.doctors || [], result?.value || result?.target, item => [item.name, item.specialty, item.speciality]);
-        if (!doctor) return false;
-        handleSelectDoctorForBooking(doctor);
-        return true;
-      },
-      select_hospital: result => {
-        if (openNamedHospital(result)) return;
-        const value = result?.value;
-        const idx = typeof value === 'number' ? value : Math.max(0, Number(value || 1) - 1);
-        const hospitalBtns = document.querySelectorAll('[data-voice-hospital]');
-        if (hospitalBtns[idx]) { hospitalBtns[idx].click(); return; }
-        const hospitalCards = document.querySelectorAll('.hospital-card, [data-hospital-card]');
-        if (hospitalCards[idx]) hospitalCards[idx].click();
-      },
-      searchHospital: result => {
-        if (openNamedHospital(result)) return;
-        const value = result?.value;
-        if (typeof value === 'string' && value.length > 2) {
-          setSearchQuery(value);
-          setActiveTab('appointments');
-        }
-      },
-
-      // ── Profile & ID ──────────────────────────────────────────────────
-      viewProfile: () => setProfileDropdownOpen(true),
-      showAbhaCard: () => setShowAbhaModal(true),
-
-      // ── AYUSH toggle ──────────────────────────────────────────────────
-      toggleAyush: () => setAyushMode(!isAyushMode),
-
-      // ── App-level ─────────────────────────────────────────────────────
-      home: () => navigate('/'),
-      logout: () => { logout?.(); navigate('/'); },
-      triage: () => navigate('/language'),
-
-      // ── Option selection (e.g., select doctor 1, 2, 3) ───────────────
-      selectOption: ({ value }) => {
-        const options = Array.from(document.querySelectorAll('[data-voice-option]'))
-          .filter(el => !el.disabled && el.getClientRects().length);
-        if (options[value]) options[value].click();
-      },
-    }, {
-      ...PATIENT_VOICE_COMMANDS,
-      bookHospital: [`Book an appointment at a specifically named hospital. Available hospitals: ${hospitalNames}. Return the exact hospital name in value.`],
-      select_hospital: [`Open a specifically named hospital. Available hospitals: ${hospitalNames}. Return the exact hospital name or spoken list number in value.`],
-      select_doctor: [`Select or book a specifically named doctor or specialty from the current hospital. Available doctors: ${currentDoctorNames || 'shown doctors'}. Return the exact doctor name, specialty, or spoken list number in value.`],
-      searchHospital: [`Find a hospital by its name, city, or type. Prefer bookHospital when the user asks to book. Available hospitals: ${hospitalNames}. Return only the search entity in value.`],
-    });
-
-    return () => {
-      unregisterPage('patientDashboard');
-      clearOnTranscript?.();
-    };
-  }, [navigate, registerPage, unregisterPage, isAyushMode, setAyushMode, currentLang, logout, clearOnTranscript, showBookingModal, showAllHospitalsModal, bookingFlowView, dbHospitalsList.length, dbDoctorsList.length, bookingHospital?.id]);
-
   // ── Voice transcript callback for booking modal symptoms/reason ──────────
   useEffect(() => {
     if (showBookingModal) {
-      setOnTranscript?.(async (text) => {
+      return setOnTranscript?.(async (text) => {
         if (!text || text.trim().length < 2) return;
         setBookingReason(prev => prev ? `${prev}\n${text.trim()}` : text.trim());
       });
-    } else {
-      clearOnTranscript?.();
     }
-    return () => clearOnTranscript?.();
   }, [showBookingModal, setOnTranscript, clearOnTranscript, currentLang, speak]);
 
 
@@ -4225,84 +4045,86 @@ export default function PatientDashboard() {
 
   // Full Patient Portal Voice Navigation Handlers (Tabs, Modals, 5-Step Booking Wizard, Confirmation)
   useEffect(() => {
+    const aliases = hospital => [hospital.name, ...Object.values(HOSPITAL_LOCALIZATION[hospital.id]?.name || {})];
+    const openTab = tab => {
+      setShowBookingModal(false);
+      setShowAllHospitalsModal(false);
+      setShowAbhaModal(false);
+      setSelectedAppointment(null);
+      setSelectedDoc(null);
+      setActiveTab(tab);
+      setBookingFlowView('main');
+      return true;
+    };
+    const { selectHospital: openHospital, selectDoctor } = createPatientSelectionActions({
+      hospitals, doctors: allDoctorsAcrossHospitals, selectedHospital: bookingHospital, hospitalAliases: aliases, openTab,
+      onHospital: hospital => { setSearchQuery(''); handleOpenBooking(hospital); },
+      onDoctor: handleSelectDoctorForBooking, onCrossHospitalDoctor: handleSelectDoctorAcrossHospitals,
+    });
+    const clickAction = action => {
+      const button = Array.from(document.querySelectorAll('[data-voice-action]')).find(element => element.dataset.voiceAction === action && !element.disabled && element.getClientRects().length);
+      if (!button) return false;
+      button.click();
+      return true;
+    };
+    const hospitalContext = hospitals.map((hospital, index) => ({ id: hospital.id, name: hospital.name, number: index + 1, aliases: aliases(hospital) }));
+    const doctorContext = (bookingHospital?.doctors?.length ? bookingHospital.doctors : allDoctorsAcrossHospitals).map((doctor, index) => ({ id: doctor.id, name: doctor.name, specialty: doctor.specialty || doctor.speciality, hospital: doctor.hospitalName, number: index + 1 }));
+
     registerPage('patientDashboard', {
       // ── Main Dashboard Tabs ──
-      bookAppointment: () => {
-        setActiveTab('appointments');
-        setBookingFlowView('main');
+      bookAppointment: command => {
+        if (openHospital(command)) return true;
+        openTab('appointments');
         setShowAllHospitalsModal(true);
+        return true;
       },
-      viewAppointments: () => {
-        setActiveTab('appointments');
-        setBookingFlowView('main');
+      bookHospital: openHospital,
+      select_hospital: openHospital,
+      select_doctor: selectDoctor,
+      select_date: command => {
+        if (bookingFlowView !== 'booking_steps') return false;
+        const date = String(command.value || command.target || '');
+        const today = new Date().toLocaleDateString('en-CA');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < today || !Number.isFinite(Date.parse(date))) return false;
+        releaseActiveBookingHold();
+        setSelectedBookingDate(date);
+        setBookingStep(1);
+        return true;
       },
-      viewHistory: () => {
-        setActiveTab('history');
+      select_time: async command => {
+        if (bookingFlowView !== 'booking_steps' || bookingStep !== 2) return false;
+        const slots = [...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast'));
+        const slot = slots.find(item => item.time24 === command.value || item.label === command.value);
+        return slot ? Boolean(await handleSelectSlotWithHold(slot)) : false;
       },
-      viewReports: () => {
-        setActiveTab('reports');
-      },
-      viewDonations: () => {
-        setActiveTab('donations');
-      },
-      viewCommunities: () => {
-        setActiveTab('communities');
-      },
-      viewHelp: () => {
-        setActiveTab('help');
-      },
-      viewProfile: () => {
-        setShowAbhaModal(true);
-      },
-      showAbhaCard: () => {
-        setShowAbhaModal(true);
-      },
+      viewAppointments: () => openTab('appointments'),
+      viewHistory: () => openTab('history'),
+      viewReports: () => openTab('reports'),
+      viewDonations: () => openTab('donations'),
+      viewCommunities: () => openTab('communities'),
+      viewHelp: () => openTab('help'),
+      viewProfile: () => { setProfileDropdownOpen(true); return true; },
+      showAbhaCard: () => { setShowAbhaModal(true); return true; },
+      home: () => navigate('/'),
+      logout: () => { logout?.(); navigate('/'); },
+      startConsultation: () => navigate('/language'),
       toggleAyush: () => {
         setAyushMode(!isAyushMode);
       },
       scan_document: () => {
-        setActiveTab('reports');
+        openTab('reports');
         setTimeout(() => reportsFileInputRef.current?.click(), 300);
       },
-      searchHospital: (cmd) => {
-        setActiveTab('appointments');
-        if (cmd?.value) setSearchQuery(cmd.value);
+      searchHospital: command => {
+        if (openHospital(command)) return true;
+        if (!command?.value) return false;
+        openTab('appointments');
+        setSearchQuery(String(command.value));
+        return true;
       },
-
       // ── Wizard Booking Steps & Navigation ──
-      next: async () => {
-        if (bookingFlowView === 'booking_steps') {
-          if (bookingStep === 1) {
-            setBookingStep(2);
-          } else if (bookingStep === 2) {
-            if (!selectedBookingSlot) {
-              const firstOpen = liveSlots?.morning?.find(s => s.state === 'open' || s.state === 'fast')
-                || liveSlots?.afternoon?.find(s => s.state === 'open' || s.state === 'fast')
-                || liveSlots?.evening?.find(s => s.state === 'open' || s.state === 'fast');
-              if (firstOpen) {
-                await handleSelectSlotWithHold(firstOpen);
-              }
-            }
-            setBookingStep(3);
-          } else if (bookingStep === 3) {
-            setBookingStep(4);
-          } else if (bookingStep === 4) {
-            setBookingStep(5);
-          } else if (bookingStep === 5) {
-            handleConfirmBooking();
-          }
-        } else if (bookingFlowView === 'doctor_profile') {
-          if (selectedDoctorObj) {
-            handleSelectDoctorForBooking(selectedDoctorObj);
-          }
-        } else if (bookingFlowView === 'doctor_select') {
-          const docs = bookingHospital?.doctors || [];
-          if (docs.length > 0) {
-            handleSelectDoctorForBooking(docs[0]);
-          }
-        }
-      },
-
+      next: () => clickAction('next'),
+      skip: () => clickAction('skip'),
       back: () => {
         if (showBookingModal) {
           setShowBookingModal(false);
@@ -4327,62 +4149,31 @@ export default function PatientDashboard() {
         }
       },
 
-      confirm: () => {
-        if (bookingFlowView === 'booking_steps') {
-          if (bookingStep === 5) {
-            handleConfirmBooking();
-          } else {
-            setBookingStep(prev => Math.min(5, prev + 1));
-          }
-        } else if (showBookingModal) {
-          handleConfirmBooking();
-        }
+      confirm: async () => {
+        if (clickAction('confirm')) return true;
+        if ((bookingFlowView === 'booking_steps' && bookingStep === 5) || showBookingModal) { await handleConfirmBooking(); return true; }
+        return clickAction('next');
       },
-
       step1: () => { if (bookingFlowView === 'booking_steps') setBookingStep(1); },
       step2: () => { if (bookingFlowView === 'booking_steps') setBookingStep(2); },
       step3: () => { if (bookingFlowView === 'booking_steps') setBookingStep(3); },
       step4: () => { if (bookingFlowView === 'booking_steps') setBookingStep(4); },
       step5: () => { if (bookingFlowView === 'booking_steps') setBookingStep(5); },
 
-      selectOption: (cmd) => {
-        const idx = typeof cmd?.value === 'number' ? cmd.value : parseInt(cmd?.value, 10);
-        if (Number.isNaN(idx)) return;
-        if (bookingFlowView === 'booking_steps' && bookingStep === 2) {
-          const allSlots = [...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])]
-            .filter(s => !s.isPast && s.state !== 'full' && s.state !== 'closed');
-          if (allSlots[idx]) {
-            handleSelectSlotWithHold(allSlots[idx]);
-          }
-        } else if (bookingFlowView === 'doctor_select') {
-          const doctorsList = bookingHospital?.doctors || [];
-          if (doctorsList[idx]) {
-            handleSelectDoctorForBooking(doctorsList[idx]);
-          }
-        } else if (showAllHospitalsModal) {
-          if (filteredHospitals[idx]) {
-            handleOpenBooking(filteredHospitals[idx]);
-          }
-        }
-      },
-
-      select_doctor: (cmd) => {
-        const docs = bookingHospital?.doctors || [];
-        const matched = resolveVoiceSelection(docs, cmd?.value || cmd?.target, item => [item.name, item.specialty, item.speciality]);
-        if (!matched) return false;
-        handleSelectDoctorForBooking(matched);
+      selectOption: command => {
+        const options = Array.from(document.querySelectorAll('[data-voice-option]')).filter(element => !element.disabled && element.getClientRects().length);
+        const index = Number(command.value);
+        if (!Number.isInteger(index) || index < 0 || !options[index]) return false;
+        options[index].click();
         return true;
       },
-
-      select_hospital: (cmd) => {
-        const query = (cmd?.value || cmd?.target || '').toLowerCase().trim();
-        const matched = hospitals.find(h => h.name.toLowerCase().includes(query));
-        if (matched) {
-          handleOpenBooking(matched);
-        }
-      }
     }, {
-      select_doctor: [`Select a doctor from the current hospital. Available doctors in order: ${(bookingHospital?.doctors || []).map((doctor, index) => `${index + 1}: ${doctor.name} (${doctor.specialty || doctor.speciality || ''})`).join('; ')}. Return exact name or one-based number in value. Ask for clarification if ambiguous.`],
+      select_hospital: [`Select a hospital by name or one-based number. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
+      select_date: [`Select appointment date in the booking wizard. Today is ${new Date().toLocaleDateString('en-CA')}. Return YYYY-MM-DD in value. Current date: ${selectedBookingDate}.`],
+      select_time: [`Select an available appointment time on the time selection step. Return its time24 in value. Available slots: ${JSON.stringify([...(liveSlots.morning || []), ...(liveSlots.afternoon || []), ...(liveSlots.evening || [])].filter(slot => !slot.isPast && (slot.state === 'open' || slot.state === 'fast')).map(slot => ({ time24: slot.time24, label: slot.label })))}`],
+      bookHospital: [`Book at a named hospital. Put its exact id in target and name in value. Available hospitals: ${JSON.stringify(hospitalContext)}`],
+      searchHospital: [`Search by name/city; prefer select_hospital for a known hospital. Available hospitals: ${JSON.stringify(hospitalContext)}`],
+      select_doctor: [`Select a doctor by name, unique specialty or one-based number. Put its exact id in target and name in value. Available doctors: ${JSON.stringify(doctorContext)}`],
       bookAppointment: ['Book doctor appointment, consult doctor, consult specialist, OPD booking, hospital visit, bukhar, fever, dard'],
       viewAppointments: ['View appointments, schedule, timings, queue tokens'],
       viewHistory: ['View past medical history, previous consultations, visit history'],
@@ -4409,9 +4200,9 @@ export default function PatientDashboard() {
     };
   }, [
     registerPage, unregisterPage, isAyushMode, setAyushMode,
-    bookingFlowView, bookingStep, selectedBookingSlot, liveSlots,
+    bookingFlowView, bookingStep, selectedBookingSlot, selectedBookingDate, liveSlots,
     selectedDoctorObj, bookingHospital, showBookingModal, showAllHospitalsModal,
-    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList
+    showAbhaModal, selectedAppointment, selectedDoc, filteredHospitals, hospitals, dbDoctorsList, allDoctorsAcrossHospitals, currentLang
   ]);
 
   // Logout handler

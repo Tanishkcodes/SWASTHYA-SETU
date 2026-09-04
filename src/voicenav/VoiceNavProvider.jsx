@@ -1,4 +1,5 @@
 import ElevenLabsRecognition from './ElevenLabsRecognition';
+import { TranscriptRegistry } from './TranscriptRegistry';
 /* ============================================
    SWASTHYA SETU — VoiceNav Provider
    Global voice navigation context wrapping entire app
@@ -37,6 +38,7 @@ export function getNotRecognizedMessage(lang) {
 const isSpeechSupported = ElevenLabsRecognition.supported;
 
 export function VoiceNavProvider({ children }) {
+  const transcriptRegistryRef = useRef(new TranscriptRegistry());
   const languageContext = useLanguage();
   const currentLang = languageContext?.currentLang || 'en';
   const setCurrentLang = languageContext?.setCurrentLang;
@@ -86,6 +88,11 @@ export function VoiceNavProvider({ children }) {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
+    recognition.onstart = () => {
+      if (!isListeningRef.current) return;
+      setMicState('listening');
+      audioFeedback.playListeningStart();
+    };
 
     recognition.onresult = (event) => {
       let interim = '';
@@ -120,6 +127,9 @@ export function VoiceNavProvider({ children }) {
         setInterimTranscript(display);
       }
 
+      // Partials are display-only and must not cancel a pending committed utterance.
+      if (!newFinal) return;
+
       // Reset adaptive silence timer: generous pause for natural human breathing/thinking pauses
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -127,9 +137,8 @@ export function VoiceNavProvider({ children }) {
 
       // Ultra-responsive silence pause for instant voice navigation
       const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
-      const interimPauseMs = 30000; // Only Scribe committed transcripts may trigger actions.
       silenceTimerRef.current = setTimeout(() => {
-        const full = (accumulatedTranscriptRef.current + (interim ? ' ' + interim : '')).trim();
+        const full = accumulatedTranscriptRef.current.trim();
         if (newFinal && full && isListeningRef.current) {
           const recognitionAlternatives = recognitionAlternativesRef.current
             .map((finalText, index) => `${finalText} ${interimAlternatives[index] || ''}`.trim())
@@ -144,7 +153,7 @@ export function VoiceNavProvider({ children }) {
           }
           handleVoiceInput(full, recognitionAlternatives);
         }
-      }, newFinal ? finalPauseMs : interimPauseMs);
+      }, finalPauseMs);
     };
 
     recognition.onerror = (event) => {
@@ -231,17 +240,24 @@ export function VoiceNavProvider({ children }) {
   // Handle voice input — parse and dispatch
   const handleVoiceInput = useCallback(async (text, recognitionAlternatives = []) => {
     setMicState('processing');
+    const invoke = async (handler, result) => {
+      try { return (await handler(result)) !== false; }
+      catch (error) { console.warn('Voice action could not be applied:', error); return false; }
+    };
 
     // ── DICTATION MODE: Skip ALL command parsing ──
     // When VoiceInput is actively dictating into a form field,
     // raw text goes straight to the callback without AI classification.
     if (isDictationModeRef.current && onTranscriptCallbackRef.current) {
       setTranscript(text);
-      onTranscriptCallbackRef.current(text, {
+      const callback = onTranscriptCallbackRef.current;
+      const applied = await invoke(result => callback(text, result), {
         intent: 'free_text', confidence: 1, raw: text, value: text, recognitionAlternatives,
       });
-      audioFeedback.playSuccess();
-      showFeedback({ type: 'success', text: '✓ Done' }, 1800);
+      if (applied) {
+        audioFeedback.playSuccess();
+        showFeedback({ type: 'success', text: '✓ Done' }, 1800);
+      }
       audioPromptManager.resetIdleTimer();
       setTimeout(() => setMicState('idle'), 500);
       return;
@@ -250,7 +266,7 @@ export function VoiceNavProvider({ children }) {
     // Discover visible semantic controls so newly-added pages work without a
     // hand-maintained phrase list. AI may choose only from these safe actions.
     const seenControlLabels = new Set();
-    const domElements = Array.from(document.querySelectorAll('button, a[href], [role="button"], input[type="submit"]'))
+    const domElements = Array.from(document.querySelectorAll('button, a[href], [role="button"], [role="tab"], input[type="submit"]'))
       .filter(element => !element.disabled && element.getAttribute('aria-hidden') !== 'true' && element.getClientRects().length)
       .filter(element => {
         const label = (element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText || element.value || '')
@@ -264,7 +280,8 @@ export function VoiceNavProvider({ children }) {
       intent: `activate_${index}`,
       description: String(element.getAttribute('aria-label') || element.getAttribute('title') || element.innerText?.trim() || element.value || `control ${index + 1}`).slice(0, 120),
     })).filter(action => action.description);
-    const pageHandlers = commandHandlersRef.current[currentPageRef.current] || {};
+    const requestPage = currentPageRef.current;
+    let pageHandlers = commandHandlersRef.current[requestPage] || {};
     const handlerActions = Object.keys(pageHandlers).map(intent => ({ intent, description: intent.replace(/_/g, ' ') }));
     const globalActions = Object.keys(commandHandlersRef.current.__global__ || {}).map(intent => ({ intent, description: intent.replace(/_/g, ' ') }));
     const result = await commandParser.parse(text, currentPageRef.current, {
@@ -272,6 +289,8 @@ export function VoiceNavProvider({ children }) {
       expectsFreeText: Boolean(onTranscriptCallbackRef.current),
       recognitionAlternatives,
     });
+    if (requestPage !== currentPageRef.current) { setMicState('idle'); return; }
+    pageHandlers = commandHandlersRef.current[requestPage] || {};
     setLastCommand(result);
 
     // If it's a recognized command, dispatch it
@@ -310,12 +329,11 @@ export function VoiceNavProvider({ children }) {
 
       // 1. Page-level handlers (highest priority)
       if (pageHandlers && (pageHandlers[result.intent] || pageHandlers[resolvedIntent])) {
-        handled = (await (pageHandlers[result.intent] || pageHandlers[resolvedIntent])(result)) !== false;
+        handled = await invoke(pageHandlers[result.intent] || pageHandlers[resolvedIntent], result);
       }
       // 2. Global handlers
       else if (commandHandlersRef.current['__global__'] && (commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent])) {
-        (commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent])(result);
-        handled = true;
+        handled = await invoke(commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent], result);
       }
 
       // 3. AI DOM activation with SMART text-label matching (not just index)
@@ -419,7 +437,8 @@ export function VoiceNavProvider({ children }) {
     // IMPORTANT: Only call it if the voice input was NOT handled as a system/navigation command
     if (onTranscriptCallbackRef.current && !handled) {
       setTranscript(text);
-      onTranscriptCallbackRef.current(text, result);
+      const callback = onTranscriptCallbackRef.current;
+      await invoke(command => callback(text, command), result);
     } else if (!handled && !onTranscriptCallbackRef.current) {
       // Unrecognized and unhandled: ENSURE transcript is CLEARED so unrecognized text is never shown
       setTranscript('');
@@ -444,7 +463,7 @@ export function VoiceNavProvider({ children }) {
     if (!isSpeechSupported || !recognitionRef.current || !isVoiceEnabled) return;
 
     // Stop any current speech
-    audioFeedback.stop();
+    audioPromptManager.stop();
     setVoiceError('');
     setTranscript('');
     setInterimTranscript('');
@@ -461,18 +480,17 @@ export function VoiceNavProvider({ children }) {
       const langInfo = getLanguageInfo(languageRef.current);
       recognitionRef.current.lang = langInfo.speechCode;
       recognitionRef.current.continuous = true;
-      recognitionRef.current.start();
       setIsListening(true);
       isListeningRef.current = true;
-      setMicState('listening');
+      setMicState('connecting');
       setInterimTranscript('');
-      audioFeedback.playListeningStart();
+      recognitionRef.current.start();
     } catch (e) {
       // Already started or other error
       console.warn('Could not start recognition:', e);
-      setIsListening(true);
-      isListeningRef.current = true;
-      setMicState('listening');
+      setIsListening(false);
+      isListeningRef.current = false;
+      setMicState('idle');
     }
   }, [isVoiceEnabled]);
 
@@ -495,10 +513,8 @@ export function VoiceNavProvider({ children }) {
   // Toggle listening
   const toggleListening = useCallback(() => {
     if (isSpeaking || audioFeedback.isSpeaking) {
-      // While narration is playing, the same button is a stop control. A
-      // separate click from the idle state is required to start listening.
       audioPromptManager.stop();
-      setMicState('idle');
+      startListening(true);
       return;
     } else if (isListening) {
       const pending = accumulatedTranscriptRef.current.trim();
@@ -563,12 +579,18 @@ export function VoiceNavProvider({ children }) {
   }, []);
 
   // Set callback for free-text transcript (used by interview page)
-  const setOnTranscript = useCallback((callback) => {
-    onTranscriptCallbackRef.current = callback;
+  const setOnTranscript = useCallback((callback, options = {}) => {
+    const release = transcriptRegistryRef.current.add(callback, options.priority || 0);
+    onTranscriptCallbackRef.current = transcriptRegistryRef.current.current;
+    return () => {
+      release();
+      onTranscriptCallbackRef.current = transcriptRegistryRef.current.current;
+    };
   }, []);
 
   // Clear transcript callback
   const clearOnTranscript = useCallback(() => {
+    transcriptRegistryRef.current.clear();
     onTranscriptCallbackRef.current = null;
   }, []);
 

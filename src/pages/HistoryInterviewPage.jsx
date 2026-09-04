@@ -66,7 +66,7 @@ export default function HistoryInterviewPage() {
 
   // Set up free text voice transcript listener
   useEffect(() => {
-    setOnTranscript((transcript, parsedCommand) => {
+    return setOnTranscript((transcript, parsedCommand) => {
       // If we are waiting for a free text answer or a choice, process it
       if (currentQ) {
         

@@ -9,6 +9,8 @@ import SwasthyaLogo from '../components/SwasthyaLogo';
 import BrandTitle from '../components/BrandTitle';
 import aiCommandEngine from '../engine/AICommandEngine';
 import audioFeedback from '../voicenav/AudioFeedback';
+import { authTabPrompt } from '../voicenav/AuthPrompts';
+import { registrationFields } from '../voicenav/registrationFields';
 import { db, getAuthLockStatus } from '../lib/db';
 import '../styles/auth.css';
 
@@ -141,32 +143,30 @@ export default function AuthPage() {
       back: ['Return to the previous page'],
       home: ['Return to the Swasthya Setu landing page'],
       cancel: ['Cancel patient identification and return home'],
-      login_abha: ['Use an ABHA health ID to identify the patient'],
-      login_aadhaar: ['Use an Aadhaar number to identify the patient'],
-      register_new: ['Register a new patient using name, age, phone, and gender'],
+      login_abha: [t('abhaLogin'), 'ABHA', 'ABHA login', 'आभा', 'आभा लॉगिन', 'Use an ABHA health ID to identify the patient'],
+      login_aadhaar: [t('aadhaarLogin'), 'Aadhaar', 'Aadhaar login', 'आधार', 'आधार लॉगिन', 'Use an Aadhaar number to identify the patient'],
+      register_new: [t('newPatient'), 'New patient', 'Register new patient', 'नया मरीज', 'Register a new patient using name, age, phone, and gender'],
     });
 
     return () => {
       unregisterPage('auth');
     };
-  }, [navigate, registerPage, unregisterPage, role]);
+  }, [navigate, registerPage, unregisterPage, role, currentLang]);
 
   // 2. Audio Welcome Management
   useEffect(() => {
-    let authWelcomeTimer;
-    if (role === 'patient') {
-      audioPromptManager.setCurrentPage('auth');
-      authWelcomeTimer = setTimeout(() => {
-        audioPromptManager.speakPageWelcome('auth');
-      }, 400);
-    }
+    audioPromptManager.setCurrentPage('auth');
+    const authWelcomeTimer = setTimeout(() => {
+      const prompt = role === 'patient' ? authTabPrompt(currentLang, activeTab) : t(role === 'doctor' ? 'doctorPortal' : 'adminPortal');
+      speak(prompt, currentLang);
+    }, 350);
 
     return () => {
       if (authWelcomeTimer) clearTimeout(authWelcomeTimer);
       audioFeedback.stop();
       audioPromptManager.setCurrentPage(null);
     };
-  }, [role]);
+  }, [role, activeTab, currentLang, speak]);
 
   const handleNext = async () => {
     if (isLoggingIn) return;
@@ -279,8 +279,8 @@ export default function AuthPage() {
   // ----------------------------
   useEffect(() => {
     setDictationMode(false);
-    setOnTranscript(async (text, recognitionResult = {}) => {
-      if (!text || text.trim().length < 2) return;
+    const releaseTranscript = setOnTranscript(async (text, recognitionResult = {}) => {
+      if (!text?.trim()) return;
       
       setIsExtracting(true);
       let extracted = null;
@@ -325,9 +325,8 @@ export default function AuthPage() {
       }
       if (extracted.requestedAction === 'new_patient') {
         setActiveTab('new');
-        return;
       }
-      if (extracted.requestedAction === 'submit') {
+      if (extracted.requestedAction === 'submit' && ![extracted.name, extracted.age, extracted.phone, extracted.gender, extracted.abhaId, extracted.aadhaar].some(Boolean)) {
         handleNextRef.current?.();
         return;
       }
@@ -376,19 +375,14 @@ export default function AuthPage() {
       }
 
       // 4. Fill New Patient Registration Form with AI Extracted entities
-      const newName = extracted.name?.trim() || '';
-      const newAge = extracted.age ? String(extracted.age).trim() : '';
-      const newPhone = extracted.phone?.trim() || '';
-      const newGender = extracted.gender ? normalizeGender(extracted.gender, t) : '';
+      const fields = registrationFields(extracted, gender => normalizeGender(gender, t));
+      const { name: newName = '', age: newAge = '', phone: newPhone = '', gender: newGender = '' } = fields;
 
       if (newName || newAge || newPhone || newGender) {
         setActiveTab('new');
         setFormData(prev => ({
           ...prev,
-          name:   newName.length > 0 ? newName : prev.name,
-          age:    newAge.length > 0  ? newAge  : prev.age,
-          phone:  newPhone.length > 0 ? newPhone : prev.phone,
-          gender: newGender.length > 0 ? newGender : prev.gender,
+          ...fields,
         }));
 
         if (extracted.confirmationMessage) {
@@ -406,7 +400,7 @@ export default function AuthPage() {
     
     return () => {
       setDictationMode(false);
-      clearOnTranscript();
+      releaseTranscript();
     };
   }, [activeTab, language, currentLang, setOnTranscript, clearOnTranscript, setDictationMode, t, speak, navigate, formData.name, formData.age, formData.gender, formData.phone, abhaId, aadhaar]);
 
@@ -687,9 +681,9 @@ export default function AuthPage() {
              ========================================= */
           <>
             <div className="auth-tabs" style={{ marginBottom: '2rem', background: 'var(--gray-100)', padding: '6px', borderRadius: '16px' }}>
-              <div className={`auth-tab ${activeTab === 'abha' ? 'active' : ''}`} onClick={() => setActiveTab('abha')} style={activeTab === 'abha' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('abhaLogin')}</div>
-              <div className={`auth-tab ${activeTab === 'aadhaar' ? 'active' : ''}`} onClick={() => setActiveTab('aadhaar')} style={activeTab === 'aadhaar' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('aadhaarLogin')}</div>
-              <div className={`auth-tab ${activeTab === 'new' ? 'active' : ''}`} onClick={() => setActiveTab('new')} style={activeTab === 'new' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('newPatient')}</div>
+              <div className={`auth-tab ${activeTab === 'abha' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'abha'} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setActiveTab('abha'); } }} onClick={() => setActiveTab('abha')} style={activeTab === 'abha' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('abhaLogin')}</div>
+              <div className={`auth-tab ${activeTab === 'aadhaar' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'aadhaar'} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setActiveTab('aadhaar'); } }} onClick={() => setActiveTab('aadhaar')} style={activeTab === 'aadhaar' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('aadhaarLogin')}</div>
+              <div className={`auth-tab ${activeTab === 'new' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'new'} tabIndex={0} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setActiveTab('new'); } }} onClick={() => setActiveTab('new')} style={activeTab === 'new' ? { background: 'var(--teal-500)', color: 'white', boxShadow: '0 4px 12px rgba(20,71,75,0.15)', fontWeight: 'bold' } : { color: 'var(--gray-600)' }}>{t('newPatient')}</div>
             </div>
 
             <div className="card" style={{ padding: '0', border: 'none', boxShadow: 'none', background: 'transparent' }}>

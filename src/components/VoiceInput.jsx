@@ -26,12 +26,17 @@ export default function VoiceInput({
   } = useVoiceNav();
   const [isDictating, setIsDictating] = useState(false);
   const inputRef = useRef(null);
+  const releaseTranscriptRef = useRef(null);
+  const releaseTranscript = () => {
+    releaseTranscriptRef.current?.();
+    releaseTranscriptRef.current = null;
+  };
 
   useEffect(() => {
     if (!isListening && isDictating) {
       setIsDictating(false);
       setDictationMode(false);
-      clearOnTranscript();
+      releaseTranscript();
     }
   }, [isListening, isDictating, clearOnTranscript, setDictationMode]);
 
@@ -39,7 +44,7 @@ export default function VoiceInput({
     return () => {
       if (isDictating) {
         setDictationMode(false);
-        clearOnTranscript();
+        releaseTranscript();
       }
     };
   }, [isDictating, setDictationMode, clearOnTranscript]);
@@ -49,8 +54,10 @@ export default function VoiceInput({
     setIsDictating(true);
     setDictationMode(true);
     
-    setOnTranscript(async (rawText) => {
-      if (!rawText || !rawText.trim()) return;
+    releaseTranscript();
+    releaseTranscriptRef.current = setOnTranscript(async (rawText) => {
+      if (!rawText || !rawText.trim()) return false;
+      const session = releaseTranscriptRef.current;
       
       const extracted = await aiCommandEngine.extractRegistrationDetails(rawText, language);
       
@@ -68,13 +75,13 @@ export default function VoiceInput({
           }
         }
       } else if (name === 'age') {
-        if (extracted?.age && /^\d{1,3}$/.test(extracted.age.trim())) {
-          const ageNum = parseInt(extracted.age.trim(), 10);
+        if (extracted?.age && /^\d{1,3}$/.test(String(extracted.age).trim())) {
+          const ageNum = parseInt(String(extracted.age).trim(), 10);
           if (ageNum >= 1 && ageNum <= 120) usefulValue = String(ageNum);
         }
       } else if (name === 'phone') {
-        if (extracted?.phone && /^\d{10}$/.test(extracted.phone.trim())) {
-          usefulValue = extracted.phone.trim();
+        if (extracted?.phone && /^\d{10}$/.test(String(extracted.phone).trim())) {
+          usefulValue = String(extracted.phone).trim();
         }
       } else if (isNumeric) {
         const digits = aiCommandEngine._convertSpokenNumberWords(rawText).replace(/[^0-9]/g, '');
@@ -88,13 +95,17 @@ export default function VoiceInput({
         }
       }
       
-      // ONLY update the input field if a genuinely useful value was understood and extracted
+      if (!isNumeric && name !== 'name' && name !== 'fullName') usefulValue = rawText.trim();
+      if (!session || releaseTranscriptRef.current !== session) return false;
+      // Only update the field while this input owns the dictation session.
       if (usefulValue) {
         onChange({
           target: { name: name, value: usefulValue }
         });
+        return true;
       }
-    });
+      return false;
+    }, { priority: 10 });
 
     startListening(true);
   };
@@ -104,18 +115,8 @@ export default function VoiceInput({
       stopListening();
       setIsDictating(false);
       setDictationMode(false);
-      clearOnTranscript();
+      releaseTranscript();
     }
-  };
-
-  const handleTouchStart = (e) => {
-    e.preventDefault();
-    if (!isDictating) startDictation();
-  };
-
-  const handleTouchEnd = (e) => {
-    e.preventDefault();
-    stopDictation();
   };
 
   const handleClick = (e) => {
@@ -144,8 +145,6 @@ export default function VoiceInput({
       />
       <button
         type="button"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
         onClick={handleClick}
         style={{
           position: 'absolute',

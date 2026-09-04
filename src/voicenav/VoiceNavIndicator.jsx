@@ -72,7 +72,16 @@ export default function VoiceNavIndicator() {
     },
   };
 
-  const config = stateConfig[micState] || stateConfig.idle;
+  const connectingText = {
+    en: 'Connecting microphone…', hi: 'माइक्रोफ़ोन जुड़ रहा है…',
+    ta: 'மைக்ரோஃபோன் இணைகிறது…', te: 'మైక్రోఫోన్ కనెక్ట్ అవుతోంది…',
+    bn: 'মাইক্রোফোন সংযুক্ত হচ্ছে…', mr: 'मायक्रोफोन जोडला जात आहे…',
+    gu: 'માઇક્રોફોન જોડાઈ રહ્યો છે…', kn: 'ಮೈಕ್ರೋಫೋನ್ ಸಂಪರ್ಕಿಸುತ್ತಿದೆ…',
+    ml: 'മൈക്രോഫോൺ ബന്ധിപ്പിക്കുന്നു…',
+  };
+  const config = micState === 'connecting'
+    ? { ...stateConfig.processing, label: connectingText[language] || connectingText.en }
+    : stateConfig[micState] || stateConfig.idle;
 
   return (
     <div className="voicenav-container">
@@ -95,11 +104,11 @@ export default function VoiceNavIndicator() {
       )}
 
       {/* 3. Processing banner after hearing speech: shows "Processing...", NEVER raw unverified text */}
-      {!recognitionFeedback && micState === 'processing' && (
+      {!recognitionFeedback && ['processing', 'connecting'].includes(micState) && (
         <div className="voicenav-transcript voicenav-transcript--processing animate-fade-in-up">
           <p className="voicenav-transcript-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="voicenav-pulse-dot"></span>
-            <span>{t(language, 'processing') || 'Processing...'}</span>
+            <span>{micState === 'connecting' ? config.label : t(language, 'processing') || 'Processing...'}</span>
           </p>
         </div>
       )}
@@ -116,7 +125,7 @@ export default function VoiceNavIndicator() {
         className={`voicenav-orb ${config.className}`}
         onClick={toggleListening}
         disabled={!isSpeechSupported}
-        aria-label={isSpeaking ? 'Stop speaking' : isListening ? 'Stop listening' : 'Start listening'}
+        aria-label={isSpeaking ? 'Start listening' : isListening ? 'Stop listening' : 'Start listening'}
         title={config.label}
       >
         {/* Pulse rings for listening state */}

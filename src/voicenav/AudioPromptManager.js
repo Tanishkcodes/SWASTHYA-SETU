@@ -10,12 +10,9 @@ import { getAudioPrompt } from './LanguagePack';
 function isMutedPortal() {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname.toLowerCase();
-  const search = window.location.search.toLowerCase();
   return path.includes('/physician') ||
          path.includes('/doctor') ||
-         path.includes('/admin') ||
-         search.includes('role=doctor') ||
-         search.includes('role=admin');
+         path.includes('/admin');
 }
 
 class AudioPromptManager {
@@ -108,8 +105,8 @@ class AudioPromptManager {
     }
 
     if (text) {
-      this.hasSpokenWelcome[cacheKey] = true;
-      await audioFeedback.interrupt(text, this.currentLang);
+      const spoken = await audioFeedback.interrupt(text, this.currentLang);
+      if (spoken) this.hasSpokenWelcome[cacheKey] = true;
     }
   }
 

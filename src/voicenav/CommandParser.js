@@ -511,19 +511,16 @@ class CommandParser {
     const input = normalize(transcript);
     if (!input) return { intent: null, confidence: 0, raw: transcript };
 
-    // On mixed navigation/form pages, resolve an explicit navigation command
-    // first, but never let it hijack speech that actually contains patient data.
-    if (context.expectsFreeText) {
-      const containsPatientData = /\d{3,}|\b(?:my name|mera naam|naam|name|age|umar|phone|mobile|years|saal|male|female|purush|mahila|aadhaar|aadhar|abha)\b|(?:என் பெயர்|வயது|தொலைபேசி|ஆதார்|నా పేరు|వయస్సు|ఫోన్|ఆధార్|আমার নাম|বয়স|ফোন|আধার|माझे नाव|वय|फोन|आधार|મારું નામ|ઉંમર|ફોન|આધાર|ನನ್ನ ಹೆಸರು|ವಯಸ್ಸು|ಫೋನ್|ಆಧಾರ್|എന്റെ പേര്|വയസ്സ്|ഫോൺ|ആധാർ)/iu.test(input);
-      const explicitNavigation = this._fastMatchIntent(input, { ...context, expectsFreeText: false });
-      if (explicitNavigation && !containsPatientData && /^(home|back|next|skip|confirm)$/i.test(input)) {
-        return { ...explicitNavigation, raw: transcript };
-      }
-      if (containsPatientData) {
-        return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
-      }
-      return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
-    }
+    // Exact visible tab labels and registered short commands work without a model.
+    // Everything else, including mixed form/navigation speech, reaches Gemini.
+    const commandLabel = input.replace(/^(?:please\s+)?(?:open|show|go to|switch to)\s+/i, '').replace(/\s+(?:tab|please|खोलो|खोलें|दिखाओ|திறக்கவும்|తెరవండి|খুলুন|উঘডা|उघडा|ખોલો|ತೆರೆಯಿರಿ|തുറക്കൂ)$/iu, '').trim();
+    const labelMatches = (context.actions || []).filter(action => /^activate_\d+$/.test(action.intent) && normalize(action.description) === commandLabel);
+    if (labelMatches.length === 1) return { intent: labelMatches[0].intent, confidence: 1, raw: transcript };
+    const registered = this.pageCommands[currentPage] || {};
+    const exactMatches = Object.entries(registered).filter(([, phrases]) => Array.isArray(phrases) && phrases.some(phrase => normalize(phrase) === commandLabel));
+    if (exactMatches.length === 1) return { intent: exactMatches[0][0], confidence: 1, raw: transcript };
+    const globalMatch = this._matchGlobalCommands(input);
+    if (globalMatch.confidence === 1 && (registered[globalMatch.intent] || this.pageCommands.__global__?.[globalMatch.intent])) return { ...globalMatch, raw: transcript };
 
     // 1. FAST-PATH: Direct instant hotword match ONLY for pure short navigation commands (<= 2 words e.g. 'home', 'back', 'hindi')
     const wordsCount = input.trim().split(/\s+/).filter(Boolean).length;
@@ -574,6 +571,9 @@ class CommandParser {
     } catch (error) {
       console.warn('AI intent parsing failed; evaluating offline fallback.', error);
     }
+
+    // Never treat a patient's age or narrative as a numbered option after an outage.
+    if (context.expectsFreeText) return { intent: 'free_text', confidence: 1, raw: transcript, value: transcript };
 
     // 3. Check number/option selection (Fuzzy Matching)
     const optionResult = this._matchOptionSelection(input);

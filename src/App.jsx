@@ -49,7 +49,7 @@ import { useLanguage } from './context/LanguageContext';
 
 // Scroll to top and stop audio on route change
 function RouteChangeListener() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const voiceEnabled = pathname !== '/physician' && pathname !== '/admin-dashboard';
 
   useEffect(() => {
@@ -66,10 +66,10 @@ function RouteChangeListener() {
       domTranslator.triggerFullScan();
       if (!voiceEnabled) return;
       if (pageId === 'landing') audioPromptManager.speakInitialLandingWelcome();
-      else audioPromptManager.speakPageWelcome(pageId);
+      else if (pageId !== 'auth') audioPromptManager.speakPageWelcome(pageId, true);
     }, 250);
     return () => clearTimeout(timer);
-  }, [pathname, voiceEnabled]);
+  }, [pathname, search, voiceEnabled]);
 
   return null;
 }
@@ -116,12 +116,12 @@ function GlobalVoiceHandler() {
       triage:            () => navigate('/language'),
 
       // ── Patient Dashboard Tab Navigation (global fallback) ───────────────
-      viewAppointments: () => navigate('/patient-dashboard'),
-      viewHistory:      () => navigate('/patient-dashboard'),
-      viewReports:      () => navigate('/patient-dashboard'),
-      viewDonations:    () => navigate('/patient-dashboard'),
-      viewCommunities:  () => navigate('/patient-dashboard'),
-      viewHelp:         () => navigate('/patient-dashboard'),
+      viewAppointments: () => navigate('/patient-dashboard?tab=appointments'),
+      viewHistory:      () => navigate('/patient-dashboard?tab=history'),
+      viewReports:      () => navigate('/patient-dashboard?tab=reports'),
+      viewDonations:    () => navigate('/patient-dashboard?tab=donations'),
+      viewCommunities:  () => navigate('/patient-dashboard?tab=communities'),
+      viewHelp:         () => navigate('/patient-dashboard?tab=help'),
       viewProfile:      () => navigate('/patient-dashboard'),
       showAbhaCard:     () => navigate('/patient-dashboard'),
       toggleAyush:      () => navigate('/patient-dashboard'),
@@ -174,9 +174,7 @@ function GlobalVoiceHandler() {
 function Layout({ children, showHeader = true }) {
   const { pathname, search } = useLocation();
   const authRole = new URLSearchParams(search).get('role');
-  const showVoiceIndicator = !(
-    pathname === '/auth' && (authRole === 'doctor' || authRole === 'admin')
-  );
+  const showVoiceIndicator = true;
 
   return (
     <>
