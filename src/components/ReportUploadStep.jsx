@@ -52,7 +52,7 @@ export default function ReportUploadStep({
 
   // Sync reports to parent
   useEffect(() => {
-    onUpdateReports(reports);
+    onUpdateReports(reports.filter(report => report.ocrStatus !== 'rejected' && report.ocrStatus !== 'analyzing'));
   }, [reports]);
 
   // Clean up camera stream on unmount
@@ -111,28 +111,10 @@ export default function ReportUploadStep({
     stopCamera();
   };
 
-  const simulateCapture = async () => {
-    setIsProcessing(true);
-    const canvas = canvasRef.current || document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 600;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(0, 0, 800, 600);
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('Medical Diagnostic Report', 40, 60);
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = '#475569';
-    ctx.fillText(`Patient Record • Date: ${new Date().toLocaleDateString()}`, 40, 100);
-    ctx.fillText('Findings: Normal parameters, clinical follow-up recommended.', 40, 140);
-
-    const dataUrl = canvas.toDataURL('image/jpeg');
-    await processCapturedDocument(dataUrl, `Camera_Scan_${Date.now().toString().slice(-4)}.jpg`, 'Scan');
-    setIsProcessing(false);
-    stopCamera();
+  const simulateCapture = () => {
+    // No camera means no captured image. Ask for a real file instead.
+    fileInputRef.current?.click();
   };
-
   const handleDeviceUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
@@ -149,16 +131,22 @@ export default function ReportUploadStep({
           file,
           dataUrl,
           uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          source: 'Upload'
+          source: 'Upload',
+          ocrStatus: 'analyzing'
         };
 
         // Extract and attach clinical OCR summary in background
         const ocrPromise = OCRProcessor.processImage(dataUrl, file.type.includes('pdf') ? 'pdf' : 'lab', file.name)
           .then(res => {
+            if (!res?.success || !res.isMedicalDocument) {
+              setReports(prev => prev.map(d => d.id === newDoc.id ? { ...d, ocrStatus: res?.isMedicalDocument === false ? 'rejected' : 'unverified', analysisNotice: res?.summary || res?.error || 'Unable to analyze this file.' } : d));
+              return;
+            }
             const extracted = res?.extractedText || res?.text || res?.summary || '';
             if (extracted) {
               setReports(prev => prev.map(d => d.id === newDoc.id ? {
                 ...d,
+                ocrStatus: 'success',
                 ocrSummary: extracted,
                 ocr_text: extracted,
                 extracted_data: res.structuredData || extracted,
@@ -194,9 +182,16 @@ export default function ReportUploadStep({
 
     try {
       const res = await OCRProcessor.processImage(dataUrl, 'lab', fileName);
+      if (!res?.success || !res.isMedicalDocument) {
+        newDoc.ocrStatus = res?.isMedicalDocument === false ? 'rejected' : 'unverified';
+        newDoc.analysisNotice = res?.summary || res?.error || 'Unable to analyze this image.';
+        setReports(prev => [...prev, newDoc]);
+        return;
+      }
       const extracted = res?.extractedText || res?.text || res?.summary || '';
       if (extracted) {
         newDoc.ocrSummary = extracted;
+        newDoc.ocrStatus = 'success';
         newDoc.ocr_text = extracted;
         newDoc.extracted_data = res.structuredData || extracted;
         newDoc.reportType = res.category || 'lab';
@@ -528,6 +523,10 @@ export default function ReportUploadStep({
                       <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                         {report.size} • {report.source}
                       </div>
+                      <div style={{ fontSize: '0.73rem', color: report.ocrStatus === 'rejected' ? '#b91c1c' : '#64748b', marginTop: '4px' }}>
+                        {report.ocrStatus === 'analyzing' ? 'Analyzing image…' : report.ocrStatus === 'success' ? 'AI extraction complete — review against the original' : report.analysisNotice || 'No verified OCR data'}
+                        {report.ocrStatus === 'rejected' && ' This file will not be attached to the consultation.'}
+                      </div>
                     </div>
                   </div>
 
@@ -848,6 +847,7 @@ export default function ReportUploadStep({
 
         <button
           onClick={onNext}
+          disabled={isProcessing || reports.some(report => report.ocrStatus === 'analyzing')}
           data-voice-action="next"
           style={{
             backgroundColor: '#059669',

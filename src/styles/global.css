@@ -436,3 +436,26 @@ h1, h2, h3, h4, h5, h6 {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Custom Styled Scrollbar for Slot Selection & Modals */
+.swasthya-custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #0f766e #f1f5f9;
+  -webkit-overflow-scrolling: touch;
+}
+.swasthya-custom-scrollbar::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.swasthya-custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+.swasthya-custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #0f766e;
+  border-radius: 8px;
+}
+.swasthya-custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #0d635d;
+}
+

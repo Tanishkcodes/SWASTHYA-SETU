@@ -2840,7 +2840,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
                       gap: '4px',
                       border: '1px solid #bbf7d0'
                     }}>
-                      <Check size={12} color="#059669" /> AI OCR Verified
+                      <Check size={12} color="#059669" /> AI extraction — review required
                     </span>
                   </div>
 
@@ -2926,7 +2926,7 @@ function Consultation({ p, intake, reports = [], ayur, back, end }) {
           }}
         >
           <FileText size={16} color="#16a34a" />
-          OCR accuracy is high. Please verify the extracted information with the original reports.
+          AI extraction can contain errors. Verify every value and medicine against the original report before using it for care.
         </div>
       </Section>
 

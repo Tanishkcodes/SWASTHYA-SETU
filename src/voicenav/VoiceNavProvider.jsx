@@ -443,21 +443,24 @@ export function VoiceNavProvider({ children }) {
       clearTimeout(silenceTimerRef.current);
     }
 
+    // Clear the intent flag before stopping. Some browsers dispatch `onend`
+    // synchronously enough to otherwise see the old value and auto-restart.
+    isListeningRef.current = false;
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
     }
     setIsListening(false);
-    isListeningRef.current = false;
     setMicState('idle');
   }, []);
 
   // Toggle listening
   const toggleListening = useCallback(() => {
-    if (isSpeaking) {
-      // A microphone click always means "listen". Stop page narration first,
-      // then start recognition from the same user gesture.
-      audioFeedback.stop();
-      startListening(true);
+    if (isSpeaking || audioFeedback.isSpeaking) {
+      // While narration is playing, the same button is a stop control. A
+      // separate click from the idle state is required to start listening.
+      audioPromptManager.stop();
+      setMicState('idle');
+      return;
     } else if (isListening) {
       const pending = accumulatedTranscriptRef.current.trim();
       stopListening();

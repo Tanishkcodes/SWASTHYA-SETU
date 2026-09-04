@@ -23,6 +23,7 @@ const LS = {
   hospitals:    'ss_db_hospitals',
   doctors:      'ss_db_doctors',
   doctorLeaves: 'ss_db_doctor_leaves',
+  doctorReviews: 'ss_db_doctor_reviews',
 };
 
 // ─── Staff Authentication Lockout (Brute-force defense: 2 min lockout on 5 failed attempts) ───
@@ -373,11 +374,11 @@ const doctors = {
       }
 
       const { data, error } = await query;
-      if (!error && data && data.length > 0) {
+      if (!error) {
         const normalized = data.map(d => ({
           ...d,
-          hospitalName: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital',
-          hospital_name: d.hospital_name || d.hospitals?.name || d.hospitalName || 'Sawai Man Singh Hospital'
+          hospitalName: d.hospital_name || d.hospitals?.name || d.hospitalName || '',
+          hospital_name: d.hospital_name || d.hospitals?.name || d.hospitalName || ''
         }));
         return { data: normalized, error: null };
       }
@@ -592,7 +593,7 @@ const doctors = {
       avatar_url: generatedAvatar,
       registration_number: registrationNumber || null,
       dob: dob || null,
-      rating: 4.8,
+      rating: null,
       reviews_count: 0,
       is_active: true,
       created_at: new Date().toISOString(),
@@ -665,7 +666,7 @@ const doctors = {
       email: doctor.email || null,
       phone: doctor.phone || null,
       avatar_url: doctor.avatar_url || null,
-      rating: Number(doctor.rating) || null,
+      rating: doctor.rating == null ? null : Number(doctor.rating),
       is_active: true,
     };
     const hospital = { id: hospitalId, name: doctor.hospitalName || hospitalId };
@@ -684,36 +685,37 @@ const slots = {
    */
   async getForDoctor(doctorId, dateStr) {
     if (USE_SUPABASE()) {
-      // Try to fetch existing
-      let { data, error } = await supabase
-        .from('slot_schedules')
-        .select('*')
-        .eq('doctor_id', doctorId)
-        .eq('date', dateStr)
-        .order('time_24');
-
-      if (!error && (!data || data.length === 0)) {
-        // Generate slots via DB function
-        await supabase.rpc('generate_doctor_slots', {
-          p_doctor_id: doctorId,
-          p_date: dateStr,
-        });
-        // Fetch again
-        ({ data, error } = await supabase
+      try {
+        let { data, error } = await supabase
           .from('slot_schedules')
           .select('*')
           .eq('doctor_id', doctorId)
           .eq('date', dateStr)
-          .order('time_24'));
-      }
-      return { data: data || [], error };
+          .order('time_24');
+
+        if (!error && (!data || data.length === 0)) {
+          try {
+            await supabase.rpc('generate_doctor_slots', {
+              p_doctor_id: doctorId,
+              p_date: dateStr,
+            });
+            ({ data, error } = await supabase
+              .from('slot_schedules')
+              .select('*')
+              .eq('doctor_id', doctorId)
+              .eq('date', dateStr)
+              .order('time_24'));
+          } catch (e) {}
+        }
+        if (data && data.length > 0) return { data, error: null };
+      } catch (e) {}
     }
 
     // localStorage fallback (reuse SlotEngine)
     const { getDoctorSchedule } = await import('../engine/SlotEngine').catch(() => ({ getDoctorSchedule: null }));
     if (getDoctorSchedule) {
       const sched = getDoctorSchedule(doctorId, dateStr);
-      return { data: sched.slots, error: null };
+      return { data: sched?.slots || [], error: null };
     }
     return { data: [], error: null };
   },
@@ -739,21 +741,25 @@ const slots = {
   /** Count bookings for a slot (to compute availability) */
   async countBookings(doctorId, dateStr, time24) {
     if (USE_SUPABASE()) {
-      const { count, error } = await supabase
-        .from('appointments')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', doctorId)
-        .eq('date', dateStr)
-        .eq('time_24', time24)
-        .neq('status', 'cancelled');
-      return { count: count || 0, error };
+      try {
+        const { count, error } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('doctor_id', doctorId)
+          .eq('date', dateStr)
+          .eq('time_24', time24)
+          .neq('status', 'cancelled');
+        if (!error && typeof count === 'number') {
+          return { count, error: null };
+        }
+      } catch (e) {}
     }
     // localStorage fallback
     const all = lsRead(LS.appointments);
     const count = all.filter(a =>
-      a.doctor_id === doctorId &&
-      a.date === dateStr &&
-      a.time_24 === time24 &&
+      (a.doctor_id === doctorId || a.doctorId === doctorId) &&
+      (a.date === dateStr || a.dateStr === dateStr) &&
+      (a.time_24 === time24 || a.time24 === time24) &&
       a.status !== 'cancelled'
     ).length;
     return { count, error: null };
@@ -761,7 +767,7 @@ const slots = {
 
   /**
    * Get enriched live slot data grouped by session
-   * (for Step 2 patient booking UI)
+   * (for Step 2 patient booking UI and Reschedule dialog)
    */
   async getLive(doctorId, dateStr, patientId = null) {
     // Check if doctor is on approved leave / holiday
@@ -779,48 +785,74 @@ const slots = {
     }
 
     const { data: slotRows, error } = await this.getForDoctor(doctorId, dateStr);
-    if (error) return { onLeave: false, leaveReason: '', morning: [], afternoon: [], evening: [] };
+    if (error || !slotRows || slotRows.length === 0) {
+      const { getLiveSlotAvailability } = await import('../engine/SlotEngine').catch(() => ({ getLiveSlotAvailability: null }));
+      if (getLiveSlotAvailability) {
+        return getLiveSlotAvailability(doctorId, dateStr, patientId);
+      }
+      return { onLeave: false, leaveReason: '', morning: [], afternoon: [], evening: [] };
+    }
 
     const now = new Date();
     const isToday = dateStr === localDateKey(now);
 
     let serverAvailability = new Map();
     if (USE_SUPABASE()) {
-      const { data: availability, error: availabilityError } = await supabase.rpc('get_appointment_slot_availability', {
-        p_doctor_id: doctorId,
-        p_date: dateStr,
-        p_patient_id: patientId || null,
-      });
-      if (!availabilityError) {
-        serverAvailability = new Map((availability || []).map(item => [item.time_24, item]));
-      }
+      try {
+        const { data: availability, error: availabilityError } = await supabase.rpc('get_appointment_slot_availability', {
+          p_doctor_id: doctorId,
+          p_date: dateStr,
+          p_patient_id: patientId || null,
+        });
+        if (!availabilityError && availability) {
+          serverAvailability = new Map((availability || []).map(item => [item.time_24, item]));
+        }
+      } catch (e) {}
     }
 
+    let dynamicCap = 6;
+    try {
+      const { getDoctorDynamicCapacity } = await import('../engine/SlotEngine').catch(() => ({ getDoctorDynamicCapacity: null }));
+      if (getDoctorDynamicCapacity) {
+        dynamicCap = getDoctorDynamicCapacity(doctorId);
+      }
+    } catch (e) {}
+
     const enriched = await Promise.all(slotRows.map(async slot => {
-      const serverSlot = serverAvailability.get(slot.time_24);
-      const bookingResult = serverSlot ? { count: Number(serverSlot.booked_count || 0) } : await this.countBookings(doctorId, dateStr, slot.time_24);
+      const slotTime24 = slot.time_24 || slot.time24 || '';
+      const slotTimeLabel = slot.time_label || slot.label || '';
+      const slotIsOpen = slot.is_open !== undefined ? slot.is_open : (slot.isOpen !== undefined ? slot.isOpen : true);
+      const rawCap = Number(slot.capacity);
+      const capacity = (!rawCap || rawCap <= 3) ? dynamicCap : rawCap;
+
+      const serverSlot = slotTime24 ? serverAvailability.get(slotTime24) : null;
+      const bookingResult = serverSlot ? { count: Number(serverSlot.booked_count || 0) } : (slotTime24 ? await this.countBookings(doctorId, dateStr, slotTime24) : { count: 0 });
       const booked = bookingResult.count;
       const activeHolds = Number(serverSlot?.active_hold_count || 0);
-      const slotsLeft = serverSlot ? Number(serverSlot.slots_left || 0) : Math.max(0, slot.capacity - booked);
+      const slotsLeft = serverSlot ? Number(serverSlot.slots_left || 0) : Math.max(0, capacity - booked);
       const consultationBlocked = Boolean(serverSlot?.consultation_blocked);
 
       let isPast = false;
-      if (isToday) {
-        const [h, m] = slot.time_24.split(':').map(Number);
-        isPast = h * 60 + m <= now.getHours() * 60 + now.getMinutes();
+      if (isToday && slotTime24 && slotTime24.includes(':')) {
+        const [h, m] = slotTime24.split(':').map(Number);
+        if (!isNaN(h) && !isNaN(m)) {
+          isPast = h * 60 + m <= now.getHours() * 60 + now.getMinutes();
+        }
       }
 
       let state;
-      if (!slot.is_open || isPast || consultationBlocked) state = 'closed';
+      if (!slotIsOpen || isPast || consultationBlocked) state = 'closed';
       else if (slotsLeft === 0)    state = 'full';
-      else if (slotsLeft === 1)    state = 'fast';
+      else if (slotsLeft <= 2)     state = 'fast';
       else                          state = 'open';
 
       return {
-        time24:   slot.time_24,
-        label:    slot.time_label,
+        time24:   slotTime24,
+        time_24:  slotTime24,
+        label:    slotTimeLabel,
+        time_label: slotTimeLabel,
         session:  slot.session,
-        capacity: slot.capacity,
+        capacity,
         booked,
         activeHolds,
         consultationBlocked,
@@ -1118,6 +1150,107 @@ const appointments = {
     all.push(appt);
     lsWrite(LS.appointments, all);
     return { data: appt, token, error: null };
+  },
+
+  /** Move a missed appointment to a new live slot without creating a duplicate. */
+  async reschedule({ appointmentId, patientId, date, time24, timeLabel }) {
+    const now = new Date();
+    const todayKey = localDateKey(now);
+    const [slotHour, slotMinute] = String(time24 || '').split(':').map(Number);
+    const isExpired = date < todayKey || (
+      date === todayKey &&
+      Number.isFinite(slotHour) &&
+      slotHour * 60 + slotMinute <= now.getHours() * 60 + now.getMinutes()
+    );
+    if (!appointmentId || !patientId || !date || !time24 || isExpired) {
+      return { data: null, token: null, error: new Error('Please select a future appointment date and time.') };
+    }
+
+    const leaveCheck = await doctorLeaves.isDoctorOnLeave(
+      (lsRead(LS.appointments) || []).find(item => item.id === appointmentId)?.doctor_id,
+      date
+    );
+    if (!USE_SUPABASE() && leaveCheck.onLeave) {
+      return { data: null, token: null, error: new Error(`Doctor is on leave on ${date}. Please select another date.`) };
+    }
+
+    if (USE_SUPABASE()) {
+      try {
+        const { data, error } = await supabase.rpc('reschedule_missed_appointment', {
+          p_appointment_id: appointmentId,
+          p_patient_id: patientId,
+          p_date: date,
+          p_time_24: time24,
+          p_time_label: timeLabel,
+        });
+        if (!error && data) {
+          const row = Array.isArray(data) ? data[0] : data;
+          if (row) {
+            try {
+              window.dispatchEvent(new CustomEvent('swasthya_appointment_changed', { detail: { id: appointmentId, action: 'rescheduled' } }));
+              window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed'));
+            } catch (e) {}
+            return { data: row, token: row?.token_number || null, error: null };
+          }
+        }
+      } catch (e) {}
+    }
+
+    const all = lsRead(LS.appointments) || [];
+    const index = all.findIndex(item => item.id === appointmentId && (item.patient_id === patientId || item.patientId === patientId));
+    if (index < 0) return { data: null, token: null, error: new Error('Appointment was not found.') };
+
+    const current = all[index];
+    const currentDocId = current.doctor_id || current.doctorId;
+    const oldTime = current.time_24 || current.time24;
+    const [oldHour, oldMinute] = String(oldTime || '').split(':').map(Number);
+    const oldIsPast = current.date < todayKey || (
+      current.date === todayKey && Number.isFinite(oldHour) &&
+      oldHour * 60 + oldMinute <= now.getHours() * 60 + now.getMinutes()
+    );
+    if (current.status === 'completed' || current.status === 'cancelled' || (!oldIsPast && current.status !== 'no_show' && current.status !== 'missed' && current.computedStatus !== 'missed')) {
+      return { data: null, token: null, error: new Error('Only a missed appointment can be rescheduled.') };
+    }
+    const duplicate = all.some(item => item.id !== appointmentId && (item.patient_id === patientId || item.patientId === patientId) &&
+      (item.doctor_id === currentDocId || item.doctorId === currentDocId) && item.date === date && (item.time_24 === time24 || item.time24 === time24) && item.status !== 'cancelled');
+    if (duplicate) return { data: null, token: null, error: new Error('You already have an appointment with this doctor at that time.') };
+
+    const slotResult = await slots.getLive(currentDocId, date, patientId);
+    const selectedSlot = [...(slotResult.morning || []), ...(slotResult.afternoon || []), ...(slotResult.evening || [])]
+      .find(slot => slot.time24 === time24 || slot.time_24 === time24);
+    if (!selectedSlot || !['open', 'fast'].includes(selectedSlot.state)) {
+      return { data: null, token: null, error: new Error('That slot is no longer available. Please select another time.') };
+    }
+
+    const compactDate = String(date).replace(/-/g, '');
+    const existingTokens = all.map(item => item.token_number || item.token).filter(Boolean);
+    let nextNumber = all.filter(item => item.date === date && item.id !== appointmentId).length + 1;
+    let token = `APT-${compactDate}-${String(nextNumber).padStart(3, '0')}`;
+    while (existingTokens.includes(token)) {
+      nextNumber += 1;
+      token = `APT-${compactDate}-${String(nextNumber).padStart(3, '0')}`;
+    }
+    all[index] = {
+      ...current,
+      date,
+      time_24: time24,
+      time24: time24,
+      time_label: timeLabel,
+      time: timeLabel,
+      token_number: token,
+      token,
+      status: 'upcoming',
+      isMissed: false,
+      computedStatus: 'upcoming',
+      displayStatus: 'Confirmed',
+      updated_at: new Date().toISOString(),
+    };
+    lsWrite(LS.appointments, all);
+    try {
+      window.dispatchEvent(new CustomEvent('swasthya_appointment_changed', { detail: { id: appointmentId, action: 'rescheduled' } }));
+      window.dispatchEvent(new CustomEvent('swasthya_slot_hold_changed'));
+    } catch (e) {}
+    return { data: all[index], token, error: null };
   },
 
   /** Get all appointments for a patient */
@@ -3191,6 +3324,141 @@ const voice = {
   },
 };
 
+const doctorReviews = {
+  async submitReview({ appointmentId, doctorId, doctorName, hospitalId, hospitalName, patientId, patientName, rating, tags = [], comment = '' }) {
+    const numericRating = Number(rating);
+    if (!appointmentId || !patientId) return { data: null, error: new Error('A completed consultation is required to leave a review.') };
+    if (!Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
+      return { data: null, error: new Error('Please select a rating from 1 to 5 stars.') };
+    }
+    const cleanComment = String(comment || '').trim();
+    if (cleanComment.length > 2000) return { data: null, error: new Error('Review must be 2,000 characters or fewer.') };
+
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase.rpc('submit_doctor_review', {
+        p_appointment_id: appointmentId,
+        p_patient_id: patientId,
+        p_rating: numericRating,
+        p_review: cleanComment || null,
+        p_tags: Array.isArray(tags) ? tags : [],
+      });
+      const row = Array.isArray(data) ? data[0] : data;
+      return { data: row, error };
+    }
+
+    const appointmentsList = lsRead(LS.appointments) || [];
+    const appointment = appointmentsList.find(item => item.id === appointmentId);
+    if (!appointment || appointment.patient_id !== patientId || appointment.status !== 'completed') {
+      return { data: null, error: new Error('Reviews are available only after your consultation is completed.') };
+    }
+    if (appointment.reviewed || (lsRead(LS.doctorReviews) || []).some(item => item.appointment_id === appointmentId)) {
+      return { data: null, error: new Error('You have already reviewed this consultation.') };
+    }
+
+    const reviewId = globalThis.crypto?.randomUUID?.() || ('rev-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9));
+    const reviewObj = {
+      id: reviewId,
+      appointment_id: appointmentId || null,
+      doctor_id: doctorId || null,
+      doctor_name: doctorName || 'Doctor',
+      hospital_id: hospitalId || null,
+      hospital_name: hospitalName || null,
+      patient_id: patientId || null,
+      patient_name: patientName || 'Verified Patient',
+      rating: numericRating,
+      tags: Array.isArray(tags) ? tags : [],
+      comment: cleanComment,
+      created_at: new Date().toISOString(),
+      verified_consultation: true,
+    };
+
+    const all = lsRead(LS.doctorReviews) || [];
+    all.unshift(reviewObj);
+    lsWrite(LS.doctorReviews, all);
+    const appointmentIndex = appointmentsList.findIndex(item => item.id === appointmentId);
+    appointmentsList[appointmentIndex] = {
+      ...appointmentsList[appointmentIndex],
+      reviewed: true,
+      review_rating: numericRating,
+      review_comment: reviewObj.comment,
+      reviewed_at: reviewObj.created_at,
+    };
+    lsWrite(LS.appointments, appointmentsList);
+
+    try {
+      const docReviews = all.filter(item => item.doctor_id === appointment.doctor_id);
+      if (docReviews.length > 0) {
+        const totalRating = docReviews.reduce((sum, item) => sum + Number(item.rating), 0);
+        const newAvg = (totalRating / docReviews.length).toFixed(1);
+        const newCount = docReviews.length;
+        if (appointment.doctor_id) {
+          await doctors.updateDoctor(appointment.doctor_id, { rating: parseFloat(newAvg), reviews_count: newCount });
+        }
+      }
+    } catch (docUpErr) {
+      console.warn('Doctor stats recalculation notice:', docUpErr);
+    }
+
+    return { data: reviewObj, error: null };
+  },
+
+  async getByDoctor(doctorId, doctorName) {
+    if (USE_SUPABASE() && doctorId) {
+      const { data, error } = await supabase
+        .from('doctor_reviews')
+        .select('id, appointment_id, doctor_id, rating, review, tags, created_at, verified_consultation')
+        .eq('doctor_id', doctorId)
+        .order('created_at', { ascending: false });
+      return {
+        data: (data || []).map(item => ({
+          ...item,
+          author: 'Verified Patient',
+          initial: 'P',
+          comment: item.review || '',
+          time: item.created_at,
+        })),
+        error,
+      };
+    }
+    const all = lsRead(LS.doctorReviews) || [];
+    const docId = String(doctorId || '').toLowerCase().trim();
+    const docNm = String(doctorName || '').toLowerCase().trim();
+    const matched = all.filter(r => {
+      if (docId && String(r.doctor_id || '').toLowerCase().trim() === docId) return true;
+      if (docNm && String(r.doctor_name || '').toLowerCase().trim() === docNm) return true;
+      return false;
+    });
+    return { data: matched, error: null };
+  },
+
+  async getByAppointment(appointmentId) {
+    if (!appointmentId) return { data: null, error: null };
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase
+        .from('doctor_reviews')
+        .select('id, appointment_id, doctor_id, rating, review, tags, created_at, verified_consultation')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+      return { data, error };
+    }
+    const all = lsRead(LS.doctorReviews) || [];
+    const found = all.find(r => r.appointment_id === appointmentId);
+    return { data: found || null, error: null };
+  },
+
+  async getAll() {
+    if (USE_SUPABASE()) {
+      const { data, error } = await supabase
+        .from('doctor_reviews')
+        .select('id, appointment_id, doctor_id, rating, review, tags, created_at, verified_consultation')
+        .order('created_at', { ascending: false });
+      return { data: data || [], error };
+    }
+    const all = lsRead(LS.doctorReviews) || [];
+    return { data: all, error: null };
+  }
+};
+
 const feedback = {
   async submit({ patientId = null, pageId, language, message }) {
     if (!USE_SUPABASE()) return { data: null, error: new Error('Database is not configured') };
@@ -4179,6 +4447,8 @@ export const db = {
   voice,
   feedback,
   support,
+  reviews: doctorReviews,
+  doctorReviews,
   /** Direct Supabase client access for advanced queries */
   client: supabase,
   isConfigured: isSupabaseConfigured,

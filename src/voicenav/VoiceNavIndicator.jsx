@@ -97,7 +97,7 @@ export default function VoiceNavIndicator() {
         className={`voicenav-orb ${config.className}`}
         onClick={toggleListening}
         disabled={!isSpeechSupported}
-        aria-label={isListening ? 'Stop listening' : 'Start listening'}
+        aria-label={isSpeaking ? 'Stop speaking' : isListening ? 'Stop listening' : 'Start listening'}
         title={config.label}
       >
         {/* Pulse rings for listening state */}

@@ -16,8 +16,68 @@
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Default capacity per 30-min slot (doctor sees N patients per slot) */
-const DEFAULT_CAPACITY_PER_SLOT = 3;
+/** Default capacity per 30-min slot (doctor sees N patients per slot) - enhanced to 6 */
+export const DEFAULT_CAPACITY_PER_SLOT = 6;
+
+/**
+ * Dynamically determine a doctor's consultation capacity per 30-minute block.
+ * Based on doctor's specialty, experience level, custom doctor settings, and hospital OPD pacing.
+ * High-volume general physicians and senior doctors can handle 6-8 patients per 30 mins,
+ * while specialized consultations take 5-6 slots, avoiding the artificial 3-slot bottleneck.
+ */
+export function getDoctorDynamicCapacity(doctorId) {
+  if (!doctorId) return DEFAULT_CAPACITY_PER_SLOT;
+  try {
+    // 1. Explicit doctor-configured capacity in localStorage
+    const customCapacity = localStorage.getItem(`ss_doc_capacity_${doctorId}`);
+    if (customCapacity) {
+      const parsed = parseInt(customCapacity, 10);
+      if (!isNaN(parsed) && parsed >= 4) return parsed;
+    }
+
+    // 2. Look up doctor in localStorage doctor database
+    const rawDocs = localStorage.getItem('ss_db_doctors');
+    if (rawDocs) {
+      const doctorsList = JSON.parse(rawDocs) || [];
+      const cleanId = String(doctorId).toLowerCase().trim();
+      const doc = doctorsList.find(d =>
+        String(d.id || '').toLowerCase() === cleanId ||
+        String(d.name || '').toLowerCase().includes(cleanId) ||
+        cleanId.includes(String(d.id || '').toLowerCase())
+      );
+
+      if (doc) {
+        if (doc.capacity_per_slot && Number(doc.capacity_per_slot) >= 4) {
+          return Number(doc.capacity_per_slot);
+        }
+        const spec = String(doc.speciality || doc.specialty || '').toLowerCase();
+        const exp = Number(doc.experience || 10);
+
+        // General Physician / Internal Medicine: High volume OPD (6 to 8 patients / 30m)
+        if (spec.includes('general') || spec.includes('physician') || spec.includes('medicine')) {
+          return exp >= 15 ? 8 : 6;
+        }
+        // Pediatrics & Dermatology: 6 to 7 patients / 30m
+        if (spec.includes('pediat') || spec.includes('derma')) {
+          return exp >= 12 ? 7 : 6;
+        }
+        // Cardiology, Orthopedics, Pulmonology, Neurology: 5 to 6 patients / 30m
+        if (spec.includes('cardio') || spec.includes('ortho') || spec.includes('pulmo') || spec.includes('neuro') || spec.includes('surg')) {
+          return exp >= 18 ? 6 : 5;
+        }
+        // Ayurveda & Holistic Care: 5 patients / 30m
+        if (spec.includes('ayurved') || doc.system === 'Ayurveda') {
+          return 5;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error calculating dynamic doctor capacity:', e);
+  }
+
+  // Default dynamic baseline is 6 slots per 30 minutes
+  return DEFAULT_CAPACITY_PER_SLOT;
+}
 
 /** Default OPD session windows per doctor (24-hour format) */
 const DEFAULT_MORNING_WINDOW   = { start: '09:00', end: '12:30' }; // 09:00–12:30
@@ -379,9 +439,31 @@ function todayStr() {
  * Returns { slots: [ { time24, label, capacity, isOpen } ] }
  */
 export function getDoctorSchedule(doctorId, dateStr = todayStr()) {
+  const dynamicCap = getDoctorDynamicCapacity(doctorId);
   const key = KEY_SCHEDULE + doctorId + '_' + dateStr;
   const stored = localStorage.getItem(key);
-  if (stored) return JSON.parse(stored);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      // Migrate / upgrade stored slots if they have outdated low capacity (<= 3)
+      if (parsed && Array.isArray(parsed.slots)) {
+        let changed = false;
+        parsed.slots = parsed.slots.map(s => {
+          if (!s.capacity || Number(s.capacity) <= 3) {
+            changed = true;
+            return { ...s, capacity: dynamicCap };
+          }
+          return s;
+        });
+        if (changed) {
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      }
+      return parsed;
+    } catch (e) {
+      console.warn('Error reading stored schedule:', e);
+    }
+  }
 
   // Auto-generate default schedule
   const morningSlots   = generateSlots(DEFAULT_MORNING_WINDOW.start, DEFAULT_MORNING_WINDOW.end);
@@ -389,9 +471,9 @@ export function getDoctorSchedule(doctorId, dateStr = todayStr()) {
   const eveningSlots   = generateSlots(DEFAULT_EVENING_WINDOW.start, DEFAULT_EVENING_WINDOW.end);
 
   const allSlots = [
-    ...morningSlots.map(s => ({ ...s, session: 'morning',   capacity: DEFAULT_CAPACITY_PER_SLOT, isOpen: true })),
-    ...afternoonSlots.map(s => ({ ...s, session: 'afternoon', capacity: DEFAULT_CAPACITY_PER_SLOT, isOpen: true })),
-    ...eveningSlots.map(s => ({ ...s, session: 'evening',   capacity: DEFAULT_CAPACITY_PER_SLOT, isOpen: true })),
+    ...morningSlots.map(s => ({ ...s, session: 'morning',   capacity: dynamicCap, isOpen: true })),
+    ...afternoonSlots.map(s => ({ ...s, session: 'afternoon', capacity: dynamicCap, isOpen: true })),
+    ...eveningSlots.map(s => ({ ...s, session: 'evening',   capacity: dynamicCap, isOpen: true })),
   ];
 
   const schedule = {
@@ -399,7 +481,7 @@ export function getDoctorSchedule(doctorId, dateStr = todayStr()) {
     dateStr,
     slots: allSlots.map(s => ({
       ...s,
-      capacity: DEFAULT_CAPACITY_PER_SLOT,
+      capacity: dynamicCap,
     }))
   };
 
@@ -529,7 +611,7 @@ export function getLiveSlots(doctorId, dateStr = todayStr(), currentPatientId = 
     let state;
     if (!slot.isOpen || isPast || isThrottledSlot) state = 'closed';
     else if (slotsLeft === 0)    state = 'full';
-    else if (slotsLeft === 1)    state = 'fast';
+    else if (slotsLeft <= 2)     state = 'fast';
     else                          state = 'open';
 
     return {
@@ -646,3 +728,6 @@ export function getDoctorQueue(doctorId, dateStr = todayStr()) {
     .filter(a => a.doctorId === doctorId && a.dateStr === dateStr && a.status !== 'cancelled')
     .sort((a, b) => a.time24.localeCompare(b.time24));
 }
+
+/** Alias export for backward compatibility with db.js */
+export const getLiveSlotAvailability = getLiveSlots;

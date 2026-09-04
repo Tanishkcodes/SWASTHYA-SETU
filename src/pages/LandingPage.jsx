@@ -120,7 +120,7 @@ export default function LandingPage() {
         <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', maxWidth: '1000px', zIndex: 1, marginTop: '2rem' }}>
 
           <div className="badge animate-fade-in-down mb-6" style={{ background: 'white', color: 'var(--teal-700)', padding: '10px 28px', borderRadius: '32px', fontWeight: '700', fontSize: '0.9rem', marginBottom: '32px', boxShadow: '0 10px 30px rgba(13,148,136,0.15)', border: '1px solid var(--teal-200)', letterSpacing: '0.5px' }}>
-            <span className="mr-2">✨</span> {t('tagline')}
+            {t('tagline')}
           </div>
 
           <h1 className="hero-title animate-fade-in-up" style={{ fontSize: '5rem', marginBottom: '1.5rem', fontWeight: '900', color: 'var(--navy-900)', lineHeight: '1.05', letterSpacing: '-2px' }}>

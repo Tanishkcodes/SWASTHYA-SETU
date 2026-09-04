@@ -1,188 +1,120 @@
 import voiceAIService from '../voicenav/VoiceAIService';
 
-/* ============================================
-   SWASTHYA SETU — Clinical OCR & Vision AI Engine
-   True multimodal document intelligence for prescriptions,
-   diagnostic lab reports, and radiology scans.
-   ============================================ */
-
+/* Clinical document analysis. This module never invents OCR data: when the
+   vision service cannot verify the image, it returns an explicit failure. */
 export class OCRProcessor {
-  /**
-   * Process an image or document data URL with multimodal AI Vision
-   * @param {string} imageDataUrl - Base64 or URL of the image
-   * @param {string} type - 'prescription' | 'lab' | 'imaging' | 'general'
-   * @param {string} fileName - Optional original file name for context
-   * @param {number} fileIndex - Optional index to diversify multiple uploaded photos
-   */
-  static async processImage(imageDataUrl, type = 'lab', fileName = '', fileIndex = 0) {
-    if (imageDataUrl && typeof imageDataUrl === 'string' && imageDataUrl.startsWith('data:image')) {
-      try {
-        const aiResult = await voiceAIService.analyzeReport(imageDataUrl, fileName);
-        if (aiResult && (aiResult.isMedicalDocument !== undefined || aiResult.summary || aiResult.documentType)) {
-          const isMed = aiResult.isMedicalDocument !== false;
-          const docType = aiResult.documentType || (isMed ? 'Medical Diagnostic Report' : 'Non-Medical Image');
-          const summary = aiResult.summary || (aiResult.impression ? `${aiResult.impression}` : '');
-          const tests = Array.isArray(aiResult.detectedParameters) ? aiResult.detectedParameters : [];
-
-          // Format structured text lines
-          const textLines = [
-            `${docType}${aiResult.labOrHospitalName ? ` — ${aiResult.labOrHospitalName}` : ''}:`,
-            ...tests.map(t => `• ${t.name}: ${t.result}${t.unit ? ` ${t.unit}` : ''}${t.ref ? ` [Ref: ${t.ref}]` : ''}${t.flag ? ` — ${t.flag}` : ''}`),
-            summary ? `\nClinical Impression: ${summary}` : ''
-          ].filter(Boolean);
-
-          const fullText = textLines.join('\n');
-
-          return {
-            success: true,
-            isMedicalDocument: isMed,
-            type: docType,
-            category: isMed ? 'lab' : 'non-medical',
-            text: fullText || summary,
-            extractedText: fullText || summary,
-            summary: summary || fullText,
-            ocr_text: fullText || summary,
-            ocrSummary: summary || fullText,
-            structuredData: {
-              date: aiResult.date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-              labName: aiResult.labOrHospitalName || docType,
-              tests,
-              notes: summary || aiResult.impression || ''
-            }
-          };
-        }
-      } catch (err) {
-        console.warn('Multimodal Vision AI processing notice:', err);
-      }
-    }
-
-    return this.getExtractionForFile(fileName, type, fileIndex);
+  static emptyStructuredData() {
+    return { date: '', labName: '', tests: [], medications: [], findings: '', impression: '', notes: '' };
   }
 
-  static getExtractionForFile(fileName = '', type = 'lab', fileIndex = 0) {
-    const name = String(fileName || '').toLowerCase();
-    const resolvedType = String(type || '').toLowerCase();
-    const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
-    // 1. Blood Sugar / HbA1c
-    if (name.includes('sugar') || name.includes('glucose') || name.includes('hba1c') || name.includes('diabet')) {
-      const text = `Comprehensive Glycemic Profile:\n• Fasting Plasma Glucose (FPG): 112 mg/dL [Ref: 70 - 99 mg/dL] — Borderline Elevated\n• Post-Prandial Blood Sugar (PPBS): 148 mg/dL [Ref: < 140 mg/dL] — Mild Elevation\n• Glycated Hemoglobin (HbA1c): 6.4 % [Ref: 4.0 - 5.6 %] — Prediabetic range\n• Estimated Average Glucose: 137 mg/dL\n• Clinical Impression: Regular diet control, lifestyle modification, and follow-up recommended.`;
+  static async processImage(imageDataUrl, type = 'general', fileName = '') {
+    if (typeof imageDataUrl !== 'string' || !/^data:image\/(?:jpeg|jpg|png|webp);base64,/i.test(imageDataUrl)) {
       return {
-        success: true,
-        type: 'Glycemic & Metabolic Profile',
-        category: 'lab',
-        text,
-        extractedText: text,
-        summary: text,
-        ocr_text: text,
-        ocrSummary: text,
-        structuredData: {
-          date: todayStr,
-          labName: 'Central Clinical Diagnostic Laboratories',
-          tests: [
-            { name: 'Fasting Blood Sugar', result: '112', unit: 'mg/dL', ref: '70 - 99', flag: 'High' },
-            { name: 'Post-Prandial Blood Sugar', result: '148', unit: 'mg/dL', ref: '< 140', flag: 'High' },
-            { name: 'HbA1c', result: '6.4', unit: '%', ref: '4.0 - 5.6', flag: 'High' }
-          ],
-          notes: 'Follow glycemic diet protocol.'
-        }
+        success: false,
+        isMedicalDocument: null,
+        type: 'Unsupported file',
+        category: 'unverified',
+        extractedText: '',
+        summary: 'This file could not be visually analyzed. Upload a clear JPG, PNG, or WebP image.',
+        error: 'A supported image is required for vision OCR.',
+        structuredData: this.emptyStructuredData(),
       };
     }
 
-    // 2. Lipid Profile
-    if (name.includes('lipid') || name.includes('cholesterol') || name.includes('heart') || (fileIndex % 3 === 1 && !name.includes('rx') && !name.includes('presc'))) {
-      const text = `Serum Lipid Profile Report:\n• Total Cholesterol: 188 mg/dL [Ref: < 200 mg/dL] — Desirable\n• HDL Cholesterol (Good): 48 mg/dL [Ref: > 40 mg/dL] — Normal\n• LDL Cholesterol (Bad): 114 mg/dL [Ref: < 100 mg/dL] — Borderline\n• Triglycerides: 142 mg/dL [Ref: < 150 mg/dL] — Normal\n• VLDL Cholesterol: 26 mg/dL [Ref: 5 - 40 mg/dL] — Normal\n• Impression: Optimal cardiovascular lipid parameters. Borderline LDL noted.`;
-      return {
-        success: true,
-        type: 'Lipid Profile Panel',
-        category: 'lab',
-        text,
-        extractedText: text,
-        summary: text,
-        ocr_text: text,
-        ocrSummary: text,
-        structuredData: {
-          date: todayStr,
-          labName: 'Apex Diagnostic Pathology Center',
-          tests: [
-            { name: 'Total Cholesterol', result: '188', unit: 'mg/dL', ref: '< 200', flag: 'Normal' },
-            { name: 'HDL Cholesterol', result: '48', unit: 'mg/dL', ref: '> 40', flag: 'Normal' },
-            { name: 'LDL Cholesterol', result: '114', unit: 'mg/dL', ref: '< 100', flag: 'Borderline' },
-            { name: 'Triglycerides', result: '142', unit: 'mg/dL', ref: '< 150', flag: 'Normal' }
-          ]
-        }
-      };
-    }
-
-    // 3. Radiology / Imaging
-    if (resolvedType.includes('imaging') || name.includes('xray') || name.includes('scan') || name.includes('mri') || name.includes('ultrasound') || (fileIndex % 3 === 2 && !name.includes('rx') && !name.includes('presc'))) {
-      const text = `Radiology & Imaging Examination Report:\n• Examination: Digital Radiography (PA / Lateral View)\n• Clinical Indication: Routine Pre-consultation Evaluation\n• Findings:\n  - Both lung fields appear clear with normal vascular markings.\n  - Cardiac silhouette and mediastinal contours are within normal limits.\n  - Costophrenic and cardiophrenic angles are well-defined and sharp.\n  - Bony thorax and soft tissues show no significant abnormality.\n• Impression: No acute cardiopulmonary or parenchymal lesion identified.`;
-      return {
-        success: true,
-        type: 'Radiology & Imaging Report',
-        category: 'imaging',
-        text,
-        extractedText: text,
-        summary: text,
-        ocr_text: text,
-        ocrSummary: text,
-        structuredData: {
-          date: todayStr,
-          modality: 'Digital Radiography',
-          radiologist: 'Dr. V. K. Aggarwal, MD (Radiology)',
-          findings: 'Clear lung fields, normal cardiothoracic ratio.',
-          impression: 'Normal study'
-        }
-      };
-    }
-
-    // 4. Clinical Prescription
-    if (resolvedType.includes('prescription') || name.includes('presc') || name.includes('rx') || name.includes('med')) {
-      const text = `Clinical Prescription & Orders:\n• Tab. Paracetamol 650mg — 1 tablet SOS after meals (Max 3/day for fever or body ache)\n• Tab. Pantoprazole 40mg — 1 tablet once daily before breakfast (OD x 5 days)\n• Syp. B-Complex & Zinc — 5ml twice daily after meals x 14 days\n• Clinical Guidance: Adequate hydration (2.5–3L water/day), avoid heavy fried meals, 7-8 hours restful sleep.\n• Follow-up: SOS or after 7 days if symptoms persist.`;
-      return {
-        success: true,
-        type: 'Clinical Prescription & Medical Advice',
-        category: 'prescription',
-        text,
-        extractedText: text,
-        summary: text,
-        ocr_text: text,
-        ocrSummary: text,
-        structuredData: {
-          date: todayStr,
-          doctor: 'Senior Consultant Physician',
-          hospital: 'Swasthya Setu Network Hospital',
-          medications: [
-            { name: 'Paracetamol 650mg', dosage: '1 tab SOS', timing: 'Post meals', duration: 'As needed' },
-            { name: 'Pantoprazole 40mg', dosage: '1 tab OD', timing: 'Before breakfast', duration: '5 days' },
-            { name: 'B-Complex & Zinc Syrup', dosage: '5ml BD', timing: 'After meals', duration: '14 days' }
-          ],
-          instructions: 'Adequate hydration and follow-up in 1 week.'
-        }
-      };
-    }
-
-    // Default: Complete Blood Count (CBC)
-    const defaultText = `Complete Blood Count (CBC) Diagnostic Report:\n• Hemoglobin (Hb): 13.4 g/dL [Ref: 12.0 - 15.5 g/dL] — Normal\n• Total Leukocyte Count (WBC): 7,200 cells/cumm [Ref: 4,000 - 11,000] — Normal\n• Platelet Count: 2.65 Lakhs/cumm [Ref: 1.5 - 4.5 Lakhs] — Normal\n• Red Blood Cells (RBC): 4.8 million/cumm [Ref: 4.2 - 5.4] — Normal\n• Packed Cell Volume (PCV): 41.2 % [Ref: 36 - 46 %] — Normal\n• Erythrocyte Sedimentation Rate (ESR): 12 mm/hr [Ref: 0 - 20] — Normal\n• Impression: Normocytic normochromic blood picture. No acute hematological abnormality.`;
-    return {
-      success: true,
-      type: 'Complete Blood Count (CBC)',
-      category: 'lab',
-      text: defaultText,
-      extractedText: defaultText,
-      summary: defaultText,
-      ocr_text: defaultText,
-      ocrSummary: defaultText,
-      structuredData: {
-        date: todayStr,
-        labName: 'National Path Lab Services',
-        tests: [
-          { name: 'Hemoglobin', result: '13.4', unit: 'g/dL', ref: '12.0 - 15.5', flag: 'Normal' },
-          { name: 'WBC Count', result: '7,200', unit: 'cells/cumm', ref: '4,000 - 11,000', flag: 'Normal' },
-          { name: 'Platelet Count', result: '2.65', unit: 'Lakhs/cumm', ref: '1.5 - 4.5', flag: 'Normal' },
-          { name: 'ESR', result: '12', unit: 'mm/hr', ref: '0 - 20', flag: 'Normal' }
-        ]
+    try {
+      const result = await voiceAIService.analyzeReport(imageDataUrl, fileName);
+      if (!result || typeof result.isMedicalDocument !== 'boolean') {
+        throw new Error('The vision service returned no verifiable classification.');
       }
+
+      const parameters = Array.isArray(result.detectedParameters)
+        ? result.detectedParameters.filter(item => item && String(item.name || '').trim() && String(item.result || '').trim())
+        : [];
+      const evidence = Array.isArray(result.evidenceText)
+        ? result.evidenceText.map(line => String(line || '').trim()).filter(Boolean)
+        : [];
+      const summary = String(result.summary || '').trim();
+      const documentType = String(result.documentType || (result.isMedicalDocument ? 'Medical document' : 'Non-medical image')).trim();
+
+      if (!result.isMedicalDocument) {
+        return {
+          success: true,
+          isMedicalDocument: false,
+          type: documentType,
+          category: 'non-medical',
+          text: summary,
+          extractedText: '',
+          summary: summary || 'No medical document or clinical data was detected in this image.',
+          ocr_text: '',
+          ocrSummary: '',
+          confidence: Number(result.confidence || 0),
+          structuredData: this.emptyStructuredData(),
+        };
+      }
+
+      // A medical classification alone is insufficient. Require readable
+      // evidence and reasonable confidence; do not interpret bare scans.
+      if (!evidence.length || Number(result.confidence || 0) < 0.65) {
+        throw new Error('The image was classified as medical, but no readable evidence could be verified.');
+      }
+
+      const textLines = [
+        `${documentType}${result.labOrHospitalName ? ` — ${result.labOrHospitalName}` : ''}`,
+        ...parameters.map(item => `• ${item.name}: ${item.result}${item.unit ? ` ${item.unit}` : ''}${item.ref ? ` [Ref: ${item.ref}]` : ''}${item.flag ? ` — ${item.flag}` : ''}`),
+        evidence.length ? `Visible text:\n${evidence.map(line => `• ${line}`).join('\n')}` : '',
+        summary ? `Summary: ${summary}` : '',
+      ].filter(Boolean);
+      const extractedText = textLines.join('\n');
+
+      return {
+        success: true,
+        isMedicalDocument: true,
+        type: documentType,
+        category: String(result.category || type || 'medical').toLowerCase(),
+        text: extractedText,
+        extractedText,
+        summary,
+        ocr_text: extractedText,
+        ocrSummary: summary || extractedText,
+        confidence: Number(result.confidence || 0),
+        warnings: Array.isArray(result.warnings) ? result.warnings : [],
+        structuredData: {
+          date: result.date || '',
+          labName: result.labOrHospitalName || '',
+          tests: parameters,
+          medications: Array.isArray(result.medications) ? result.medications : [],
+          findings: result.findings || '',
+          impression: result.impression || '',
+          notes: summary,
+          evidenceText: evidence,
+        },
+      };
+    } catch (error) {
+      console.warn('Vision OCR could not verify this upload:', error);
+      return {
+        success: false,
+        isMedicalDocument: null,
+        type: 'Analysis unavailable',
+        category: 'unverified',
+        extractedText: '',
+        summary: 'The image could not be analyzed reliably. Please upload a clearer, well-lit image with the complete document visible.',
+        error: error?.message || 'Vision OCR failed.',
+        structuredData: this.emptyStructuredData(),
+      };
+    }
+  }
+
+  // Kept for old stored reports. It deliberately returns no guessed values.
+  static getExtractionForFile() {
+    return {
+      success: false,
+      isMedicalDocument: null,
+      type: 'OCR not available',
+      category: 'unverified',
+      extractedText: '',
+      summary: 'No verified OCR data is available for this report.',
+      error: 'The original image must be analyzed by the vision service.',
+      structuredData: this.emptyStructuredData(),
     };
   }
 }

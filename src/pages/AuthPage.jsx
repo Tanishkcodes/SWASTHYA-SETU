@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useSession } from '../context/SessionContext';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
-import { UserCircle, Key, Shield, ArrowLeft, Stethoscope, Users, Eye, EyeOff } from 'lucide-react';
+import { UserCircle, Key, Shield, ArrowLeft, Stethoscope, Users, Eye, EyeOff, QrCode } from 'lucide-react';
 import VirtualKeyboard from '../components/VirtualKeyboard';
 import SwasthyaLogo from '../components/SwasthyaLogo';
 import BrandTitle from '../components/BrandTitle';
@@ -11,6 +11,8 @@ import aiCommandEngine from '../engine/AICommandEngine';
 import audioFeedback from '../voicenav/AudioFeedback';
 import { db, getAuthLockStatus } from '../lib/db';
 import '../styles/auth.css';
+
+const ABHAScanner = React.lazy(() => import('../components/ABHAScanner'));
 
 function normalizeGender(rawGender, t) {
   if (!rawGender) return '';
@@ -58,6 +60,7 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState('new'); // 'abha', 'aadhaar', 'new'
   const [abhaId, setAbhaId] = useState('');
   const [aadhaar, setAadhaar] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -704,14 +707,16 @@ export default function AuthPage() {
                   </div>
                   
                   {showScanner && (
-                    <ABHAScanner 
-                      t={t}
-                      onClose={() => setShowScanner(false)}
-                      onScan={(text) => {
-                        setAbhaId(text);
-                        setShowScanner(false);
-                      }}
-                    />
+                    <React.Suspense fallback={null}>
+                      <ABHAScanner
+                        t={t}
+                        onClose={() => setShowScanner(false)}
+                        onScan={(text) => {
+                          setAbhaId(text);
+                          setShowScanner(false);
+                        }}
+                      />
+                    </React.Suspense>
                   )}
                   
                   <div className="divider-with-text" style={{ textAlign: 'center', color: 'var(--gray-400)', margin: '1rem 0', fontSize: '0.875rem' }}>{t('or') || 'OR'}</div>

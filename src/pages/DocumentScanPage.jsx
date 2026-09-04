@@ -90,21 +90,9 @@ export default function DocumentScanPage() {
   };
 
   const simulateCapture = () => {
-    // Create a dummy gray image
-    const canvas = canvasRef.current;
-    canvas.width = 400;
-    canvas.height = 300;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ccc';
-    ctx.fillRect(0, 0, 400, 300);
-    ctx.fillStyle = '#333';
-    ctx.font = '20px Arial';
-    ctx.fillText('Simulated Document', 100, 150);
-    
-    const imageDataUrl = canvas.toDataURL('image/jpeg');
-    processImage(imageDataUrl);
+    // No camera means no captured image. Ask for a real file instead.
+    fileInputRef.current?.click();
   };
-
   const processImage = async (imageDataUrl) => {
     audioPromptManager.speakText("Analyzing document...");
     
@@ -128,7 +116,11 @@ export default function DocumentScanPage() {
     try {
       const result = await OCRProcessor.processImage(imageDataUrl, docType);
       
-      if (result.success) {
+      if (!result.success || !result.isMedicalDocument) {
+        updateDocument(tempId, { status: 'error', error: result.summary || result.error || 'No readable medical document was detected.' });
+        return;
+      }
+      if (result.success && result.isMedicalDocument) {
         let persisted = null;
         if (session.patient?.id) {
           const blob = await (await fetch(imageDataUrl)).blob();
@@ -153,7 +145,7 @@ export default function DocumentScanPage() {
         });
       }
     } catch (e) {
-      updateDocument(tempId, { status: 'error' });
+      updateDocument(tempId, { status: 'error', error: e?.message || 'Document analysis failed. Please try a clearer image.' });
       audioPromptManager.speakError();
     }
   };
@@ -188,12 +180,11 @@ export default function DocumentScanPage() {
 
         {/* Camera Container */}
         <div className="camera-container">
-          {cameraActive ? (
-            <video ref={videoRef} autoPlay playsInline className="camera-preview" />
-          ) : (
+          <video ref={videoRef} autoPlay playsInline className="camera-preview" style={{ display: cameraActive ? 'block' : 'none' }} />
+          {!cameraActive && (
             <div className="text-gray-400 flex-col-center gap-2">
               <Camera size={48} />
-              <span>Camera not available (Simulated mode)</span>
+              <span>Camera not available. Upload a clear image from your gallery.</span>
             </div>
           )}
           
@@ -249,17 +240,18 @@ export default function DocumentScanPage() {
                       <CheckCircle size={14} /> Extraction complete
                     </div>
                   )}
+                  {doc.status === 'error' && <div role="alert" style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{doc.error || 'This document could not be analyzed.'}</div>}
 
                   {/* Show preview of extracted data if available */}
                   {doc.status === 'success' && doc.extractedData && (
                     <div className="analysis-panel">
-                      {doc.type === 'prescription' && doc.extractedData.structuredData.medications.map((med, i) => (
+                      {doc.type === 'prescription' && (doc.extractedData.structuredData?.medications || []).map((med, i) => (
                         <div key={i} className="analysis-item">
                           <span className="analysis-label">{med.name}:</span>
                           <span className="analysis-value">{med.dosage} ({med.duration || 'SOS'})</span>
                         </div>
                       ))}
-                      {doc.type === 'lab' && doc.extractedData.structuredData.tests.map((test, i) => (
+                      {doc.type === 'lab' && (doc.extractedData.structuredData?.tests || []).map((test, i) => (
                         <div key={i} className="analysis-item">
                           <span className="analysis-label">{test.name}:</span>
                           <span className="analysis-value" style={{ color: test.flag === 'Normal' ? 'inherit' : 'var(--red-600)' }}>
