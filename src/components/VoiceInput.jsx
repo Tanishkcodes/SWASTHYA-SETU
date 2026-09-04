@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 import { useVoiceNav } from '../voicenav/VoiceNavProvider';
 import aiCommandEngine from '../engine/AICommandEngine';
+import { getLanguageInfo } from '../voicenav/LanguagePack';
 
 export default function VoiceInput({
   value,
@@ -22,12 +23,15 @@ export default function VoiceInput({
     setOnTranscript, 
     clearOnTranscript, 
     setDictationMode,
+    speak,
     language
   } = useVoiceNav();
   const [isDictating, setIsDictating] = useState(false);
   const inputRef = useRef(null);
   const releaseTranscriptRef = useRef(null);
+  const extractionVersionRef = useRef(0);
   const releaseTranscript = () => {
+    extractionVersionRef.current++;
     releaseTranscriptRef.current?.();
     releaseTranscriptRef.current = null;
   };
@@ -55,11 +59,12 @@ export default function VoiceInput({
     setDictationMode(true);
     
     releaseTranscript();
-    releaseTranscriptRef.current = setOnTranscript(async (rawText) => {
+    releaseTranscriptRef.current = setOnTranscript(async (rawText, recognition = {}) => {
       if (!rawText || !rawText.trim()) return false;
       const session = releaseTranscriptRef.current;
+      const version = ++extractionVersionRef.current;
       
-      const extracted = await aiCommandEngine.extractRegistrationDetails(rawText, language, { field: name });
+      const extracted = await aiCommandEngine.extractRegistrationDetails(rawText, language, { field: name, recognitionAlternatives: recognition.recognitionAlternatives || [] });
       
       let usefulValue = null;
       const isNumeric = type === 'number' || type === 'tel' || name === 'age' || name === 'phone' || name === 'aadhaar' || name === 'abhaId';
@@ -67,12 +72,6 @@ export default function VoiceInput({
       if (name === 'name' || name === 'fullName') {
         if (extracted?.name && extracted.name.trim().length > 0) {
           usefulValue = extracted.name.trim();
-        } else {
-          // If raw input is a clean 1-3 word name without sentence fluff
-          const words = rawText.trim().split(/\s+/);
-          if (words.length <= 3 && !rawText.match(/\b(?:doctor|hospital|pain|dard|fever|tablet|help|kya|kyun|kahan|where|when|what|how)\b/i)) {
-            usefulValue = rawText.trim();
-          }
         }
       } else if (name === 'age') {
         if (extracted?.age && /^\d{1,3}$/.test(String(extracted.age).trim())) {
@@ -96,7 +95,11 @@ export default function VoiceInput({
       }
       
       if (!isNumeric && name !== 'name' && name !== 'fullName') usefulValue = rawText.trim();
-      if (!session || releaseTranscriptRef.current !== session) return false;
+      if (!session || releaseTranscriptRef.current !== session || version !== extractionVersionRef.current) return false;
+      if (extracted?.needsClarification) {
+        speak(getLanguageInfo(language).strings.voiceNotUnderstood, language);
+        return false;
+      }
       // Only update the field while this input owns the dictation session.
       if (usefulValue) {
         onChange({

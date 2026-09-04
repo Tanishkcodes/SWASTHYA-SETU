@@ -414,15 +414,18 @@ export default function ClinicalAnamnesisChat({
 
   // Voice output for AI messages in the active language
   useEffect(() => {
+    let active = true;
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.sender === 'ai' && lastMsg.text) {
         import('../voicenav/AudioPromptManager').then(module => {
+          if (!active) return;
           module.default.setLanguage(languageCode, false);
           module.default.interruptWith(lastMsg.text, languageCode);
         }).catch(err => console.error('Failed to load AudioPromptManager', err));
       }
     }
+    return () => { active = false; };
   }, [messages, languageCode]);
 
   // Sync to parent without infinite loops
@@ -524,10 +527,12 @@ export default function ClinicalAnamnesisChat({
         let resolvedOptions = validOptions.map(option => ({ text: String(option.text).trim(), icon: getIconFromType(option.iconType) }));
 
         // Translate the entire question/answer set together; never substitute unrelated cards.
-        if (languageCode !== 'en' && [resolvedQuestion, ...resolvedOptions.map(o => o.text), parsed.completionMessage || ''].some(text => /[a-zA-Z]{4,}/.test(text))) {
+        const scripts = { hi: /[\u0900-\u097F]/, mr: /[\u0900-\u097F]/, ta: /[\u0B80-\u0BFF]/, te: /[\u0C00-\u0C7F]/, bn: /[\u0980-\u09FF]/, gu: /[\u0A80-\u0AFF]/, kn: /[\u0C80-\u0CFF]/, ml: /[\u0D00-\u0D7F]/ };
+        const needsTranslation = text => /\p{L}/u.test(text) && (/\p{Script=Latin}{4,}/u.test(text) || !scripts[languageCode]?.test(text));
+        if (languageCode !== 'en' && [resolvedQuestion, ...resolvedOptions.map(o => o.text), parsed.completionMessage || ''].some(needsTranslation)) {
           const texts = [resolvedQuestion, ...resolvedOptions.map(o => o.text), parsed.completionMessage || ''];
           const { translations } = await voiceAIService.batchTranslate(texts, languageCode);
-          if (translations?.length !== texts.length || translations.some(text => /[a-zA-Z]{4,}/.test(text))) throw new Error('Could not translate the clinical question. Please retry.');
+          if (translations?.length !== texts.length || translations.some(needsTranslation)) throw new Error('Could not translate the clinical question. Please retry.');
           resolvedQuestion = translations[0];
           resolvedOptions = resolvedOptions.map((option, index) => ({ ...option, text: translations[index + 1] }));
           parsed.completionMessage = translations.at(-1);
@@ -753,12 +758,12 @@ export default function ClinicalAnamnesisChat({
   useEffect(() => {
     const releaseTranscript = setOnTranscript?.((spokenText) => {
       const value = String(spokenText || '').trim();
-      if (!value) return;
+      if (!value || isTyping || answerRequestInFlightRef.current) return false;
       if (chatStarted) handleUserChoice(value);
       else startConsultationChat(selectedCards, value);
     });
     return () => releaseTranscript?.();
-  }, [chatStarted, selectedCards, language, currentStepData, messages]);
+  }, [chatStarted, selectedCards, language, currentStepData, messages, isTyping]);
 
   const starterOptions = starterStep?.options?.length
     ? starterStep.options

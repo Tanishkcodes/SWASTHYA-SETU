@@ -69,7 +69,8 @@ export default class ElevenLabsRecognition {
         processor.connect(context.destination);
         this.onstart?.();
       } else if (['partial_transcript', 'committed_transcript', 'committed_transcript_with_timestamps'].includes(data.message_type) && data.text?.trim()) {
-        const result = [{ transcript: data.text, confidence: 1 }];
+        // Realtime Scribe does not provide a calibrated confidence score.
+        const result = [{ transcript: data.text }];
         result.isFinal = data.message_type !== 'partial_transcript';
         this.onresult?.({ resultIndex: 0, results: [result] });
       } else if (data.message_type?.includes('error')) {

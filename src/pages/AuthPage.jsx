@@ -11,6 +11,7 @@ import aiCommandEngine from '../engine/AICommandEngine';
 import audioFeedback from '../voicenav/AudioFeedback';
 import { authTabPrompt } from '../voicenav/AuthPrompts';
 import { registrationFields } from '../voicenav/registrationFields';
+import { getLanguageInfo } from '../voicenav/LanguagePack';
 import { db, getAuthLockStatus } from '../lib/db';
 import '../styles/auth.css';
 
@@ -279,8 +280,11 @@ export default function AuthPage() {
   // ----------------------------
   useEffect(() => {
     setDictationMode(false);
+    let active = true;
+    let extractionVersion = 0;
     const releaseTranscript = setOnTranscript(async (text, recognitionResult = {}) => {
       if (!text?.trim()) return;
+      const version = ++extractionVersion;
       
       setIsExtracting(true);
       let extracted = null;
@@ -290,6 +294,7 @@ export default function AuthPage() {
           language || currentLang || 'en',
           {
             activeTab,
+            field: document.activeElement?.getAttribute('name') || undefined,
             existingFields: {
               name: formData.name,
               age: formData.age,
@@ -307,7 +312,11 @@ export default function AuthPage() {
         setIsExtracting(false);
       }
 
-      if (!extracted) return;
+      if (!active || version !== extractionVersion || !extracted) return;
+      if (extracted.needsClarification) {
+        speak?.(getLanguageInfo(language || currentLang).strings.voiceNotUnderstood, language || currentLang);
+        return false;
+      }
 
       // One semantic result can navigate the patient portal or fill it. This
       // supports indirect, conversational requests without a phrase list.
@@ -399,6 +408,7 @@ export default function AuthPage() {
     });
     
     return () => {
+      active = false;
       setDictationMode(false);
       releaseTranscript();
     };

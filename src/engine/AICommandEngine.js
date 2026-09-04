@@ -286,7 +286,8 @@ class AICommandEngine {
           const age = normalizeDigits(parsed.age).match(/\d{1,3}/)?.[0] || '';
           const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : '';
           const res = {
-            name: (parsed.name && parsed.name.trim().length >= 2) ? parsed.name.trim() : fallback.name,
+              name: parsed.needsClarification ? '' : (parsed.name || '').trim(),
+              needsClarification: Boolean(parsed.needsClarification),
             age: (Number(age) >= 1 && Number(age) <= 120) ? age : fallback.age,
             phone: phone.length === 10 ? phone : (fallback.phone.length === 10 ? fallback.phone : phone),
             gender: normalizedGender || fallback.gender,
@@ -302,7 +303,7 @@ class AICommandEngine {
             confirmationMessage: parsed.confirmationMessage || null,
             requestedAction: parsed.requestedAction || 'none'
           };
-          if (res.name || res.age || res.phone || res.abhaId || res.aadhaar || res.symptoms || res.requestedAction !== 'none') {
+            if (parsed && typeof parsed === 'object') {
             this._cache.set(cacheKey, res);
             return res;
           }
@@ -364,7 +365,7 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
           const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : fallback.gender;
 
           const result = {
-            name: (parsed.name && parsed.name.trim().length >= 2) ? parsed.name.trim() : fallback.name,
+              name: '',
             age: (Number(age) >= 1 && Number(age) <= 120) ? age : fallback.age,
             phone: phone.length === 10 ? phone : (fallback.phone.length === 10 ? fallback.phone : phone),
             gender: normalizedGender || fallback.gender,
@@ -391,7 +392,7 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
 
     // 3. Robust Multilingual Local Extraction Engine (Handles all 9 Indian languages offline)
     this._cache.set(cacheKey, fallback);
-    return fallback;
+    return { ...fallback, name: '' };
   }
 
   /**

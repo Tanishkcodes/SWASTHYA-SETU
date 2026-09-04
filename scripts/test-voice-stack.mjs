@@ -20,6 +20,41 @@ const response = body => new Response(JSON.stringify(body));
 const llama = body => response({ choices: [{ message: { content: JSON.stringify(body) } }] });
 const languages = ['en','hi','ta','te','bn','mr','gu','kn','ml'];
 
+test('Llama 3.2 interview keeps dynamic cards and rejects duplicate or repeated questions', async () => {
+  for (const invalid of ['', 'cards', 'question']) {
+    const call = server(async (url, options) => {
+      assert.equal(JSON.parse(options.body).model, 'meta/llama-3.2-11b-vision-instruct');
+      return llama({ isFinished: false, question: 'When did it start?', responseType: 'single_choice', options: [{text:'Today'}, {text: invalid === 'cards' ? 'Today' : 'Earlier'}] });
+    });
+    const result = await call({ action: 'anamnesis', disease: 'Headache', history: invalid === 'question' ? [{sender:'ai',text:'When did it start?'}] : [] });
+    assert.equal(result.status, invalid ? 422 : 200);
+  }
+});
+
+test('OCR rejects cross-row and partial numeric matches', async () => {
+  let calls = 0;
+  const call = server(async (url, options) => {
+    assert.equal(JSON.parse(options.body).model, 'meta/llama-3.2-11b-vision-instruct');
+    return ++calls === 1 ? llama({readableMedicalDocument:true,evidenceText:['Hemoglobin 12 g/dL','Glucose 100 mg/dL']}) : llama({isMedicalDocument:true,confidence:0.9,detectedParameters:[{name:'Hemoglobin',result:'100'},{name:'Glucose',result:'10'},{name:'Glucose',result:'100'}]});
+  });
+  const result = await (await call({action:'analyze_report',image:'data:image/png;base64,YWJj'})).json();
+  assert.deepEqual(result.detectedParameters.map(item=>[item.name,item.result]),[['Glucose','100']]);
+});
+
+test('registration rejects invented names and ambiguous corrections, preserving native names', async () => {
+  for (const [transcript, name, ambiguous, expected] of [
+    ['My name is Tanishk', 'Tanisha Sharma', false, ''],
+    ['Suresh no Ramesh maybe', 'Ramesh', true, ''],
+    ['मेरा नाम तनिष्क है', 'तनिष्क', false, 'तनिष्क'],
+    ['My name is Ramesh no Rajesh Kumar', 'Rajesh Kumar', false, 'Rajesh Kumar'],
+  ]) {
+    const call = server(async () => response({ candidates: [{ content: { parts: [{ text: JSON.stringify({ name, needsClarification: ambiguous, confirmationMessage: 'Saved' }) }] } }] }));
+    const result = await (await call({ action: 'extract_registration', transcript, language: 'hi', context: { field: 'name' } })).json();
+    assert.equal(result.name, expected);
+    if (!expected) { assert.equal(result.needsClarification, true); assert.equal(result.confirmationMessage, ''); }
+  }
+});
+
 test('native numerals preserve identifiers and regional speech uses local digit words', () => {
   for (const digits of ['०१२३४५६७८९', '০১২৩৪৫৬৭৮৯', '૦૧૨૩૪૫૬૭૮૯', '௦௧௨௩௪௫௬௭௮௯', '౦౧౨౩౪౫౬౭౮౯', '೦೧೨೩೪೫೬೭೮೯', '൦൧൨൩൪൫൬൭൮൯']) assert.equal(normalizeDigits(digits), '0123456789');
   for (const language of languages.filter(l => l !== 'en')) assert.doesNotMatch(localizeSpokenIdentifiers('0123456789', language), /[0-9A-Za-z]/);
@@ -141,7 +176,7 @@ test('medical extraction strips invented values, medicines and diagnoses', async
 });
 
 test('Ayurveda cannot finish with missing Dashavidha coverage', async () => {
-  const call = server(async (url, options) => { assert.match(url, /nvidia/); assert.equal(JSON.parse(options.body).model, 'meta/llama-4-maverick-17b-128e-instruct'); return llama({ isFinished: true, question: '', options: [] }); });
+  const call = server(async (url, options) => { assert.match(url, /nvidia/); assert.equal(JSON.parse(options.body).model, 'meta/llama-3.2-11b-vision-instruct'); return llama({ isFinished: true, question: '', options: [] }); });
   assert.equal((await call({ action: 'anamnesis', isAyurvedic: true, questionCount: 15 })).status, 422);
 });
 

@@ -134,8 +134,12 @@ export function VoiceNavProvider({ children }) {
         setInterimTranscript(display);
       }
 
-      // Partials are display-only and must not cancel a pending committed utterance.
-      if (!newFinal) return;
+      // Continued speech (for example a surname or self-correction) must finish
+      // before dispatching the previous committed segment.
+      if (!newFinal) {
+        if (interim.trim() && silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        return;
+      }
 
       // Reset adaptive silence timer: generous pause for natural human breathing/thinking pauses
       if (silenceTimerRef.current) {
@@ -143,7 +147,7 @@ export function VoiceNavProvider({ children }) {
       }
 
       // Ultra-responsive silence pause for instant voice navigation
-      const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
+      const finalPauseMs = 450;
       silenceTimerRef.current = setTimeout(() => {
         const full = accumulatedTranscriptRef.current.trim();
         if (newFinal && full && isListeningRef.current) {
