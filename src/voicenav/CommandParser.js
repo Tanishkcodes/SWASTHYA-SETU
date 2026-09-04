@@ -516,7 +516,7 @@ class CommandParser {
     if (context.expectsFreeText) {
       const containsPatientData = /\d{3,}|\b(?:my name|mera naam|naam|name|age|umar|phone|mobile|years|saal|male|female|purush|mahila|aadhaar|aadhar|abha)\b|(?:என் பெயர்|வயது|தொலைபேசி|ஆதார்|నా పేరు|వయస్సు|ఫోన్|ఆధార్|আমার নাম|বয়স|ফোন|আধার|माझे नाव|वय|फोन|आधार|મારું નામ|ઉંમર|ફોન|આધાર|ನನ್ನ ಹೆಸರು|ವಯಸ್ಸು|ಫೋನ್|ಆಧಾರ್|എന്റെ പേര്|വയസ്സ്|ഫോൺ|ആധാർ)/iu.test(input);
       const explicitNavigation = this._fastMatchIntent(input, { ...context, expectsFreeText: false });
-      if (explicitNavigation && !containsPatientData) {
+      if (explicitNavigation && !containsPatientData && /^(home|back|next|skip|confirm)$/i.test(input)) {
         return { ...explicitNavigation, raw: transcript };
       }
       if (containsPatientData) {
@@ -527,7 +527,7 @@ class CommandParser {
 
     // 1. FAST-PATH: Direct instant hotword match ONLY for pure short navigation commands (<= 2 words e.g. 'home', 'back', 'hindi')
     const wordsCount = input.trim().split(/\s+/).filter(Boolean).length;
-    if (wordsCount <= 2) {
+    if (wordsCount <= 2 && /^(home|back|next|skip|confirm|scroll up|scroll down)$/i.test(input)) {
       const recognitionInputs = [input, ...(context.recognitionAlternatives || []).map(normalize)]
         .filter((value, index, all) => value && all.indexOf(value) === index);
       const fastCandidates = recognitionInputs
@@ -553,7 +553,7 @@ class CommandParser {
 
       const semantic = await aiCommandEngine.parseIntent(
         transcript,
-        { ...availableCommands, ...contextCommands },
+        { ...contextCommands, ...availableCommands },
         globalCommands,
         {
           page: currentPage || this.currentPage,
@@ -587,8 +587,11 @@ class CommandParser {
       return { ...offlineSemantic, raw: transcript };
     }
 
-    // 5. Default free_text / unhandled
-    return { intent: 'free_text', confidence: 0.5, raw: transcript, value: transcript };
+    // 5. Default unhandled: return free_text only when context expects free text; otherwise mark out_of_context
+    if (context.expectsFreeText) {
+      return { intent: 'free_text', confidence: 0.5, raw: transcript, value: transcript, recognized: true };
+    }
+    return { intent: 'out_of_context', confidence: 0, raw: transcript, recognized: false, message: null };
   }
 
   _matchGlobalCommands(input) {

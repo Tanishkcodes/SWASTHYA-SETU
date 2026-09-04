@@ -52,32 +52,48 @@ class VoiceAIService {
     return response;
   }
 
+  async createSpeechToken() {
+    return (await this._request({ action: 'stt_token' })).json();
+  }
+
   async synthesize(text, language, voiceId = null, settings = {}) {
     if (!this.ttsAvailable) throw new Error('Studio speech is temporarily unavailable');
     try {
       const response = await this._request({
-        action: 'tts', text, language, voiceId,
+        action: 'tts',
+        text,
+        language,
+        voiceId,
         speed: settings.speed,
-      }, 'audio/mpeg', 10000);
+      }, 'audio/wav, audio/mpeg, */*', 15000);
       return response.blob();
     } catch (error) {
-      // Do not repeatedly delay page prompts when the TTS account has no
-      // credits. Semantic navigation remains available independently.
-      this.ttsDisabledUntil = Date.now() + 60000;
+      this.ttsDisabledUntil = Date.now() + 15000;
       throw error;
     }
   }
 
   async understand({ transcript, language, pageId, actions, routes, expectsFreeText, recognitionAlternatives = [] }) {
     const response = await this._request({
-      action: 'intent', transcript, language, pageId,
-      actions, routes, expectsFreeText: Boolean(expectsFreeText), recognitionAlternatives,
+      action: 'intent',
+      transcript,
+      language,
+      pageId,
+      actions,
+      routes,
+      expectsFreeText: Boolean(expectsFreeText),
+      recognitionAlternatives,
     }, 'application/json', 12000);
     return response.json();
   }
 
   async extractRegistration(transcript, language, context = {}) {
-    const response = await this._request({ action: 'extract_registration', transcript, language, context });
+    const response = await this._request({
+      action: 'extract_registration',
+      transcript,
+      language,
+      context
+    });
     return response.json();
   }
 
@@ -141,7 +157,7 @@ class VoiceAIService {
       action: 'anamnesis', disease, history, latestInput, language,
       doctorName, doctorSpecialty, isAyurvedic, patient, caseSummary,
       questionCount, phase, requireTouchOptions,
-    }, 'application/json', 18000);
+    }, 'application/json', 22000);
     return response.json();
   }
 

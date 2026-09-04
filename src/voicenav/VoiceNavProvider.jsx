@@ -1,3 +1,4 @@
+import ElevenLabsRecognition from './ElevenLabsRecognition';
 /* ============================================
    SWASTHYA SETU — VoiceNav Provider
    Global voice navigation context wrapping entire app
@@ -16,8 +17,24 @@ import { useLanguage } from '../context/LanguageContext';
 const VoiceNavContext = createContext(null);
 
 // Check if Web Speech API is available
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const isSpeechSupported = !!SpeechRecognition;
+const SpeechRecognition = ElevenLabsRecognition;
+export const NOT_RECOGNIZED_MESSAGES = {
+  en: 'Command not recognized',
+  hi: 'पहचाना नहीं गया',
+  ta: 'அடையாளம் காணப்படவில்லை',
+  te: 'గుర్తించబడలేదు',
+  bn: 'সনাক্ত করা যায়নি',
+  mr: 'आदेश ओळखला नाही',
+  gu: 'ઓળખાયું નથી',
+  kn: 'ಗುರುತಿಸಲಾಗಿಲ್ಲ',
+  ml: 'തിരിച്ചറിഞ്ഞില്ല',
+};
+
+export function getNotRecognizedMessage(lang) {
+  return NOT_RECOGNIZED_MESSAGES[lang] || NOT_RECOGNIZED_MESSAGES.en;
+}
+
+const isSpeechSupported = ElevenLabsRecognition.supported;
 
 export function VoiceNavProvider({ children }) {
   const languageContext = useLanguage();
@@ -30,10 +47,12 @@ export function VoiceNavProvider({ children }) {
   const [interimTranscript, setInterimTranscript] = useState('');
   const [micState, setMicState] = useState('idle'); // idle | listening | speaking | processing
   const [voiceError, setVoiceError] = useState('');
+  const [recognitionFeedback, setRecognitionFeedback] = useState(null); // { type: 'success'|'error', text: string }
   const [language, setLanguageState] = useState(currentLang);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [lastCommand, setLastCommand] = useState(null);
 
+  const feedbackTimerRef = useRef(null);
   const recognitionRef = useRef(null);
   const commandHandlersRef = useRef({});
   const currentPageRef = useRef(null);
@@ -46,6 +65,12 @@ export function VoiceNavProvider({ children }) {
   const recognitionAlternativesRef = useRef(['', '', '']);
 
   // Synchronize language and speech recognition engine whenever currentLang changes
+  useEffect(() => {
+    const outputError = () => setVoiceError('ElevenLabs audio is unavailable. Please retry; the text remains on screen.');
+    window.addEventListener('voice-output-error', outputError);
+    return () => window.removeEventListener('voice-output-error', outputError);
+  }, []);
+
   useEffect(() => {
     setLanguageState(currentLang);
     languageRef.current = currentLang;
@@ -108,21 +133,22 @@ export function VoiceNavProvider({ children }) {
 
       // Ultra-responsive silence pause for instant voice navigation
       const finalPauseMs = isDictationModeRef.current ? 1400 : 450;
-      const interimPauseMs = isDictationModeRef.current ? 2200 : 800;
+      const interimPauseMs = 30000; // Only Scribe committed transcripts may trigger actions.
       silenceTimerRef.current = setTimeout(() => {
         const full = (accumulatedTranscriptRef.current + (interim ? ' ' + interim : '')).trim();
-        if (full && isListeningRef.current) {
+        if (newFinal && full && isListeningRef.current) {
           const recognitionAlternatives = recognitionAlternativesRef.current
             .map((finalText, index) => `${finalText} ${interimAlternatives[index] || ''}`.trim())
             .filter((candidate, index, all) => candidate && candidate !== full && all.indexOf(candidate) === index);
-          setTranscript(full);
+          // Transition directly to processing without locking in raw unverified transcript
           setInterimTranscript('');
+          setMicState('processing');
           accumulatedTranscriptRef.current = '';
           recognitionAlternativesRef.current = ['', '', ''];
-          handleVoiceInput(full, recognitionAlternatives);
           if (!isDictationModeRef.current) {
             stopListening();
           }
+          handleVoiceInput(full, recognitionAlternatives);
         }
       }, newFinal ? finalPauseMs : interimPauseMs);
     };
@@ -146,19 +172,7 @@ export function VoiceNavProvider({ children }) {
         setMicState('idle');
         return;
       }
-      if (event.error === 'network') {
-        setVoiceError('Speech recognition could not connect. Check the internet connection and try again.');
-      }
-      if (event.error !== 'aborted') {
-        console.warn('Speech recognition status:', event.error);
-      }
-      if (isListeningRef.current) {
-        // Retry restarting recognition seamlessly
-        try {
-          recognitionRef.current?.start();
-          return;
-        } catch (e) {}
-      }
+      setVoiceError(event.message || 'ElevenLabs speech is unavailable. Tap the microphone to retry.');
       setIsListening(false);
       isListeningRef.current = false;
       setMicState('idle');
@@ -190,6 +204,9 @@ export function VoiceNavProvider({ children }) {
     audioFeedback.onSpeakingChange = (speaking) => {
       setIsSpeaking(speaking);
       if (speaking) {
+        isListeningRef.current = false;
+        recognitionRef.current?.stop();
+        setIsListening(false);
         setMicState('speaking');
       } else if (!isListeningRef.current) {
         setMicState('idle');
@@ -204,6 +221,17 @@ export function VoiceNavProvider({ children }) {
     };
   }, []);
 
+  // Display temporary visual feedback badge (success or unrecognized error)
+  const showFeedback = useCallback((feedback, durationMs = 2400) => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    setRecognitionFeedback(feedback);
+    if (durationMs > 0) {
+      feedbackTimerRef.current = setTimeout(() => {
+        setRecognitionFeedback(null);
+      }, durationMs);
+    }
+  }, []);
+
   // Handle voice input — parse and dispatch
   const handleVoiceInput = useCallback(async (text, recognitionAlternatives = []) => {
     setMicState('processing');
@@ -212,10 +240,12 @@ export function VoiceNavProvider({ children }) {
     // When VoiceInput is actively dictating into a form field,
     // raw text goes straight to the callback without AI classification.
     if (isDictationModeRef.current && onTranscriptCallbackRef.current) {
+      setTranscript(text);
       onTranscriptCallbackRef.current(text, {
         intent: 'free_text', confidence: 1, raw: text, value: text, recognitionAlternatives,
       });
       audioFeedback.playSuccess();
+      showFeedback({ type: 'success', text: '✓ Done' }, 1800);
       audioPromptManager.resetIdleTimer();
       setTimeout(() => setMicState('idle'), 500);
       return;
@@ -284,8 +314,7 @@ export function VoiceNavProvider({ children }) {
 
       // 1. Page-level handlers (highest priority)
       if (pageHandlers && (pageHandlers[result.intent] || pageHandlers[resolvedIntent])) {
-        (pageHandlers[result.intent] || pageHandlers[resolvedIntent])(result);
-        handled = true;
+        handled = (await (pageHandlers[result.intent] || pageHandlers[resolvedIntent])(result)) !== false;
       }
       // 2. Global handlers
       else if (commandHandlersRef.current['__global__'] && (commandHandlersRef.current['__global__'][result.intent] || commandHandlersRef.current['__global__'][resolvedIntent])) {
@@ -297,7 +326,7 @@ export function VoiceNavProvider({ children }) {
       if (!handled && /^activate_\d+$/.test(result.intent)) {
         const idx = Number(result.intent.slice(9));
         const target = domElements[idx];
-        if (target) { target.click(); handled = true; }
+        if (target?.isConnected && !target.disabled && target.getClientRects().length) { target.click(); handled = true; }
       }
 
       // 4. Semantic DOM label search — try to find a visible button matching the raw transcript
@@ -355,30 +384,37 @@ export function VoiceNavProvider({ children }) {
 
 
       if (handled) {
+        setTranscript(text);
         audioFeedback.playSuccess();
+        const successMsg = result.message || '✓ Done';
+        showFeedback({ type: 'success', text: successMsg }, 2200);
         if (result.message) {
           // Speak AI-generated localized confirmation in user's spoken language
           audioFeedback.speak(result.message, languageRef.current);
         }
       } else if (!onTranscriptCallbackRef.current) {
-        // Not handled, and page is NOT expecting free text (e.g., Landing Page)
+        // Not handled, and page is NOT expecting free text (e.g., Landing Page, Dashboard)
+        // CRITICAL FIX: DO NOT show raw spoken text when not recognized!
+        setTranscript('');
+        setInterimTranscript('');
         audioFeedback.playError();
-        if (result.message) {
-          // Speak AI-generated localized message
-          audioFeedback.speak(result.message, languageRef.current);
-        } else {
-          // Fallback if AI didn't provide a message
-          const fallbackText = getLanguageInfo(languageRef.current).strings?.voiceNotUnderstood || "I didn't understand that.";
-          audioFeedback.speak(fallbackText, languageRef.current);
-        }
+        const notRecognizedMsg = getNotRecognizedMessage(languageRef.current);
+        showFeedback({ type: 'error', text: `✕ ${notRecognizedMsg}` }, 2500);
+        // A rejected/ambiguous selection must not speak the model's success confirmation.
+        audioFeedback.speak(notRecognizedMsg, languageRef.current);
       }
     } else if (result.intent === 'out_of_context' && !onTranscriptCallbackRef.current) {
       // Explicitly marked as out of context by AI, and page is NOT expecting free text
+      // CRITICAL FIX: DO NOT show raw spoken text when not recognized!
+      setTranscript('');
+      setInterimTranscript('');
       audioFeedback.playError();
+      const notRecognizedMsg = getNotRecognizedMessage(languageRef.current);
+      showFeedback({ type: 'error', text: `✕ ${notRecognizedMsg}` }, 2500);
       if (result.message) {
         audioFeedback.speak(result.message, languageRef.current);
       } else {
-        const fallbackText = getLanguageInfo(languageRef.current).strings?.voiceNotUnderstood || "I didn't understand that.";
+        const fallbackText = getLanguageInfo(languageRef.current).strings?.voiceNotUnderstood || "I didn't understand that. Please try again.";
         audioFeedback.speak(fallbackText, languageRef.current);
       }
     }
@@ -386,7 +422,12 @@ export function VoiceNavProvider({ children }) {
     // If there's a transcript callback (e.g., for free-form interview input), call it
     // IMPORTANT: Only call it if the voice input was NOT handled as a system/navigation command
     if (onTranscriptCallbackRef.current && !handled) {
+      setTranscript(text);
       onTranscriptCallbackRef.current(text, result);
+    } else if (!handled && !onTranscriptCallbackRef.current) {
+      // Unrecognized and unhandled: ENSURE transcript is CLEARED so unrecognized text is never shown
+      setTranscript('');
+      setInterimTranscript('');
     }
 
     // Reset idle timer
@@ -400,7 +441,7 @@ export function VoiceNavProvider({ children }) {
     }).catch(() => {});
 
     setTimeout(() => setMicState('idle'), 500);
-  }, []);
+  }, [showFeedback]);
 
   // Start listening
   const startListening = useCallback((continuous = true) => {
@@ -411,6 +452,8 @@ export function VoiceNavProvider({ children }) {
     setVoiceError('');
     setTranscript('');
     setInterimTranscript('');
+    setRecognitionFeedback(null);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
@@ -546,6 +589,7 @@ export function VoiceNavProvider({ children }) {
     interimTranscript,
     micState,
     voiceError,
+    recognitionFeedback,
     language,
     isVoiceEnabled,
     isSpeechSupported,
@@ -558,6 +602,7 @@ export function VoiceNavProvider({ children }) {
     speak,
     setLanguage,
     setIsVoiceEnabled,
+    showFeedback,
 
     // Page registration
     registerPage,

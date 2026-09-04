@@ -16,6 +16,7 @@ export default function VoiceNavIndicator() {
     interimTranscript,
     transcript,
     voiceError,
+    recognitionFeedback,
     toggleListening,
     isVoiceEnabled,
     isSpeechSupported,
@@ -72,22 +73,40 @@ export default function VoiceNavIndicator() {
   };
 
   const config = stateConfig[micState] || stateConfig.idle;
-  const showTranscript = interimTranscript || (micState === 'processing' && transcript);
-  const displayText = interimTranscript || transcript;
 
   return (
     <div className="voicenav-container">
-      {/* Transcript bubble */}
-      {showTranscript && (
-        <div className="voicenav-transcript animate-fade-in-up">
-          <p className="voicenav-transcript-text">
-            {displayText}
+      {/* 1. Recognition Feedback Banner: Green for Recognized / Red for Unrecognized */}
+      {recognitionFeedback && (
+        <div className={`voicenav-transcript voicenav-feedback--${recognitionFeedback.type} animate-fade-in-up`} role="status">
+          <p className="voicenav-transcript-text" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+            {recognitionFeedback.text}
           </p>
         </div>
       )}
 
-      {voiceError && !showTranscript && (
-        <div className="voicenav-transcript animate-fade-in-up" role="alert">
+      {/* 2. Live interim speech while user is actively talking */}
+      {!recognitionFeedback && micState === 'listening' && interimTranscript && (
+        <div className="voicenav-transcript animate-fade-in-up">
+          <p className="voicenav-transcript-text">
+            {interimTranscript}
+          </p>
+        </div>
+      )}
+
+      {/* 3. Processing banner after hearing speech: shows "Processing...", NEVER raw unverified text */}
+      {!recognitionFeedback && micState === 'processing' && (
+        <div className="voicenav-transcript voicenav-transcript--processing animate-fade-in-up">
+          <p className="voicenav-transcript-text" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="voicenav-pulse-dot"></span>
+            <span>{t(language, 'processing') || 'Processing...'}</span>
+          </p>
+        </div>
+      )}
+
+      {/* 4. Hardware microphone error */}
+      {!recognitionFeedback && voiceError && (
+        <div className="voicenav-transcript voicenav-feedback--error animate-fade-in-up" role="alert">
           <p className="voicenav-transcript-text">{voiceError}</p>
         </div>
       )}

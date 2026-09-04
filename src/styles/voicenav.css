@@ -48,6 +48,48 @@
   word-wrap: break-word;
 }
 
+/* Feedback states */
+.voicenav-feedback--error {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #ef4444;
+  box-shadow: 0 10px 25px -5px rgba(220, 38, 38, 0.4) !important;
+}
+
+.voicenav-feedback--error::after {
+  background: #dc2626 !important;
+}
+
+.voicenav-feedback--success {
+  background: #0d9488 !important;
+  color: #ffffff !important;
+  border: 1px solid #14b8a6;
+  box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.4) !important;
+}
+
+.voicenav-feedback--success::after {
+  background: #0d9488 !important;
+}
+
+.voicenav-transcript--processing {
+  background: #1e293b !important;
+  border: 1px solid #334155;
+}
+
+.voicenav-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #2dd4bf;
+  border-radius: 50%;
+  display: inline-block;
+  animation: voicenav-dot-pulse 1s infinite alternate;
+}
+
+@keyframes voicenav-dot-pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
 /* ── Main Orb Button ── */
 .voicenav-orb {
   position: relative;

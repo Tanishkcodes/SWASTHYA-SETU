@@ -518,60 +518,19 @@ export default function ClinicalAnamnesisChat({
           message.sender === 'ai' && normalizedQuestion &&
           String(message.text || '').toLocaleLowerCase(languageCode).replace(/[^\p{L}\p{N}]+/gu, ' ').trim() === normalizedQuestion
         );
-        if (alreadyAsked) {
-          return {
-            question: '', responseType: 'free_text', options: [], field: 'notes', isFinished: true,
-            completionMessage: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), caseSummaryUpdate: {}
-          };
-        }
+        if (alreadyAsked) throw new Error('The clinical model repeated a question. Please retry.');
         setAiError('');
         let resolvedQuestion = String(parsed.question || '').trim();
         let resolvedOptions = validOptions.map(option => ({ text: String(option.text).trim(), icon: getIconFromType(option.iconType) }));
 
-        // Ensure all 9 Indian languages: if languageCode is non-English, auto-translate English options
-        if (languageCode !== 'en' && resolvedOptions.some(o => /[a-zA-Z]{3,}/.test(o.text))) {
-          try {
-            const rawTexts = resolvedOptions.map(o => o.text);
-            const { translations } = await voiceAIService.batchTranslate(rawTexts, languageCode);
-            if (translations && translations.length === resolvedOptions.length) {
-              resolvedOptions = resolvedOptions.map((o, idx) => {
-                const transText = translations[idx];
-                if (transText && (!/[a-zA-Z]{4,}/.test(transText) || languageCode === 'en')) {
-                  return { ...o, text: transText };
-                }
-                return o;
-              });
-            }
-          } catch (e) {
-            console.warn('Auto option translation notice:', e);
-          }
-
-          // If options still contain English, substitute with pure native options from 9-language dictionary
-          if (resolvedOptions.some(o => /[a-zA-Z]{3,}/.test(o.text))) {
-            const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
-            if (fallbackNative && fallbackNative.options && fallbackNative.options.length) {
-              resolvedOptions = fallbackNative.options.map(opt => ({
-                text: opt.text,
-                icon: getIconFromType(opt.iconType)
-              }));
-            }
-          }
-        }
-
-        // If question contains English words and target language is non-English, translate question too
-        if (languageCode !== 'en' && /[a-zA-Z]{4,}/.test(resolvedQuestion)) {
-          try {
-            const resQ = await voiceAIService.translate(resolvedQuestion, languageCode);
-            if (resQ?.text && (!/[a-zA-Z]{4,}/.test(resQ.text) || languageCode === 'en')) {
-              resolvedQuestion = resQ.text;
-            } else {
-              const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
-              if (fallbackNative?.question) resolvedQuestion = fallbackNative.question;
-            }
-          } catch (e) {
-            const fallbackNative = getAdaptiveClinicalStep(disease, questionCount, isAyurvedic, languageCode);
-            if (fallbackNative?.question) resolvedQuestion = fallbackNative.question;
-          }
+        // Translate the entire question/answer set together; never substitute unrelated cards.
+        if (languageCode !== 'en' && [resolvedQuestion, ...resolvedOptions.map(o => o.text), parsed.completionMessage || ''].some(text => /[a-zA-Z]{4,}/.test(text))) {
+          const texts = [resolvedQuestion, ...resolvedOptions.map(o => o.text), parsed.completionMessage || ''];
+          const { translations } = await voiceAIService.batchTranslate(texts, languageCode);
+          if (translations?.length !== texts.length || translations.some(text => /[a-zA-Z]{4,}/.test(text))) throw new Error('Could not translate the clinical question. Please retry.');
+          resolvedQuestion = translations[0];
+          resolvedOptions = resolvedOptions.map((option, index) => ({ ...option, text: translations[index + 1] }));
+          parsed.completionMessage = translations.at(-1);
         }
 
         return {
@@ -583,7 +542,7 @@ export default function ClinicalAnamnesisChat({
           field: parsed.capturedField || 'notes',
           isFinished: Boolean(parsed.isFinished),
           completionMessage: parsed.completionMessage,
-          caseSummaryUpdate: parsed.caseSummaryUpdate || {},
+          caseSummaryUpdate: { ...(parsed.caseSummaryUpdate || {}), ...(parsed.dashavidhaCoverage ? { dashavidhaCoverage: parsed.dashavidhaCoverage } : {}) },
         };
       }
     } catch (err) {
@@ -631,7 +590,7 @@ export default function ClinicalAnamnesisChat({
     answerRequestInFlightRef.current = true;
     setChatStarted(true);
     setMultiSelections([]);
-    const diseaseName = customText ? customText.trim() : (Array.isArray(symptomList) && symptomList.length ? symptomList[symptomList.length - 1] : 'General Discomfort');
+    const diseaseName = customText ? customText.trim() : (Array.isArray(symptomList) && symptomList.length ? symptomList.join(', ') : 'General Discomfort');
     const symptoms = [diseaseName];
     setSelectedCards([diseaseName]);
 
@@ -658,7 +617,8 @@ export default function ClinicalAnamnesisChat({
 
     setIsTyping(false);
     answerRequestInFlightRef.current = false;
-    const stepToUse = aiFirstStep || await generateAdaptiveClinicalStep(diseaseName, 0);
+    const stepToUse = aiFirstStep;
+    if (!stepToUse) { setCurrentStepData(null); return; }
 
     if (stepToUse?.isFinished) {
       setMessages([...initialMsgs, {
@@ -710,17 +670,6 @@ export default function ClinicalAnamnesisChat({
     const rawDisease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ') || 'health condition';
     const disease = getLocalizedDisease(rawDisease, languageCode);
 
-    const safetyCeiling = isAyurvedic ? 12 : 8;
-    if (nextIdx >= safetyCeiling) {
-      setIsTyping(false);
-      answerRequestInFlightRef.current = false;
-      setMessages([...nextMsgs, {
-        sender: 'ai', text: c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true
-      }]);
-      setCurrentStepData(null);
-      return;
-    }
-
     // Gemini dynamic clinical intelligence
     let nextStepObj = null;
     let isFinished = false;
@@ -735,8 +684,11 @@ export default function ClinicalAnamnesisChat({
         syncToParent(updated);
       }
     } else {
-      // Resilience fallback: generate adaptive clinical step specifically for this disease
-      nextStepObj = await generateAdaptiveClinicalStep(disease, nextIdx);
+      // Preserve the answer and wait for retry instead of fabricating a finished intake.
+      setIsTyping(false);
+      answerRequestInFlightRef.current = false;
+      setCurrentStepData(null);
+      return;
     }
 
     setIsTyping(false);
@@ -768,6 +720,7 @@ export default function ClinicalAnamnesisChat({
   };
 
   const retryClinicalAi = async () => {
+    if (answerRequestInFlightRef.current) return;
     if (!chatStarted) {
       setAiRetryToken(value => value + 1);
       return;
@@ -775,9 +728,14 @@ export default function ClinicalAnamnesisChat({
     const disease = currentStepData?.disease || caseSummary.chiefComplaints.join(', ');
     const lastUserMessage = [...messages].reverse().find(message => message.sender === 'user');
     setIsTyping(true);
+    answerRequestInFlightRef.current = true;
     const step = await fetchNextAiStep(disease, messages, lastUserMessage?.text || disease, 'interview', caseSummary);
+    answerRequestInFlightRef.current = false;
     setIsTyping(false);
     if (!step) return;
+    const updated = { ...caseSummary, ...step.caseSummaryUpdate };
+    setCaseSummary(updated);
+    syncToParent(updated);
     if (step.isFinished) {
       setMessages(previous => [...previous, { sender: 'ai', text: step.completionMessage || c.complete.replace('{doctor}', doctor?.name || 'the doctor'), isFinal: true }]);
       setCurrentStepData(null);

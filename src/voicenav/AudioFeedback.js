@@ -18,7 +18,7 @@ function isMutedPortal() {
 
 class AudioFeedbackEngine {
   constructor() {
-    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    this.synth = null;
     this.audioCtx = null;
     this.elevenLabsAudio = typeof Audio !== 'undefined' ? new Audio() : null;
     this.activeBlobUrl = null;
@@ -31,42 +31,7 @@ class AudioFeedbackEngine {
     this.volume = 1.0; // Clear audible volume
     this.pitch = 1.03; // Warm and feminine without artificial high pitch
     this.onSpeakingChange = null;
-    this._voicesLoaded = false;
-    this._voicesPromise = null;
     this._audioCache = new Map();
-    
-    // Preload voices immediately
-    if (typeof window !== 'undefined' && this.synth) {
-      this._preloadVoices();
-    }
-  }
-
-  // Ensure voices are loaded before speaking
-  _preloadVoices() {
-    if (this.synth.getVoices().length > 0) {
-      this._voicesLoaded = true;
-      return;
-    }
-    
-    this._voicesPromise = new Promise((resolve) => {
-      const onVoicesChanged = () => {
-        this._voicesLoaded = true;
-        this.synth.removeEventListener('voiceschanged', onVoicesChanged);
-        resolve();
-      };
-      this.synth.addEventListener('voiceschanged', onVoicesChanged);
-      
-      // Fallback: resolve after 2s even if voices don't fire
-      setTimeout(() => {
-        this._voicesLoaded = true;
-        resolve();
-      }, 2000);
-    });
-  }
-
-  async _ensureVoicesLoaded() {
-    if (this._voicesLoaded) return;
-    if (this._voicesPromise) await this._voicesPromise;
   }
 
   _getAudioContext() {
@@ -77,89 +42,6 @@ class AudioFeedbackEngine {
       this.audioCtx.resume();
     }
     return this.audioCtx;
-  }
-
-  // Find the best voice for a language (preferring an engaging, velvety, sweet female voice)
-  _getBestVoice(langCode) {
-    const voices = this.synth.getVoices();
-    if (!voices.length) return null;
-    
-    const langPrefix = langCode.split('-')[0].toLowerCase();
-    
-    // Language-specific preferred captivating female voice names
-    const languageVoicePreferences = {
-      hi: ['swara', 'google हिन्दी', 'google hindi', 'kalpana', 'heera', 'aditi', 'lekha', 'veena'],
-      ta: ['pallavi', 'google தமிழ்'],
-      te: ['aarohi', 'google తెలుగు'],
-      bn: ['tanishaa', 'google বাংলা'],
-      mr: ['ananya', 'google मराठी', 'marathi', 'aarohi'],
-      gu: ['shruti', 'google ગુજરાતી', 'dhwani'],
-      kn: ['sapna', 'google ಕನ್ನಡ'],
-      ml: ['sobhana', 'google മലയാളം'],
-      en: [
-        'microsoft neerja online (natural) - english (india)',
-        'microsoft heera - english (india)',
-        'google uk english female',
-        'google us english',
-        'microsoft zira',
-        'samantha',
-        'neerja',
-        'heera',
-        'kavya',
-        'priya',
-        'victoria'
-      ]
-    };
-
-    const preferredList = languageVoicePreferences[langPrefix] || [];
-
-    // Filter voices matching the language code or prefix
-    const exactVoices = voices.filter(v => {
-      const vLang = v.lang.replace('_', '-').toLowerCase();
-      return vLang === langCode.toLowerCase() || vLang.startsWith(langPrefix);
-    });
-
-    // 1. First priority: Target language + specific top female voice
-    for (const prefName of preferredList) {
-      const match = exactVoices.find(v => v.name.toLowerCase().includes(prefName));
-      if (match) return match;
-    }
-
-    // 2. Second priority: Target language + generic female keywords
-    const knownFemaleNames = ['female', 'woman', 'girl', 'swara', 'kalpana', 'heera', 'aditi', 'lekha', 'veena', 'pallavi', 'aarohi', 'tanishaa', 'ananya', 'shruti', 'dhwani', 'sapna', 'sobhana', 'neerja', 'zira', 'samantha', 'kavya', 'priya', 'victoria'];
-    const isFemaleVoice = (v) => {
-      const name = v.name.toLowerCase();
-      return knownFemaleNames.some(keyword => name.includes(keyword))
-        || preferredList.some(p => name.includes(p));
-    };
-
-    const femaleMatch = exactVoices.find(isFemaleVoice);
-    if (femaleMatch) return femaleMatch;
-
-    // 3. Fallback: Indian English or general female voice only if target is English
-    if (langPrefix === 'en') {
-      const indianVoices = voices.filter(v => v.lang.replace('_', '-').toLowerCase() === 'en-in');
-      const indianFemale = indianVoices.find(isFemaleVoice);
-      if (indianFemale) return indianFemale;
-
-      const anyEnglish = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
-      return anyEnglish.find(isFemaleVoice) || anyEnglish[0] || null;
-    }
-
-    // For regional languages, return any voice matching the language prefix if available
-    const anyMatchingVoice = exactVoices[0];
-    if (anyMatchingVoice) return anyMatchingVoice;
-
-    return null;
-  }
-
-  // Map our language codes to speech synthesis language codes
-  _getSpeechLang(lang) {
-    const map = {
-      en: 'en-IN', hi: 'hi-IN', ta: 'ta-IN', te: 'te-IN',
-      bn: 'bn-IN', mr: 'mr-IN', gu: 'gu-IN', kn: 'kn-IN', ml: 'ml-IN'
-    };
-    return map[lang] || 'en-IN';
   }
 
   // Preprocess text to ensure clean & accurate natural Indian pronunciation
@@ -227,259 +109,49 @@ class AudioFeedbackEngine {
     return cleaned;
   }
 
-  // Special handler to play studio-quality ElevenLabs welcome audio smoothly
-  async playWelcomeAudio(audioUrl = '/welcome_hi.mp3', fallbackText = 'नमस्ते! स्वास्थ्य सेतु में आपका स्वागत है।', lang = 'hi') {
-    if (isMutedPortal()) return false;
-    this.stop();
-    const currentId = ++this.activePlaybackId;
-
-    return new Promise(async (resolve) => {
-      try {
-        if (isMutedPortal()) return resolve(false);
-        this.isSpeaking = true;
-        this.currentResolve = resolve;
-
-        this.elevenLabsAudio.src = audioUrl;
-        this.elevenLabsAudio.playbackRate = 1.0; // Warm, soothing, perfectly paced cadence
-
-        this.elevenLabsAudio.onended = () => {
-          if (this.activePlaybackId !== currentId) return;
-          this.isSpeaking = false;
-          this.currentResolve = null;
-          this.onSpeakingChange?.(false);
-          resolve(true);
-        };
-
-        this.elevenLabsAudio.onerror = () => {
-          if (this.activePlaybackId !== currentId) return;
-          this.isSpeaking = false;
-          this.currentResolve = null;
-          this.onSpeakingChange?.(false);
-          if (isMutedPortal()) return resolve(false);
-          this.speak(fallbackText, lang, { rate: 0.94, pitch: 1.03, speed: 0.98 }).then(resolve);
-        };
-
-        this.elevenLabsAudio.onplaying = () => {
-          if (this.activePlaybackId !== currentId) {
-            this.elevenLabsAudio.pause();
-            return;
-          }
-          this.onSpeakingChange?.(true);
-        };
-
-        await this.elevenLabsAudio.play();
-      } catch (err) {
-        if (this.activePlaybackId !== currentId) return resolve(false);
-        this.isSpeaking = false;
-        if (err.name === 'NotAllowedError') {
-          return resolve(false);
-        }
-        if (isMutedPortal()) return resolve(false);
-        this.speak(fallbackText, lang, { rate: 0.94, pitch: 1.03, speed: 0.98 }).then(resolve);
-      }
-    });
+  async playWelcomeAudio(_audioUrl, fallbackText, lang = 'hi') {
+    return this.speak(fallbackText, lang);
   }
 
-  // Speak text aloud with high-fidelity authentic Indian voices (ElevenLabs Multilingual V2 + Neural Stream Fallback)
   async speak(rawText, lang = 'en', options = {}) {
-    if (isMutedPortal()) return false;
-    const text = this._preprocessTextForTTS(rawText, lang);
-    console.log(`[TTS] Speaking: "${text}" in ${lang}`);
-    const currentId = ++this.activePlaybackId;
-    
-    return new Promise(async (resolve) => {
-      const playSpeech = async () => {
-        try {
-          if (this.activePlaybackId !== currentId) return resolve(false);
-
-          // 1. Studio TTS through our Edge Function. Provider keys never enter
-          // the browser bundle and every page automatically shares this path.
-          if (voiceAIService.ttsAvailable) {
-            try {
-                const blob = await voiceAIService.synthesize(text, lang, null, options);
-                const blobUrl = URL.createObjectURL(blob);
-                const elevenAudio = new Audio(blobUrl);
-                this.elevenLabsAudio = elevenAudio;
-                this.activeBlobUrl = blobUrl;
-
-                this.isSpeaking = true;
-                this.currentResolve = resolve;
-                this.onSpeakingChange?.(true);
-
-                elevenAudio.onended = () => {
-                  if (this.activePlaybackId !== currentId) return;
-                  URL.revokeObjectURL(blobUrl);
-                  this.activeBlobUrl = null;
-                  this.isSpeaking = false;
-                  this.currentResolve = null;
-                  this.onSpeakingChange?.(false);
-                  resolve(true);
-                  this._processQueue();
-                };
-
-                elevenAudio.onerror = () => {
-                  URL.revokeObjectURL(blobUrl);
-                  this.activeBlobUrl = null;
-                  this._streamFallbackTTS(text, lang, currentId, options, resolve);
-                };
-
-                await elevenAudio.play();
-                return;
-            } catch (elevenErr) {
-              console.warn('[Voice TTS] Server synthesis unavailable; using device voice.', elevenErr);
-            }
-          }
-
-          // 2. High-Clarity Neural Multi-Lingual Stream & Web Speech Fallback
-          this._streamFallbackTTS(text, lang, currentId, options, resolve);
-
-        } catch (error) {
-          if (this.activePlaybackId !== currentId) return resolve(false);
-          this.isSpeaking = false;
-          this.currentUtterance = null;
-          this.currentResolve = null;
-          this.onSpeakingChange?.(false);
-          resolve(false);
-          this._processQueue();
-        }
-      };
-
-      if (this.isSpeaking) {
-        this.speechQueue.push({ type: 'speech', playSpeech, resolve });
-      } else {
-        playSpeech();
-      }
-    });
-  }
-
-  async _streamFallbackTTS(text, lang, currentId, options, resolve) {
+    if (isMutedPortal() || !rawText?.trim()) return false;
+    this.stop();
+    const id = this.activePlaybackId;
+    this.isSpeaking = true;
+    this.onSpeakingChange?.(true);
     try {
-      await this._ensureVoicesLoaded();
-      const speechLang = this._getSpeechLang(lang);
-      const langPrefix = lang.split('-')[0].toLowerCase();
-      const voices = this.synth?.getVoices() || [];
-
-      // Check if browser OS has an authentic native voice for this language
-      const preferredVoice = this._getBestVoice(speechLang);
-      const preferredVoiceLang = preferredVoice?.lang.replace('_', '-').toLowerCase() || '';
-      const hasExactFemaleVoice = Boolean(preferredVoice) &&
-        (preferredVoiceLang === speechLang.toLowerCase() || preferredVoiceLang.startsWith(langPrefix));
-
-      if (hasExactFemaleVoice && this.synth) {
-        this.synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = speechLang;
-        utterance.rate = options.rate || this.rate;
-        utterance.volume = options.volume || this.volume;
-        utterance.pitch = options.pitch || this.pitch;
-
-        utterance.voice = preferredVoice;
-
-        utterance.onstart = () => {
-          if (this.activePlaybackId !== currentId) return;
-          this.isSpeaking = true;
-          this.currentUtterance = utterance;
-          this.currentResolve = resolve;
-          this.onSpeakingChange?.(true);
-        };
-
-        utterance.onend = () => {
-          if (this.activePlaybackId !== currentId) return;
-          this.isSpeaking = false;
-          this.currentUtterance = null;
-          this.currentResolve = null;
-          this.onSpeakingChange?.(false);
-          resolve(true);
-          this._processQueue();
-        };
-
-        utterance.onerror = () => {
-          if (this.activePlaybackId !== currentId) return;
-          this.isSpeaking = false;
-          this.currentUtterance = null;
-          this.currentResolve = null;
-          this.onSpeakingChange?.(false);
-          resolve(false);
-          this._processQueue();
-        };
-
-        this.synth.speak(utterance);
-        return;
+      const text = this._preprocessTextForTTS(rawText, lang);
+      const key = JSON.stringify([text, lang, options.speed]);
+      let blob = this._audioCache.get(key);
+      if (!blob) {
+        blob = await voiceAIService.synthesize(text, lang, null, options);
+        this._audioCache.set(key, blob);
+        if (this._audioCache.size > 24) this._audioCache.delete(this._audioCache.keys().next().value);
       }
-
-      // Universal neural TTS stream for all 9 Indian languages
-      const streamUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${langPrefix}&client=tw-ob&q=${encodeURIComponent(text)}`;
-      const audio = new Audio(streamUrl);
-      this.isSpeaking = true;
-      this.currentResolve = resolve;
-      this.onSpeakingChange?.(true);
-
-      audio.onended = () => {
-        if (this.activePlaybackId !== currentId) return;
-        this.isSpeaking = false;
-        this.currentResolve = null;
-        this.onSpeakingChange?.(false);
-        resolve(true);
-        this._processQueue();
-      };
-
-      audio.onerror = () => {
-        if (this.activePlaybackId !== currentId) return;
-        if (this.synth) {
-          const fallbackUtterance = new SpeechSynthesisUtterance(text);
-          fallbackUtterance.lang = speechLang;
-          
-          // CRITICAL FIX: Explicitly assign a voice that matches the language prefix 
-          // so Devanagari/native script is not sent to an English voice (which results in silence).
-          const voices = this.synth.getVoices();
-          const fallbackVoice = (preferredVoice && preferredVoice.lang.toLowerCase().startsWith(langPrefix))
-            || voices.find(v => v.lang.toLowerCase().startsWith(langPrefix))
-            || (langPrefix === 'en' ? voices.find(v => v.default) : null);
-          if (fallbackVoice) {
-            fallbackUtterance.voice = fallbackVoice;
-          }
-
-          fallbackUtterance.rate = options.rate || this.rate;
-          fallbackUtterance.pitch = options.pitch || this.pitch;
-          fallbackUtterance.volume = options.volume || this.volume;
-          fallbackUtterance.onend = () => {
-            this.isSpeaking = false;
-            this.onSpeakingChange?.(false);
-            resolve(true);
-            this._processQueue();
-          };
-          fallbackUtterance.onerror = () => {
-            this.isSpeaking = false;
-            this.onSpeakingChange?.(false);
-            resolve(false);
-            this._processQueue();
-          };
-          this.synth.speak(fallbackUtterance);
-        } else {
-          this.isSpeaking = false;
-          this.onSpeakingChange?.(false);
-          resolve(false);
-          this._processQueue();
-        }
-      };
-
-      await audio.play();
-    } catch (e) {
-      this.isSpeaking = false;
-      this.onSpeakingChange?.(false);
-      resolve(false);
-      this._processQueue();
-    }
-  }
-
-  _processQueue() {
-    if (this.speechQueue.length > 0 && !this.isSpeaking) {
-      const next = this.speechQueue.shift();
-      if (next?.playSpeech) {
-        next.playSpeech();
-      } else if (next?.utterance && this.synth) {
-        this.synth.speak(next.utterance);
+      if (id !== this.activePlaybackId) return false;
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      this.activeBlobUrl = url;
+      this.elevenLabsAudio = audio;
+      return await new Promise(resolve => {
+        this.currentResolve = resolve;
+        const finish = success => {
+          if (id !== this.activePlaybackId) return;
+          if (!success) window.dispatchEvent(new CustomEvent('voice-output-error'));
+          this.stop();
+          resolve(success);
+        };
+        audio.onended = () => { this.currentResolve = null; finish(true); };
+        audio.onerror = () => finish(false);
+        audio.play().catch(() => finish(false));
+      });
+    } catch (error) {
+      if (id === this.activePlaybackId) {
+        this.stop();
+        window.dispatchEvent(new CustomEvent('voice-output-error'));
       }
+      console.warn('ElevenLabs speech unavailable:', error.message);
+      return false;
     }
   }
 

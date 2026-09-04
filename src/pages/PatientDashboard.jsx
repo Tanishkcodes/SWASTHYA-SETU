@@ -1,3 +1,4 @@
+import { resolveVoiceSelection } from '../voicenav/resolveVoiceSelection';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
@@ -3297,13 +3298,10 @@ export default function PatientDashboard() {
 
       // ── Doctor / hospital selection by voice (number) ─────────────────
       select_doctor: result => {
-        const value = result?.value;
-        if ((!/^\d+$/.test(String(value || '')) || result?.raw) && selectNamedDoctor(result)) return;
-        const idx = typeof value === 'number' ? value : Math.max(0, Number(value || 1) - 1);
-        const doctorBtns = document.querySelectorAll('[data-voice-doctor]');
-        if (doctorBtns[idx]) { doctorBtns[idx].click(); return; }
-        const doctorCards = document.querySelectorAll('.doctor-card, [data-doctor-card]');
-        if (doctorCards[idx]) doctorCards[idx].click();
+        const doctor = resolveVoiceSelection(bookingHospitalRef.current?.doctors || [], result?.value || result?.target, item => [item.name, item.specialty, item.speciality]);
+        if (!doctor) return false;
+        handleSelectDoctorForBooking(doctor);
+        return true;
       },
       select_hospital: result => {
         if (openNamedHospital(result)) return;
@@ -3360,18 +3358,7 @@ export default function PatientDashboard() {
     if (showBookingModal) {
       setOnTranscript?.(async (text) => {
         if (!text || text.trim().length < 2) return;
-        try {
-          const extracted = await aiCommandEngine.extractRegistrationDetails(text, currentLang || 'en');
-          if (extracted && extracted.symptoms) {
-            setBookingReason(prev => prev ? `${prev}. ${extracted.symptoms}` : extracted.symptoms);
-            speak?.(extracted.confirmationMessage || `Noted: ${extracted.symptoms}`, currentLang);
-          } else {
-            setBookingReason(prev => prev ? `${prev} ${text}` : text);
-            speak?.(`Noted: ${text}`, currentLang);
-          }
-        } catch (e) {
-          setBookingReason(prev => prev ? `${prev} ${text}` : text);
-        }
+        setBookingReason(prev => prev ? `${prev}\n${text.trim()}` : text.trim());
       });
     } else {
       clearOnTranscript?.();
@@ -4380,14 +4367,11 @@ export default function PatientDashboard() {
       },
 
       select_doctor: (cmd) => {
-        const query = (cmd?.value || cmd?.target || '').toLowerCase().trim();
-        const docs = bookingHospital?.doctors || dbDoctorsList || [];
-        const matched = docs.find(d => d.name.toLowerCase().includes(query) || (d.specialty || '').toLowerCase().includes(query));
-        if (matched) {
-          handleSelectDoctorForBooking(matched);
-        } else if (docs.length > 0) {
-          handleSelectDoctorForBooking(docs[0]);
-        }
+        const docs = bookingHospital?.doctors || [];
+        const matched = resolveVoiceSelection(docs, cmd?.value || cmd?.target, item => [item.name, item.specialty, item.speciality]);
+        if (!matched) return false;
+        handleSelectDoctorForBooking(matched);
+        return true;
       },
 
       select_hospital: (cmd) => {
@@ -4398,6 +4382,7 @@ export default function PatientDashboard() {
         }
       }
     }, {
+      select_doctor: [`Select a doctor from the current hospital. Available doctors in order: ${(bookingHospital?.doctors || []).map((doctor, index) => `${index + 1}: ${doctor.name} (${doctor.specialty || doctor.speciality || ''})`).join('; ')}. Return exact name or one-based number in value. Ask for clarification if ambiguous.`],
       bookAppointment: ['Book doctor appointment, consult doctor, consult specialist, OPD booking, hospital visit, bukhar, fever, dard'],
       viewAppointments: ['View appointments, schedule, timings, queue tokens'],
       viewHistory: ['View past medical history, previous consultations, visit history'],

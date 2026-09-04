@@ -125,7 +125,7 @@ class AICommandEngine {
     const safeAlternatives = Array.isArray(recognitionAlternatives)
       ? recognitionAlternatives.map(value => String(value || '').trim()).filter(Boolean).slice(0, 3)
       : [];
-    const cacheKey = `intent::${page}::${transcript.toLowerCase().trim()}::${safeAlternatives.join('|').toLowerCase()}`;
+    const cacheKey = `${JSON.stringify([language, expectsFreeText, availableCommands, globalCommands, routes])}::intent::${page}::${transcript.toLowerCase().trim()}::${safeAlternatives.join('|').toLowerCase()}`;
     if (this._cache.has(cacheKey)) {
       return this._cache.get(cacheKey);
     }
@@ -283,7 +283,42 @@ class AICommandEngine {
 
     const fallback = this._genericFallback(transcript);
 
-    // 1. Try Gemini 3.6 Flash Direct AI Intelligence
+    // 1. Primary: Grok AI through VoiceAIService Edge Function
+    if (this.isAvailable) {
+      try {
+        const parsed = await voiceAIService.extractRegistration(transcript, language, context);
+        if (parsed && !parsed.error) {
+          const phone = String(parsed.phone || '').replace(/\D/g, '');
+          const age = String(parsed.age || '').match(/\d{1,3}/)?.[0] || '';
+          const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : '';
+          const res = {
+            name: (parsed.name && parsed.name.trim().length >= 2) ? parsed.name.trim() : fallback.name,
+            age: (Number(age) >= 1 && Number(age) <= 120) ? age : fallback.age,
+            phone: phone.length === 10 ? phone : (fallback.phone.length === 10 ? fallback.phone : phone),
+            gender: normalizedGender || fallback.gender,
+            symptoms: parsed.symptoms || fallback.symptoms || '',
+            symptomList: Array.isArray(parsed.symptomList) ? parsed.symptomList : [],
+            abhaId: parsed.abhaId || fallback.abhaId || null,
+            aadhaar: parsed.aadhaar || fallback.aadhaar || null,
+            doctor: parsed.doctor || null,
+            department: parsed.department || null,
+            date: parsed.date || null,
+            time: parsed.time || null,
+            detectedLanguage: parsed.detectedLanguage || language,
+            confirmationMessage: parsed.confirmationMessage || null,
+            requestedAction: parsed.requestedAction || 'none'
+          };
+          if (res.name || res.age || res.phone || res.abhaId || res.aadhaar || res.symptoms || res.requestedAction !== 'none') {
+            this._cache.set(cacheKey, res);
+            return res;
+          }
+        }
+      } catch (err) {
+        console.warn("Grok AI extraction notice, attempting fallback:", err);
+      }
+    }
+
+    // 2. Secondary Direct AI Intelligence fallback
     if (import.meta.env.VITE_GEMINI_API_KEY) {
       try {
         const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -356,34 +391,7 @@ Return ONLY a JSON object (no markdown, no backticks) matching this schema:
           return result;
         }
       } catch (err) {
-        console.warn("Gemini direct extraction error, trying fallback:", err);
-      }
-    }
-
-    // 2. Try Edge Function if configured
-    if (this.isAvailable) {
-      try {
-        const parsed = await voiceAIService.extractRegistration(transcript, language, context);
-        const phone = String(parsed.phone || '').replace(/\D/g, '');
-        const age = String(parsed.age || '').match(/\d{1,3}/)?.[0] || '';
-        const normalizedGender = ['Male', 'Female', 'Other'].includes(parsed.gender) ? parsed.gender : '';
-        const res = {
-          name: parsed.name?.trim() || fallback.name,
-          age: Number(age) >= 1 && Number(age) <= 120 ? age : fallback.age,
-          phone: phone.length === 10 ? phone : fallback.phone,
-          gender: normalizedGender || fallback.gender,
-          symptoms: parsed.symptoms || fallback.symptoms || '',
-          symptomList: Array.isArray(parsed.symptomList) ? parsed.symptomList : [],
-          abhaId: parsed.abhaId || fallback.abhaId || null,
-          aadhaar: parsed.aadhaar || fallback.aadhaar || null,
-          detectedLanguage: parsed.detectedLanguage || language,
-          confirmationMessage: parsed.confirmationMessage || null,
-          requestedAction: parsed.requestedAction || 'none'
-        };
-        this._cache.set(cacheKey, res);
-        return res;
-      } catch (e) {
-        console.warn("Edge function entity extraction fallback:", e);
+        console.warn("Direct extraction error, trying fallback:", err);
       }
     }
 
