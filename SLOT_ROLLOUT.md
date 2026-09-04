@@ -1,10 +1,10 @@
 # Shared slot inventory rollout
 
-The slot changes are implemented locally but are **not deployed**. Automatic approval review rejected live database validation because it involved schema/data writes, even within a rollback transaction. Explicit user approval is required for the production migration below.
+The compatible `slot-gateway` is deployed and uses the existing schedule and availability RPCs. Live verification returned 21 windows without applying a database migration. The capacity and consultation schema migration below remains **not deployed**: automatic approval review rejected live database validation because it involved schema/data writes, even within a rollback transaction.
 
 ## Change to approve
 
-Apply `supabase/migrations/20260904010000_unified_slot_inventory.sql` to project `pzaqzwmpynlqxsclbesj`, then deploy the `slot-gateway` edge function and release the corresponding frontend together.
+Apply `supabase/migrations/20260904010000_unified_slot_inventory.sql` to project `pzaqzwmpynlqxsclbesj` after approval. Slot visibility no longer depends on this migration.
 
 - Replace randomized 2–4 capacity with a doctor-level default of six places per 30-minute window.
 - Increase existing open, future windows with capacity 2–4 to the doctor baseline; keep closed windows closed and higher capacities unchanged. Existing low-capacity windows cannot be distinguished from manually configured ones in the old schema, so this reset requires approval.
@@ -18,7 +18,7 @@ Booking and rescheduling use the same inventory response and refresh every five 
 
 The gateway forwards the caller's authorization and uses the public key, not a service-role key. It allows only inventory, booking and rescheduling calls. The in-flight limits are per edge isolate; they are not a globally distributed waiting-room service or a substitute for load testing. Authentication remains the existing authentication system.
 
-Server failures no longer create local-only reschedules or pretend consultation changes succeeded. The new frontend requires the migration and gateway; deploy them before releasing it.
+Server failures no longer create local-only reschedules or pretend consultation changes succeeded. The deployed gateway preserves existing server capacities, generates missing schedules through the existing RPC, and combines schedule labels with live inventory for both booking flows.
 
 ## Validation
 

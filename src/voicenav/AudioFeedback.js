@@ -9,7 +9,8 @@ import { localizeSpokenIdentifiers } from './numberLocale.js';
 function isMutedPortal() {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname.toLowerCase();
-  return path.includes('/physician') || 
+  const staffAuth = path === '/auth' && ['doctor', 'admin'].includes(new URLSearchParams(window.location.search).get('role'));
+  return staffAuth || path.includes('/physician') || 
          path.includes('/doctor') || 
          path.includes('/admin');
 }
